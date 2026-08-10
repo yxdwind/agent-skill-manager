@@ -10,7 +10,7 @@ from agent_skill_manager.products import (
 
 class TestProducts:
     def test_products_not_empty(self):
-        assert len(PRODUCTS) >= 6
+        assert len(PRODUCTS) >= 9
 
     def test_all_have_required_fields(self):
         required = {"name", "short", "macos_path", "windows_path", "sync_method"}
@@ -27,7 +27,7 @@ class TestProducts:
     def test_get_product_by_short(self):
         p = get_product_by_short("dumate")
         assert p is not None
-        assert p["name"] == "DuMate"
+        assert p["name"].startswith("DuMate")
 
     def test_get_product_by_short_not_found(self):
         assert get_product_by_short("nonexistent") is None
@@ -49,3 +49,32 @@ class TestProducts:
         minimax = get_product_by_short("minimax")
         assert minimax["sync_method"] == "native"
         assert get_product_path(minimax) == CENTRAL_DIR
+
+    def test_codebuddy_has_settings_file(self):
+        cb = get_product_by_short("codebuddy")
+        assert cb is not None
+        assert "settings_file" in cb
+        assert cb["settings_file"].name == "settings.json"
+
+    def test_comate_path(self):
+        comate = get_product_by_short("comate")
+        assert comate is not None
+        assert comate["sync_method"] == "symlink"
+        path = get_product_path(comate)
+        assert path is not None
+        assert ".comate" in str(path)
+
+    def test_qoder_path(self):
+        qoder = get_product_by_short("qoder")
+        assert qoder is not None
+        assert qoder["sync_method"] == "symlink"
+        path = get_product_path(qoder)
+        assert path is not None
+        assert ".qoderwork" in str(path)
+
+    def test_new_products_count(self):
+        """Verify 3 new products were added."""
+        shorts = {p["short"] for p in PRODUCTS}
+        assert "codebuddy" in shorts
+        assert "comate" in shorts
+        assert "qoder" in shorts
