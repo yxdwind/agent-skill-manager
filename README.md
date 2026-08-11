@@ -71,6 +71,13 @@ python -m pip install -e . --no-build-isolation
 
 安装后 `askill` 命令全局可用。
 
+也可以通过 `npx skills` 生态安装：
+
+```bash
+# 安装 skill 定义到所有支持的 agent 产品
+npx skills add yxdwind/agent-skill-manager
+```
+
 ## 使用
 
 ```bash
