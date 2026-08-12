@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" font-family="-apple-system,BlinkMacSystemFont,'Noto Sans SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1"/>
+      <stop offset="50%" style="stop-color:#1e1b4b;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="centerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:1"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.3"/>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="675" fill="url(#bg)"/>
+
+  <!-- Grid dots -->
+  <g opacity="0.06">
+    <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="20" cy="20" r="1" fill="white"/>
+    </pattern>
+    <rect width="1200" height="675" fill="url(#dots)"/>
+  </g>
+
+  <!-- Connection lines from center to products -->
+  <g opacity="0.3" stroke-width="1.5">
+    <line x1="600" y1="340" x2="140" y2="240" stroke="#3b82f6" stroke-dasharray="6,4"/>
+    <line x1="600" y1="340" x2="300" y2="220" stroke="#6366f1" stroke-dasharray="6,4"/>
+    <line x1="600" y1="340" x2="470" y2="210" stroke="#8b5cf6" stroke-dasharray="6,4"/>
+    <line x1="600" y1="340" x2="640" y2="195" stroke="#ec4899" stroke-dasharray="6,4"/>
+    <line x1="600" y1="340" x2="810" y2="200" stroke="#f59e0b" stroke-dasharray="6,4"/>
+    <line x1="600" y1="340" x2="970" y2="220" stroke="#10b981" stroke-dasharray="6,4"/>
+    <line x1="600" y1="340" x2="1060" y2="240" stroke="#ef4444" stroke-dasharray="6,4"/>
+    <line x1="600" y1="340" x2="1000" y2="320" stroke="#06b6d4" stroke-dasharray="6,4"/>
+    <line x1="600" y1="340" x2="200" y2="310" stroke="#d946ef" stroke-dasharray="6,4"/>
+  </g>
+
+  <!-- Central hub -->
+  <circle cx="600" cy="340" r="55" fill="url(#centerGrad)" filter="url(#glow)" opacity="0.9"/>
+  <circle cx="600" cy="340" r="50" fill="none" stroke="white" stroke-width="1.5" opacity="0.3"/>
+  <text x="600" y="334" text-anchor="middle" fill="white" font-size="14" font-weight="700">SKILL</text>
+  <text x="600" y="356" text-anchor="middle" fill="#bfdbfe" font-size="11" font-weight="400">HUB</text>
+  <circle cx="600" cy="340" r="70" fill="none" stroke="#60a5fa" stroke-width="1" opacity="0.2" stroke-dasharray="4,3"/>
+
+  <!-- Product nodes -->
+  <g font-size="10" text-anchor="middle">
+    <!-- Row 1 -->
+    <rect x="90" y="225" width="100" height="30" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1" filter="url(#shadow)"/>
+    <text x="140" y="245" fill="#93c5fd" font-weight="600">AutoClaw</text>
+
+    <rect x="250" y="205" width="100" height="30" rx="6" fill="#1e293b" stroke="#6366f1" stroke-width="1" filter="url(#shadow)"/>
+    <text x="300" y="225" fill="#a5b4fc" font-weight="600">Kimi</text>
+
+    <rect x="420" y="195" width="100" height="30" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1" filter="url(#shadow)"/>
+    <text x="470" y="215" fill="#c4b5fd" font-weight="600">MiniMax</text>
+
+    <rect x="590" y="180" width="100" height="30" rx="6" fill="#1e293b" stroke="#ec4899" stroke-width="1" filter="url(#shadow)"/>
+    <text x="640" y="200" fill="#f9a8d4" font-weight="600">WorkBuddy</text>
+
+    <rect x="760" y="185" width="100" height="30" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1" filter="url(#shadow)"/>
+    <text x="810" y="205" fill="#fcd34d" font-weight="600">Trae</text>
+
+    <rect x="920" y="205" width="100" height="30" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1" filter="url(#shadow)"/>
+    <text x="970" y="225" fill="#6ee7b7" font-weight="600">DuMate</text>
+
+    <rect x="1010" y="225" width="100" height="30" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1" filter="url(#shadow)"/>
+    <text x="1060" y="245" fill="#fca5a5" font-weight="600">CodeBuddy</text>
+
+    <!-- Row 2 -->
+    <rect x="950" y="305" width="100" height="30" rx="6" fill="#1e293b" stroke="#06b6d4" stroke-width="1" filter="url(#shadow)"/>
+    <text x="1000" y="325" fill="#67e8f9" font-weight="600">Comate</text>
+
+    <rect x="150" y="295" width="100" height="30" rx="6" fill="#1e293b" stroke="#d946ef" stroke-width="1" filter="url(#shadow)"/>
+    <text x="200" y="315" fill="#e879f9" font-weight="600">Qoder</text>
+  </g>
+
+  <!-- Title -->
+  <text x="600" y="100" text-anchor="middle" fill="url(#titleGrad)" font-size="48" font-weight="800" letter-spacing="4" filter="url(#softGlow)">一次开发，九端同步</text>
+
+  <!-- Subtitle -->
+  <text x="600" y="145" text-anchor="middle" fill="#94a3b8" font-size="20" font-weight="400">agent-skill-manager — 国产 AI Agent Skill 跨平台管理工具</text>
+
+  <!-- Bottom tagline -->
+  <rect x="400" y="540" width="400" height="40" rx="20" fill="#1e293b" stroke="#3b82f6" stroke-width="1" opacity="0.8"/>
+  <text x="600" y="566" text-anchor="middle" fill="#94a3b8" font-size="13" font-family="monospace">pip install -e . && askill sync</text>
+
+  <!-- Bottom info -->
+  <text x="600" y="620" text-anchor="middle" fill="#475569" font-size="12">GitHub: yxdwind/agent-skill-manager  ·  MIT License  ·  34 tests passing</text>
+
+</svg>
