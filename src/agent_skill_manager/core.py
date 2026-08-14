@@ -142,6 +142,24 @@ def sync_skill(skill_name: str | None = None, verbose: bool = True) -> dict:
                 print(f"  {p['short']:>10}: {status_icon} {method}")
             sync_results.append((p["short"], success, method))
 
+            # Sync extra dirs (e.g. AutoClaw's ~/.openclaw-autoclaw/skills/)
+            from .products import IS_WINDOWS
+            if IS_WINDOWS:
+                extra_dirs = p.get("extra_dirs_windows", [])
+            else:
+                extra_dirs = p.get("extra_dirs_macos", [])
+            for extra in extra_dirs:
+                if extra is None:
+                    continue
+                extra_link = Path(extra) / skill_dir.name
+                try:
+                    extra_link.parent.mkdir(parents=True, exist_ok=True)
+                except OSError:
+                    pass
+                ok2, method2, _ = create_link(skill_dir, extra_link)
+                if verbose:
+                    print(f"  {p['short']:>10}: extra -> {extra_link} ({method2 if ok2 else 'FAIL'})")
+
             # Handle WorkBuddy settings.json
             if p.get("settings_file") and success:
                 _update_workbuddy_settings(p["settings_file"], skill_dir.name, verbose=verbose)
