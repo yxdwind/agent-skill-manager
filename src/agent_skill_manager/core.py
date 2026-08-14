@@ -74,7 +74,27 @@ def get_status(skill_name: str | None = None) -> list[dict]:
                             entry["status"] = "ok"
                             entry["method"] = "copy"
                     else:
-                        entry["status"] = "missing"
+                        # BUGFIX 2026-08-14: previously extra_dirs (e.g. AutoClaw's
+                        # ~/.openclaw-autoclaw/skills/) were never checked, so a skill
+                        # synced only to an extra dir showed "missing". Check them too:
+                        # if ANY extra dir has the skill linked/copied, report ok.
+                        from .products import IS_WINDOWS
+                        extra_dirs = p.get("extra_dirs_windows", []) if IS_WINDOWS else p.get("extra_dirs_macos", [])
+                        extra_ok = False
+                        extra_method = ""
+                        for extra in extra_dirs:
+                            if extra is None:
+                                continue
+                            extra_link = Path(extra) / skill_dir.name
+                            if extra_link.exists() or extra_link.is_symlink():
+                                extra_ok = True
+                                extra_method = "link" if is_symlink_or_junction(extra_link) else "copy"
+                                break
+                        if extra_ok:
+                            entry["status"] = "ok"
+                            entry["method"] = extra_method
+                        else:
+                            entry["status"] = "missing"
             results.append(entry)
     return results
 
@@ -142,7 +162,17 @@ def sync_skill(skill_name: str | None = None, verbose: bool = True) -> dict:
                 print(f"  {p['short']:>10}: {status_icon} {method}")
             sync_results.append((p["short"], success, method))
 
-            # Sync extra dirs (e.g. AutoClaw's ~/.openclaw-autoclaw/skills/)
+            # BUGFIX 2026-08-14: extra_dirs must be synced too.
+            #
+            # 背景：部分产品会扫描多个技能目录。例如 AutoClaw 桌面版除了
+            # 主路径 ~/.openclaw/skills/ 外，还会扫描 ~/.openclaw-autoclaw/skills/；
+            # Kimi Code 除 ~/.config/agents/skills/ 外还扫描 ~/.kimi-code/skills/。
+            # 旧代码只同步主路径，导致通过 askill 安装的技能在这些"额外目录"中
+            # 缺失，产品内无法识别。
+            #
+            # 修复：主路径同步成功后，遍历产品声明的额外目录，对每个额外目录
+            # 也创建 junction/symlink（Windows 用 junction，无需管理员权限；
+            # macOS 用 symlink；失败时 create_link 内部自动降级为复制）。
             from .products import IS_WINDOWS
             if IS_WINDOWS:
                 extra_dirs = p.get("extra_dirs_windows", [])
@@ -152,6 +182,7 @@ def sync_skill(skill_name: str | None = None, verbose: bool = True) -> dict:
                 if extra is None:
                     continue
                 extra_link = Path(extra) / skill_dir.name
+                # 确保额外目录存在（mkdir -p 语义）
                 try:
                     extra_link.parent.mkdir(parents=True, exist_ok=True)
                 except OSError:

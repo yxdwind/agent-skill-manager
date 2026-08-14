@@ -109,3 +109,67 @@ class TestWorkBuddySettings:
         data = json.loads(settings_path.read_text())
         assert data["skills"]["existing"] is True
         assert data["skills"]["new-skill"] is True
+
+
+class TestExtraDirsSync:
+    """2026-08-14: extra_dirs (e.g. AutoClaw's ~/.openclaw-autoclaw/skills/) must be synced too."""
+
+    def test_sync_creates_links_in_extra_dirs(self, tmp_path):
+        """sync_skill should create junction/symlink in each declared extra dir."""
+        from unittest.mock import patch, MagicMock
+        from agent_skill_manager import core
+
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: my-skill\n---\n")
+
+        extra_dir = tmp_path / "extra-skills"
+        product = {
+            "name": "TestProduct",
+            "short": "testprod",
+            "macos_path": tmp_path / "primary",
+            "windows_path": tmp_path / "primary",
+            "sync_method": "symlink",
+            "extra_dirs_macos": [extra_dir],
+            "extra_dirs_windows": [extra_dir],
+        }
+
+        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path), \
+             patch("agent_skill_manager.core.PRODUCTS", [product]), \
+             patch("agent_skill_manager.core.get_product_path", return_value=tmp_path / "primary"):
+            results = core.sync_skill("my-skill", verbose=False)
+
+        assert "my-skill" in results
+        assert (extra_dir / "my-skill").exists() or (extra_dir / "my-skill").is_symlink()
+
+    def test_get_status_reports_ok_when_extra_dir_has_link(self, tmp_path):
+        """get_status should report ok if the skill exists only in an extra dir."""
+        from unittest.mock import patch
+        from agent_skill_manager import core
+
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: my-skill\n---\n")
+
+        extra_dir = tmp_path / "extra-skills"
+        extra_dir.mkdir()
+        # Simulate a pre-existing junction/copy in the extra dir
+        (extra_dir / "my-skill").mkdir()
+
+        product = {
+            "name": "TestProduct",
+            "short": "testprod",
+            "macos_path": tmp_path / "primary",
+            "windows_path": tmp_path / "primary",
+            "sync_method": "symlink",
+            "extra_dirs_macos": [extra_dir],
+            "extra_dirs_windows": [extra_dir],
+        }
+
+        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path), \
+             patch("agent_skill_manager.core.PRODUCTS", [product]), \
+             patch("agent_skill_manager.core.get_product_path", return_value=tmp_path / "primary"):
+            results = core.get_status("my-skill")
+
+        assert len(results) == 1
+        assert results[0]["status"] == "ok"
