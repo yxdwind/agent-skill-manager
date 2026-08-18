@@ -4,6 +4,7 @@ import json
 import shutil
 import zipfile
 import tempfile
+import contextlib
 import subprocess
 from pathlib import Path
 
@@ -420,3 +421,159 @@ def _remove_from_workbuddy_settings(
                 removed.append("workbuddy-settings")
     except Exception:
         pass
+
+
+
+def adopt_from_platform(
+    platform_short: str,
+    skill_name: str | None = None,
+    verbose: bool = True,
+) -> dict:
+    """Adopt skills from one product platform into central repo, sync to all others.
+
+    Scans a product skill directory for skills not yet in the central
+    repository, copies them in, then syncs to all OTHER products.
+    Reverse of sync: pull from one product to everywhere else.
+
+    Args:
+        platform_short: Short name of source product (e.g. autoclaw, trae).
+        skill_name: If specified, only adopt this single skill.
+        verbose: Print progress messages.
+
+    Returns:
+        Dict with keys: adopted (list of tuples), synced (dict from sync_skill).
+    """
+    from .products import get_all_product_dirs, IS_WINDOWS
+
+    product = None
+    for p in PRODUCTS:
+        if p["short"] == platform_short:
+            product = p
+            break
+    if product is None:
+        if verbose:
+            print(f"Unknown platform: {platform_short}")
+            shorts = [p["short"] for p in PRODUCTS]
+            print(f"Available: {', '.join(shorts)}")
+        return {"adopted": [], "synced": {}}
+
+    if product["sync_method"] in ("native", "pack"):
+        if verbose:
+            print(
+                f"Platform {platform_short!r} uses {product['sync_method']} mode, "
+                "no skill directory to adopt from."
+            )
+        return {"adopted": [], "synced": {}}
+
+    all_dirs = get_all_product_dirs(product)
+    source_skills: dict[str, Path] = {}
+
+    for d in all_dirs:
+        if not d.exists():
+            continue
+        for item in sorted(d.iterdir()):
+            if item.is_dir() and (item / "SKILL.md").exists():
+                real = item.resolve()
+                if item.name not in source_skills:
+                    source_skills[item.name] = real
+
+    if not source_skills:
+        if verbose:
+            print(f"No skills found in {product['name']} directories.")
+        return {"adopted": [], "synced": {}}
+
+    if skill_name:
+        if skill_name not in source_skills:
+            if verbose:
+                print(f"Skill {skill_name!r} not found in {product['name']}.")
+                print("Available: " + ", ".join(sorted(source_skills.keys())))
+            return {"adopted": [], "synced": {}}
+        source_skills = {skill_name: source_skills[skill_name]}
+
+    if verbose:
+        print(f"\nAdopting from {product['name']} ({platform_short}):")
+        print(f"  Found {len(source_skills)} skill(s)")
+        print(f"  Central repo: {CENTRAL_DIR}\n")
+
+    CENTRAL_DIR.mkdir(parents=True, exist_ok=True)
+
+    adopted = []
+    skills_to_sync = []
+
+    for name, src_path in source_skills.items():
+        dest = CENTRAL_DIR / name
+
+        if dest.exists():
+            if dest.resolve() == src_path:
+                if verbose:
+                    print(f"  [{name}] already in central repo, skipping")
+                adopted.append((name, True, "already-present"))
+                skills_to_sync.append(name)
+                continue
+            else:
+                if verbose:
+                    print(f"  [{name}] already exists (different source)")
+                    print(f"    Remove first: askill remove {name}")
+                adopted.append((name, False, "conflict"))
+                continue
+
+        try:
+            real_src = src_path
+            if IS_WINDOWS and _is_junction(src_path):
+                real_src = src_path.resolve()
+            elif src_path.is_symlink():
+                real_src = src_path.resolve()
+
+            shutil.copytree(real_src, dest)
+            if verbose:
+                print(f"  [{name}] adopted -> {dest}")
+            adopted.append((name, True, "copied"))
+            skills_to_sync.append(name)
+        except Exception as e:
+            if verbose:
+                print(f"  [{name}] FAILED: {e}")
+            adopted.append((name, False, f"error: {e}"))
+
+    synced = {}
+    if skills_to_sync:
+        if verbose:
+            print(
+                f"\nSyncing {len(skills_to_sync)} skill(s) to "
+                "other products...\n"
+            )
+
+        other_products = [p for p in PRODUCTS if p["short"] != platform_short]
+        with _patch_products(other_products):
+            for skill in skills_to_sync:
+                result = sync_skill(skill, verbose=verbose)
+                synced.update(result)
+
+    return {"adopted": adopted, "synced": synced}
+
+
+def _is_junction(path: Path) -> bool:
+    """Check if a Windows path is a junction point."""
+    import platform
+    if platform.system() != "Windows":
+        return False
+    try:
+        result = subprocess.run(
+            ["fsutil", "reparsepoint", "query", str(path)],
+            capture_output=True, text=True,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+@contextlib.contextmanager
+def _patch_products(new_products):
+    """Temporarily replace PRODUCTS list (exclude source platform)."""
+    old = PRODUCTS[:]
+    PRODUCTS.clear()
+    PRODUCTS.extend(new_products)
+    try:
+        yield
+    finally:
+        PRODUCTS.clear()
+        PRODUCTS.extend(old)

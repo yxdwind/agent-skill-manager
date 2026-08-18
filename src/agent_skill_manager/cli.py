@@ -12,6 +12,7 @@ from .core import (
     install_skill,
     remove_skill,
     pack_skill,
+    adopt_from_platform,
 )
 
 
@@ -130,6 +131,12 @@ def _print_pack(skill_name):
     pack_skill(skill_name, verbose=True)
 
 
+def _print_adopt(platform_short, skill_name=None):
+    """Adopt skills from one platform to all others."""
+    adopt_from_platform(platform_short, skill_name, verbose=True)
+
+
+
 USAGE = """\
 Agent Skill Manager - Cross-platform skill management for domestic AI agent products.
 
@@ -142,6 +149,7 @@ Usage:
     askill install <path-or-url>     Install a skill to central repository
     askill remove <skill-name>       Remove a skill from all products
     askill pack <skill-name>         Package a skill as .zip for DuMate
+    askill adopt <platform> [skill]  Adopt skills from one platform to all others
     askill products                  List all supported products
     askill version                   Show version
 """
@@ -178,6 +186,13 @@ def main():
             print("Usage: askill pack <skill-name>")
             return
         _print_pack(skill_name=sys.argv[2])
+    elif command == "adopt":
+        if len(sys.argv) < 3:
+            print("Usage: askill adopt <platform> [skill-name]")
+            return
+        platform = sys.argv[2].lower()
+        skill = sys.argv[3] if len(sys.argv) > 3 else None
+        _print_adopt(platform, skill)
     elif command == "products":
         _print_products()
     elif command == "version":

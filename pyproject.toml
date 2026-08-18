@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-skill-manager"
-version = "0.1.0"
+version = "0.2.0"
 description = "Cross-platform skill management for domestic AI agent products"
 readme = "README.md"
 license = {text = "MIT"}
