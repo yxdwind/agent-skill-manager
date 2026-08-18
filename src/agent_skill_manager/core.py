@@ -16,6 +16,7 @@ from .utils import (
     remove_path,
     read_skill_metadata,
 )
+from .security import analyze_skill_dir, analyze_all
 
 
 def list_skills() -> list[Path]:
@@ -203,12 +204,13 @@ def sync_skill(skill_name: str | None = None, verbose: bool = True) -> dict:
     return results
 
 
-def install_skill(source: str, sync: bool = False, verbose: bool = True) -> bool:
+def install_skill(source: str, sync: bool = False, audit: bool = False, verbose: bool = True) -> bool:
     """Install a skill to the central repository.
 
     Args:
         source: Local path or GitHub URL.
         sync: If True, also sync the installed skill to all products.
+        audit: If True, run the security audit after install.
         verbose: Print progress messages.
 
     Returns:
@@ -225,6 +227,12 @@ def install_skill(source: str, sync: bool = False, verbose: bool = True) -> bool
         if verbose:
             print()
         sync_skill(name, verbose=verbose)
+
+    if ok and audit and name:
+        if verbose:
+            print()
+            print(f"Running security audit on {name}...")
+        audit_skill(name, verbose=verbose)
 
     return ok
 
@@ -475,6 +483,69 @@ def _remove_from_workbuddy_settings(
     except Exception:
         pass
 
+
+
+def audit_skill(skill_name: str, verbose: bool = True) -> dict | None:
+    """Run the static security audit on a skill in the central repository.
+
+    Args:
+        skill_name: Name of the skill directory.
+        verbose: Print the report.
+
+    Returns:
+        Report dict, or None if the skill does not exist.
+    """
+    skill_dir = CENTRAL_DIR / skill_name
+    if not skill_dir.exists():
+        if verbose:
+            print(f"Skill not found: {skill_name}")
+        return None
+    report = analyze_skill_dir(skill_dir)
+    if verbose:
+        _print_audit_report(report)
+    return report
+
+
+def audit_all(verbose: bool = True) -> list[dict]:
+    """Audit all skills in the central repository. Returns list of reports."""
+    reports = analyze_all(CENTRAL_DIR)
+    if verbose:
+        if not reports:
+            print("No skills found in central repository.")
+        else:
+            for r in reports:
+                _print_audit_report(r, brief=True)
+                print()
+    return reports
+
+
+def _print_audit_report(report: dict, brief: bool = False) -> None:
+    """Pretty-print an audit report."""
+    verdict_icon = {
+        "safe": "OK",
+        "caution": "CAUTION",
+        "risky": "RISKY",
+        "dangerous": "DANGEROUS",
+    }
+    print(f"[{report['skill']}] score={report['score']}/100 grade={report['grade']} "
+          f"verdict={verdict_icon[report['verdict']]} files={report['files']}")
+    s = report["summary"]
+    print(f"  findings: critical={s['critical']} high={s['high']} "
+          f"medium={s['medium']} low={s['low']} info={s['info']}")
+    if brief and not report["findings"]:
+        return
+    if brief:
+        for f in report["findings"]:
+            if f["severity"] in ("critical", "high"):
+                loc = f":{f['line']}" if f.get("line") else ""
+                print(f"  - [{f['severity']}] {f['message']} ({f['file']}{loc})")
+        return
+    if not report["findings"]:
+        print("  No issues found.")
+        return
+    for f in report["findings"]:
+        loc = f":{f['line']}" if f.get("line") else ""
+        print(f"  - [{f['severity']}] {f['message']} ({f['file']}{loc})")
 
 
 def adopt_from_platform(

@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-48%20passed-22c55e)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-70%20passed-22c55e)](tests/)
 [![Products](https://img.shields.io/badge/Products-9%20supported-8b5cf6)](#支持的产品)
 
 **一次开发，九端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
@@ -96,6 +96,8 @@ askill list
 # 安装 skill（本地路径或 GitHub URL）
 askill install /path/to/skill-folder
 askill install --sync /path/to/skill-folder          # 安装后自动同步到所有产品
+askill install --audit /path/to/skill-folder         # 安装后自动运行安全评测
+askill install --sync --audit <github-url>           # 同步 + 安全评测一起
 
 # 支持多种 GitHub URL 格式（默认分支自动识别，无需手动指定 main/master）
 askill install --sync https://github.com/user/repo                                # 仓库根目录的 SKILL.md
@@ -105,6 +107,9 @@ askill install --sync https://github.com/user/repo/blob/main/my-skill/SKILL.md  
 # 从一个平台拉取 skill 到中央仓库，并同步到其他所有平台（adopt）
 askill adopt autoclaw my-skill                       # 从 AutoClaw 采纳指定 skill
 askill adopt kimi                                    # 从 Kimi Code 采纳全部 skill
+# 安全评测（静态分析：提示注入 / 危险代码 / 敏感信息 / 二进制文件）
+askill audit                                         # 评测中央仓库全部 skill
+askill audit my-skill                                # 评测指定 skill
 
 # 从所有产品移除 skill
 askill remove my-skill
@@ -135,15 +140,37 @@ agent-skill-manager/
 │   ├── architecture.svg        # 架构图
 │   └── product-paths.md        # 各产品详细路径参考
 ├── src/agent_skill_manager/
-│   ├── cli.py                  # CLI 命令（9 commands）
-│   ├── core.py                 # 核心逻辑（sync/install/remove/pack/adopt）
+│   ├── cli.py                  # CLI 命令（10 commands）
+│   ├── core.py                 # 核心逻辑（sync/install/remove/pack/adopt/audit）
+│   ├── security.py             # 静态安全评测引擎（零依赖）
 │   ├── products.py             # 9 个产品定义
 │   └── utils.py                # 跨平台文件操作
-└── tests/                      # 48 个测试
+└── tests/                      # 70 个测试
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
-    └── test_adopt.py
+    ├── test_adopt.py
+    └── test_security.py
+```
+
+## 安全评测（audit）
+
+`askill audit` 对 skill 做**零依赖静态分析**，从 100 分起扣，按严重级别加权（每类封顶 40 分）：
+
+| 检测维度 | 严重级别 | 示例 |
+|---------|---------|------|
+| 提示注入 | critical | "ignore all previous instructions"、绕过安全护栏指令 |
+| 危险代码 | critical/high | `curl \| sh`、`rm -rf /`、`exec()`、`shell=True` |
+| 敏感信息 | high/medium | 读取 `~/.ssh`、硬编码 API key、webhook 外发 |
+| 二进制文件 | high | .exe/.dll 等可执行文件混入 skill |
+| 文件完整性 | high/medium | 缺少 SKILL.md、超大文件、符号链接 |
+
+**评分与结论**：A ≥ 90（safe）· B ≥ 80（safe）· C ≥ 70（caution）· D ≥ 60（risky）· F < 60（dangerous）
+
+安装时可直接附加 `--audit` 一步完成「安装 + 安全评测」：
+
+```bash
+askill install --sync --audit https://github.com/user/repo/tree/main/my-skill
 ```
 
 ## 二次开发

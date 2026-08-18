@@ -13,6 +13,8 @@ from .core import (
     remove_skill,
     pack_skill,
     adopt_from_platform,
+    audit_skill,
+    audit_all,
 )
 
 
@@ -116,9 +118,9 @@ def _print_sync(skill_name=None):
     sync_skill(skill_name, verbose=True)
 
 
-def _print_install(source, sync=False):
+def _print_install(source, sync=False, audit=False):
     """Install a skill and print results."""
-    install_skill(source, sync=sync, verbose=True)
+    install_skill(source, sync=sync, audit=audit, verbose=True)
 
 
 def _print_remove(skill_name):
@@ -136,6 +138,14 @@ def _print_adopt(platform_short, skill_name=None):
     adopt_from_platform(platform_short, skill_name, verbose=True)
 
 
+def _print_audit(skill_name=None):
+    """Audit one or all skills and print reports."""
+    if skill_name:
+        audit_skill(skill_name, verbose=True)
+    else:
+        audit_all(verbose=True)
+
+
 
 USAGE = """\
 Agent Skill Manager - Cross-platform skill management for domestic AI agent products.
@@ -150,6 +160,7 @@ Usage:
     askill remove <skill-name>       Remove a skill from all products
     askill pack <skill-name>         Package a skill as .zip for DuMate
     askill adopt <platform> [skill]  Adopt skills from one platform to all others
+    askill audit [skill-name]        Security audit of skill(s) in central repo
     askill products                  List all supported products
     askill version                   Show version
 """
@@ -172,19 +183,24 @@ def main():
     elif command == "list":
         _print_list()
     elif command == "install":
-        if len(sys.argv) < 3:
-            print("Usage: askill install [--sync] <path-or-url>")
-            print("  --sync  Also sync to all products after install")
+        if len(sys.argv) < 3 or "--help" in sys.argv or "-h" in sys.argv:
+            print("Usage: askill install [--sync] [--audit] <path-or-url>")
+            print("  --sync   Also sync to all products after install")
+            print("  --audit  Run security audit after install")
             return
         do_sync = False
+        do_audit = False
         args = sys.argv[2:]
         if "--sync" in args:
             do_sync = True
             args.remove("--sync")
+        if "--audit" in args:
+            do_audit = True
+            args.remove("--audit")
         if not args:
-            print("Usage: askill install [--sync] <path-or-url>")
+            print("Usage: askill install [--sync] [--audit] <path-or-url>")
             return
-        _print_install(args[0], sync=do_sync)
+        _print_install(args[0], sync=do_sync, audit=do_audit)
     elif command == "remove":
         if len(sys.argv) < 3:
             print("Usage: askill remove <skill-name>")
@@ -202,6 +218,9 @@ def main():
         platform = sys.argv[2].lower()
         skill = sys.argv[3] if len(sys.argv) > 3 else None
         _print_adopt(platform, skill)
+    elif command == "audit":
+        skill_name = sys.argv[2] if len(sys.argv) > 2 else None
+        _print_audit(skill_name)
     elif command == "products":
         _print_products()
     elif command == "version":
