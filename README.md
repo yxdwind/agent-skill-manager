@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-70%20passed-22c55e)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-73%20passed-22c55e)](tests/)
 [![Products](https://img.shields.io/badge/Products-9%20supported-8b5cf6)](#支持的产品)
 
 **一次开发，九端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
@@ -81,7 +81,7 @@ npx skills add yxdwind/agent-skill-manager
 ## 使用
 
 ```bash
-# 查看所有产品的 skill 安装状态
+# 查看所有产品的 skill 安装状态（含安全评测评分列）
 askill status
 
 # 一键同步所有 skill 到所有产品
@@ -90,7 +90,7 @@ askill sync
 # 同步指定 skill
 askill sync my-skill
 
-# 列出中央仓库中的所有 skill
+# 列出中央仓库中的所有 skill（含安全评测评分）
 askill list
 
 # 安装 skill（本地路径或 GitHub URL）
@@ -145,12 +145,13 @@ agent-skill-manager/
 │   ├── security.py             # 静态安全评测引擎（零依赖）
 │   ├── products.py             # 9 个产品定义
 │   └── utils.py                # 跨平台文件操作
-└── tests/                      # 70 个测试
+└── tests/                      # 73 个测试
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
     ├── test_adopt.py
-    └── test_security.py
+    ├── test_security.py
+    └── test_cli.py
 ```
 
 ## 安全评测（audit）
@@ -167,7 +168,7 @@ agent-skill-manager/
 
 **评分与结论**：A ≥ 90（safe）· B ≥ 80（safe）· C ≥ 70（caution）· D ≥ 60（risky）· F < 60（dangerous）
 
-安装时可直接附加 `--audit` 一步完成「安装 + 安全评测」：
+`askill list` 和 `askill status` 的输出中也会直接带上每个 skill 的评分（score/grade/结论）。安装时可直接附加 `--audit` 一步完成「安装 + 安全评测」：
 
 ```bash
 askill install --sync --audit https://github.com/user/repo/tree/main/my-skill

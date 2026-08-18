@@ -5,6 +5,7 @@ import platform
 
 from .products import PRODUCTS, CENTRAL_DIR, get_product_path, get_all_product_dirs
 from .utils import is_symlink_or_junction, read_skill_metadata
+from .security import analyze_skill_dir
 from .core import (
     list_skills,
     get_status,
@@ -61,9 +62,11 @@ def _print_list():
 
     print(f"\nSkills in central repository ({CENTRAL_DIR}):")
     print(f"{'-'*50}")
+    verdict_icon = {"safe": "OK", "caution": "CAUTION", "risky": "RISKY", "dangerous": "DANGEROUS"}
     for s in skills:
         meta = read_skill_metadata(s)
-        print(f"  {s.name}")
+        report = analyze_skill_dir(s)
+        print(f"  {s.name}  [score {report['score']}/100 grade {report['grade']} {verdict_icon[report['verdict']]}]")
         if meta.get("description"):
             desc = meta["description"][:80]
             print(f"    -> {desc}...")
@@ -85,31 +88,47 @@ def _print_status(skill_name=None):
     header = f"{'Skill':<25}"
     for ps in product_shorts:
         header += f" {ps:<12}"
+    header += f" {'score':<13}"
     print(f"\n{header}")
-    print(f"{'-'*(25 + len(PRODUCTS)*13)}")
+    print(f"{'-'*(25 + len(PRODUCTS)*13 + 14)}")
 
-    # Group by skill
-    current_skill = None
+    # Group results by skill (skill -> {product_short: (status, method)})
+    verdict_icon = {"safe": "OK", "caution": "CAUTION", "risky": "RISKY", "dangerous": "DANGEROUS"}
+    by_skill = {}
+    order = []
     for r in results:
-        if r["skill_name"] != current_skill:
-            if current_skill is not None:
-                print()
-            current_skill = r["skill_name"]
-            row = f"{r['skill_name']:<25}"
-        status = r["status"]
-        method = r["method"]
-        if status == "ok":
-            cell = f"ok {method}"
-        elif status == "missing":
-            cell = "--"
-        elif status == "manual":
-            cell = "manual"
-        elif status == "n/a":
-            cell = "n/a"
+        sn = r["skill_name"]
+        if sn not in by_skill:
+            by_skill[sn] = {}
+            order.append(sn)
+        by_skill[sn][r["product_short"]] = (r["status"], r["method"])
+
+    for sn in order:
+        row = f"{sn:<25}"
+        for ps in product_shorts:
+            if ps in by_skill[sn]:
+                status, method = by_skill[sn][ps]
+                if status == "ok":
+                    cell = f"ok {method}"
+                elif status == "missing":
+                    cell = "--"
+                elif status == "manual":
+                    cell = "manual"
+                elif status == "n/a":
+                    cell = "n/a"
+                else:
+                    cell = status
+            else:
+                cell = "--"
+            row += f" {cell:<11}"
+        # Security audit score for this skill
+        skill_dir = CENTRAL_DIR / sn
+        if skill_dir.exists():
+            report = analyze_skill_dir(skill_dir)
+            row += f" {report['score']}/{report['grade']} {verdict_icon[report['verdict']]:<7}"
         else:
-            cell = status
-        row += f" {cell:<11}"
-    print(row)
+            row += f" {'n/a':<13}"
+        print(row)
     print()
 
 
