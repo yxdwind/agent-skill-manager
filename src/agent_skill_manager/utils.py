@@ -24,7 +24,7 @@ def is_symlink_or_junction(path: Path) -> bool:
         try:
             result = subprocess.run(
                 ["fsutil", "reparsepoint", "query", str(path)],
-                capture_output=True, text=True
+                capture_output=True, text=True, encoding="utf-8", errors="replace"
             )
             return result.returncode == 0
         except Exception:
@@ -74,7 +74,7 @@ def _create_junction(src: Path, dst: Path) -> tuple:
     try:
         result = subprocess.run(
             ["cmd", "/c", "mklink", "/J", str(dst), str(src)],
-            capture_output=True, text=True
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         if result.returncode == 0:
             return True, "junction", f"Junction created: {dst} -> {src}"

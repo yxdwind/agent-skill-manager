@@ -203,11 +203,12 @@ def sync_skill(skill_name: str | None = None, verbose: bool = True) -> dict:
     return results
 
 
-def install_skill(source: str, verbose: bool = True) -> bool:
+def install_skill(source: str, sync: bool = False, verbose: bool = True) -> bool:
     """Install a skill to the central repository.
 
     Args:
         source: Local path or GitHub URL.
+        sync: If True, also sync the installed skill to all products.
         verbose: Print progress messages.
 
     Returns:
@@ -216,88 +217,140 @@ def install_skill(source: str, verbose: bool = True) -> bool:
     CENTRAL_DIR.mkdir(parents=True, exist_ok=True)
 
     if source.startswith("http"):
-        return _install_from_url(source, verbose=verbose)
+        name, ok = _install_from_url(source, verbose=verbose)
     else:
-        return _install_from_local(source, verbose=verbose)
+        name, ok = _install_from_local(source, verbose=verbose)
+
+    if ok and sync and name:
+        if verbose:
+            print()
+        sync_skill(name, verbose=verbose)
+
+    return ok
 
 
-def _install_from_local(source: str, verbose: bool = True) -> bool:
-    """Install skill from a local path."""
+def _install_from_local(source: str, verbose: bool = True) -> tuple[str | None, bool]:
+    """Install skill from a local path.
+    Returns (skill_name, success).
+    """
     src = Path(source).resolve()
     if not src.exists():
         if verbose:
             print(f"Path not found: {src}")
-        return False
+        return None, False
 
     if not (src / "SKILL.md").exists():
         if verbose:
             print(f"No SKILL.md found in: {src}")
-        return False
+        return None, False
 
     dest = CENTRAL_DIR / src.name
     if dest.exists():
         if verbose:
             print(f"Skill already exists: {dest}")
             print(f"Remove it first: askill remove {src.name}")
-        return False
+        return None, False
 
     shutil.copytree(src, dest)
     if verbose:
         print(f"Installed to central repo: {dest}")
-        print(f"  Run 'sync' to distribute to all products.")
-    return True
+        print(f"  Run 'askill sync' to distribute to all products.")
+    return src.name, True
 
 
-def _install_from_url(source: str, verbose: bool = True) -> bool:
-    """Install skill from a GitHub URL."""
+def _install_from_url(source: str, verbose: bool = True) -> tuple[str | None, bool]:
+    """Install skill from a GitHub URL.
+
+    Supports these GitHub URL formats:
+      - https://github.com/user/repo                      (repo root SKILL.md)
+      - https://github.com/user/repo/tree/branch          (branch root)
+      - https://github.com/user/repo/tree/branch/path/to/skill
+      - https://github.com/user/repo/blob/branch/path/to/skill/SKILL.md
+
+    Returns (skill_name, success).
+    """
     if verbose:
         print(f"Installing from URL: {source}")
 
-    skill_name = source.rstrip("/").split("/")[-1]
-    if skill_name == "tree":
-        skill_name = source.rstrip("/").split("/")[-1]
+    if "github.com" not in source:
+        if verbose:
+            print("Unsupported URL format. Use a GitHub URL.")
+        return None, False
+
+    # Parse GitHub URL into (repo_url, branch, sub_path, skill_name)
+    branch = None  # None = use git default branch
+    if "/tree/" in source:
+        parts = source.split("/tree/")
+        repo_url = parts[0]
+        rest = parts[1].lstrip("/")
+        segs = rest.split("/")
+        branch = segs[0] if segs else None
+        sub_path = "/".join(segs[1:]) if len(segs) > 1 else ""
+        skill_name = segs[-1] if len(segs) > 1 else repo_url.split("/")[-1]
+    elif "/blob/" in source:
+        parts = source.split("/blob/")
+        repo_url = parts[0]
+        rest = parts[1].lstrip("/")
+        segs = rest.split("/")
+        branch = segs[0] if segs else None
+        if segs and (segs[-1] == "SKILL.md" or segs[-1] == "SKILL.md/"):
+            segs = segs[:-1]  # strip SKILL.md from path
+        sub_path = "/".join(segs[1:]) if len(segs) > 1 else ""
+        skill_name = segs[-1] if len(segs) > 1 else repo_url.split("/")[-1]
+    else:
+        parts = source.rstrip("/").split("/")
+        if len(parts) < 5:
+            if verbose:
+                print(f"Invalid GitHub URL: {source}")
+            return None, False
+        repo_url = "/".join(parts[:5])
+        sub_path = ""
+        skill_name = parts[-1]
 
     dest = CENTRAL_DIR / skill_name
     if dest.exists():
         if verbose:
             print(f"Skill already exists: {dest}")
-        return False
+            print(f"Remove it first: askill remove {skill_name}")
+        return None, False
 
-    if "github.com" in source and "/tree/" in source:
-        parts = source.replace("/tree/", "/").split("/")
-        repo_url = "/".join(parts[:5])
-        branch = parts[5] if len(parts) > 5 else "main"
-        sub_path = "/".join(parts[6:]) if len(parts) > 6 else ""
+    if verbose:
+        print(f"  Repo: {repo_url}")
+        print(f"  Branch: {branch or '(default)'}")
+        print(f"  Path: {sub_path or '(root)'}")
 
-        with tempfile.TemporaryDirectory() as tmp:
-            try:
-                subprocess.run(
-                    ["git", "clone", "--depth", "1", "--branch", branch, repo_url, tmp],
-                    check=True, capture_output=True, text=True
-                )
-                src = Path(tmp) / sub_path if sub_path else Path(tmp)
-                if src.exists() and (src / "SKILL.md").exists():
-                    shutil.copytree(src, dest)
-                    if verbose:
-                        print(f"Installed: {dest}")
-                    return True
-                else:
-                    if verbose:
-                        print(f"No SKILL.md found in {src}")
-                    return False
-            except subprocess.CalledProcessError as e:
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            cmd = ["git", "clone", "--depth", "1"]
+            if branch:
+                cmd += ["--branch", branch]
+            cmd += [repo_url, tmp]
+            subprocess.run(
+                cmd,
+                check=True, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            )
+            if sub_path:
+                src = Path(tmp) / sub_path
+            else:
+                src = Path(tmp)
+
+            if not src.exists() or not (src / "SKILL.md").exists():
                 if verbose:
-                    print(f"Git clone failed: {e.stderr}")
-                return False
-            except Exception as e:
-                if verbose:
-                    print(f"Error: {e}")
-                return False
-    else:
-        if verbose:
-            print("Unsupported URL format. Use GitHub tree URL or local path.")
-        return False
+                    print(f"No SKILL.md found in {src}")
+                return None, False
 
+            shutil.copytree(src, dest)
+            if verbose:
+                print(f"Installed: {dest}")
+            return skill_name, True
+        except subprocess.CalledProcessError as e:
+            if verbose:
+                print(f"Git clone failed: {e.stderr}")
+            return None, False
+        except Exception as e:
+            if verbose:
+                print(f"Error: {e}")
+            return None, False
 
 def remove_skill(skill_name: str, verbose: bool = True) -> list[str]:
     """Remove a skill from central repo and all products.
@@ -559,7 +612,7 @@ def _is_junction(path: Path) -> bool:
     try:
         result = subprocess.run(
             ["fsutil", "reparsepoint", "query", str(path)],
-            capture_output=True, text=True,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
         )
         return result.returncode == 0
     except Exception:

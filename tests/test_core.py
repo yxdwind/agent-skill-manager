@@ -173,3 +173,117 @@ class TestExtraDirsSync:
 
         assert len(results) == 1
         assert results[0]["status"] == "ok"
+
+
+
+class TestInstallSync:
+    """install_skill with sync=True auto-syncs to products."""
+
+    def test_install_local_with_sync(self, tmp_path):
+        """install --sync from local path should install + sync."""
+        from unittest.mock import patch, MagicMock
+        from agent_skill_manager import core
+
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: my-skill\n---\n")
+
+        product = {
+            "name": "TestProduct",
+            "short": "testprod",
+            "macos_path": tmp_path / "primary",
+            "windows_path": tmp_path / "primary",
+            "sync_method": "symlink",
+            "extra_dirs_macos": [],
+            "extra_dirs_windows": [],
+        }
+
+        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "central"), \
+             patch("agent_skill_manager.core.PRODUCTS", [product]), \
+             patch("agent_skill_manager.core.get_product_path",
+                   return_value=tmp_path / "primary"):
+            ok = core.install_skill(str(skill_dir), sync=True, verbose=False)
+            assert ok is True
+
+        # Central repo should have the skill
+        assert (tmp_path / "central" / "my-skill" / "SKILL.md").exists()
+
+    def test_install_url_returns_name(self, tmp_path):
+        """_install_from_url returns skill name on success."""
+        from unittest.mock import patch, MagicMock
+        from agent_skill_manager import core
+
+        # tmp is the clone root; code appends sub_path "my-skill"
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: my-skill\n---\n")
+
+        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "central"), \
+             patch("subprocess.run", return_value=MagicMock(returncode=0)), \
+             patch("tempfile.TemporaryDirectory") as mock_tmp, \
+             patch("shutil.copytree") as mock_copy:
+
+            mock_tmp.return_value.__enter__.return_value = str(tmp_path)
+
+            name, ok = core._install_from_url(
+                "https://github.com/user/repo/tree/main/my-skill", verbose=False
+            )
+            assert name == "my-skill"
+            assert ok is True
+
+    def test_install_blob_url(self, tmp_path):
+        """_install_from_url handles /blob/ URLs (strips SKILL.md)."""
+        from unittest.mock import patch, MagicMock
+        from agent_skill_manager import core
+
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: my-skill\n---\n")
+
+        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "central"), \
+             patch("subprocess.run", return_value=MagicMock(returncode=0)), \
+             patch("tempfile.TemporaryDirectory") as mock_tmp, \
+             patch("shutil.copytree") as mock_copy:
+
+            mock_tmp.return_value.__enter__.return_value = str(tmp_path)
+
+            name, ok = core._install_from_url(
+                "https://github.com/user/repo/blob/main/my-skill/SKILL.md",
+                verbose=False
+            )
+            assert name == "my-skill"
+            assert ok is True
+
+    def test_install_repo_root_url(self, tmp_path):
+        """_install_from_url handles repo root URL (no /tree/ or /blob/)."""
+        from unittest.mock import patch, MagicMock
+        from agent_skill_manager import core
+
+        # repo root: sub_path="", so src = tmp (clone root) itself
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+        (repo_root / "SKILL.md").write_text("---\nname: agent-skill-manager\n---\n")
+
+        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "central"), \
+             patch("subprocess.run", return_value=MagicMock(returncode=0)), \
+             patch("tempfile.TemporaryDirectory") as mock_tmp, \
+             patch("shutil.copytree") as mock_copy:
+
+            mock_tmp.return_value.__enter__.return_value = str(repo_root)
+
+            name, ok = core._install_from_url(
+                "https://github.com/yxdwind/agent-skill-manager",
+                verbose=False
+            )
+            assert name == "agent-skill-manager"
+            assert ok is True
+
+    def test_install_rejects_non_github_url(self, tmp_path):
+        """_install_from_url rejects non-GitHub URLs."""
+        from unittest.mock import patch
+        from agent_skill_manager import core
+
+        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "central"):
+            name, ok = core._install_from_url("https://gitlab.com/user/repo", verbose=False)
+            assert name is None
+            assert ok is False

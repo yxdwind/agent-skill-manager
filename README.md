@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-34%20passed-22c55e)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-48%20passed-22c55e)](tests/)
 [![Products](https://img.shields.io/badge/Products-9%20supported-8b5cf6)](#支持的产品)
 
 **一次开发，九端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
@@ -95,7 +95,16 @@ askill list
 
 # 安装 skill（本地路径或 GitHub URL）
 askill install /path/to/skill-folder
-askill install https://github.com/user/repo/tree/main/my-skill
+askill install --sync /path/to/skill-folder          # 安装后自动同步到所有产品
+
+# 支持多种 GitHub URL 格式（默认分支自动识别，无需手动指定 main/master）
+askill install --sync https://github.com/user/repo                                # 仓库根目录的 SKILL.md
+askill install --sync https://github.com/user/repo/tree/main/my-skill              # 指定分支的子目录
+askill install --sync https://github.com/user/repo/blob/main/my-skill/SKILL.md     # 直达 SKILL.md 文件
+
+# 从一个平台拉取 skill 到中央仓库，并同步到其他所有平台（adopt）
+askill adopt autoclaw my-skill                       # 从 AutoClaw 采纳指定 skill
+askill adopt kimi                                    # 从 Kimi Code 采纳全部 skill
 
 # 从所有产品移除 skill
 askill remove my-skill
@@ -126,14 +135,15 @@ agent-skill-manager/
 │   ├── architecture.svg        # 架构图
 │   └── product-paths.md        # 各产品详细路径参考
 ├── src/agent_skill_manager/
-│   ├── cli.py                  # CLI 命令（7 commands）
-│   ├── core.py                 # 核心逻辑（sync/install/remove/pack）
+│   ├── cli.py                  # CLI 命令（9 commands）
+│   ├── core.py                 # 核心逻辑（sync/install/remove/pack/adopt）
 │   ├── products.py             # 9 个产品定义
 │   └── utils.py                # 跨平台文件操作
-└── tests/                      # 34 个测试
+└── tests/                      # 48 个测试
     ├── test_products.py
     ├── test_utils.py
-    └── test_core.py
+    ├── test_core.py
+    └── test_adopt.py
 ```
 
 ## 二次开发

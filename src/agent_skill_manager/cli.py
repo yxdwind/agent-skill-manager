@@ -116,9 +116,9 @@ def _print_sync(skill_name=None):
     sync_skill(skill_name, verbose=True)
 
 
-def _print_install(source):
+def _print_install(source, sync=False):
     """Install a skill and print results."""
-    install_skill(source, verbose=True)
+    install_skill(source, sync=sync, verbose=True)
 
 
 def _print_remove(skill_name):
@@ -146,7 +146,7 @@ Usage:
     askill status [skill-name]       Show installation status across products
     askill sync [skill-name]         Sync skill(s) to all products
     askill list                      List skills in central repository
-    askill install <path-or-url>     Install a skill to central repository
+    askill install [--sync] <path-or-url>  Install a skill, optionally sync to all
     askill remove <skill-name>       Remove a skill from all products
     askill pack <skill-name>         Package a skill as .zip for DuMate
     askill adopt <platform> [skill]  Adopt skills from one platform to all others
@@ -173,9 +173,18 @@ def main():
         _print_list()
     elif command == "install":
         if len(sys.argv) < 3:
-            print("Usage: askill install <path-or-url>")
+            print("Usage: askill install [--sync] <path-or-url>")
+            print("  --sync  Also sync to all products after install")
             return
-        _print_install(sys.argv[2])
+        do_sync = False
+        args = sys.argv[2:]
+        if "--sync" in args:
+            do_sync = True
+            args.remove("--sync")
+        if not args:
+            print("Usage: askill install [--sync] <path-or-url>")
+            return
+        _print_install(args[0], sync=do_sync)
     elif command == "remove":
         if len(sys.argv) < 3:
             print("Usage: askill remove <skill-name>")
