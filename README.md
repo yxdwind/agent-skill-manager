@@ -36,7 +36,7 @@
 ## 支持的产品（9 个）
 
 | 产品 | 公司 | macOS 目录 | Windows 目录 | 同步方式 |
-|------|------|-----------|-------------|---------|
+|------|------|-----------|-------------|----------|
 | AutoClaw/OpenClaw | — | `~/.openclaw/skills/` | `%USERPROFILE%\.openclaw\skills\` | symlink/junction |
 | Kimi Code | 月之暗面 | `~/.config/agents/skills/` | `%USERPROFILE%\.config\agents\skills\` | symlink/junction |
 | MiniMax Code | MiniMax | `~/.agents/skills/` | `%USERPROFILE%\.agents\skills\` | 原生支持 |
