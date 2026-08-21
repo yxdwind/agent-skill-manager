@@ -38,8 +38,9 @@ Homepage = "https://github.com/albert/agent-skill-manager"
 Repository = "https://github.com/albert/agent-skill-manager"
 Documentation = "https://github.com/albert/agent-skill-manager#readme"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.setuptools]
+package-dir = {"agent_skill_manager" = "src"}
+packages = ["agent_skill_manager"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

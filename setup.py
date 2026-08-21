@@ -8,8 +8,8 @@ setup(
     long_description_content_type="text/markdown",
     license="MIT",
     requires_python=">=3.8",
-    package_dir={"": "src"},
-    packages=find_packages(where="src"),
+    package_dir={"agent_skill_manager": "src"},
+    packages=["agent_skill_manager"],
     entry_points={
         "console_scripts": [
             "askill=agent_skill_manager.cli:main",
