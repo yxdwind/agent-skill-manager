@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from agent_skill_manager.products import (
+from agent_skill_manager.config.products import (
     PRODUCTS, CENTRAL_DIR,
     get_product_path, get_all_product_dirs, get_product_by_short,
 )

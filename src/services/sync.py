@@ -8,15 +8,15 @@ import contextlib
 import subprocess
 from pathlib import Path
 
-from .products import PRODUCTS, CENTRAL_DIR, get_product_path, get_all_product_dirs
-from .utils import (
+from ..config.products import PRODUCTS, CENTRAL_DIR, get_product_path, get_all_product_dirs
+from ..utils.filesystem import (
     is_symlink_or_junction,
     create_link,
     copy_skill,
     remove_path,
     read_skill_metadata,
 )
-from .security import analyze_skill_dir, analyze_all
+from .audit import analyze_skill_dir, analyze_all
 
 
 def list_skills() -> list[Path]:
@@ -80,7 +80,7 @@ def get_status(skill_name: str | None = None) -> list[dict]:
                         # ~/.openclaw-autoclaw/skills/) were never checked, so a skill
                         # synced only to an extra dir showed "missing". Check them too:
                         # if ANY extra dir has the skill linked/copied, report ok.
-                        from .products import IS_WINDOWS
+                        from ..config.products import IS_WINDOWS
                         extra_dirs = p.get("extra_dirs_windows", []) if IS_WINDOWS else p.get("extra_dirs_macos", [])
                         extra_ok = False
                         extra_method = ""
@@ -175,7 +175,7 @@ def sync_skill(skill_name: str | None = None, verbose: bool = True) -> dict:
             # 修复：主路径同步成功后，遍历产品声明的额外目录，对每个额外目录
             # 也创建 junction/symlink（Windows 用 junction，无需管理员权限；
             # macOS 用 symlink；失败时 create_link 内部自动降级为复制）。
-            from .products import IS_WINDOWS
+            from ..config.products import IS_WINDOWS
             if IS_WINDOWS:
                 extra_dirs = p.get("extra_dirs_windows", [])
             else:
@@ -567,7 +567,7 @@ def adopt_from_platform(
     Returns:
         Dict with keys: adopted (list of tuples), synced (dict from sync_skill).
     """
-    from .products import get_all_product_dirs, IS_WINDOWS
+    from ..config.products import get_all_product_dirs, IS_WINDOWS
 
     product = None
     for p in PRODUCTS:

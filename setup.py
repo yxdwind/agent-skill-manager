@@ -9,10 +9,17 @@ setup(
     license="MIT",
     requires_python=">=3.8",
     package_dir={"agent_skill_manager": "src"},
-    packages=["agent_skill_manager"],
+    packages=[
+        "agent_skill_manager",
+        "agent_skill_manager.config",
+        "agent_skill_manager.controllers",
+        "agent_skill_manager.models",
+        "agent_skill_manager.services",
+        "agent_skill_manager.utils",
+    ],
     entry_points={
         "console_scripts": [
-            "askill=agent_skill_manager.cli:main",
+            "askill=agent_skill_manager.controllers.cli:main",
         ],
     },
     python_requires=">=3.8",

@@ -3,10 +3,10 @@
 import sys
 import platform
 
-from .products import PRODUCTS, CENTRAL_DIR, get_product_path, get_all_product_dirs
-from .utils import is_symlink_or_junction, read_skill_metadata
-from .security import analyze_skill_dir
-from .core import (
+from ..config.products import PRODUCTS, CENTRAL_DIR, get_product_path, get_all_product_dirs
+from ..utils.filesystem import is_symlink_or_junction, read_skill_metadata
+from ..services.audit import analyze_skill_dir
+from ..services.sync import (
     list_skills,
     get_status,
     sync_skill,
@@ -243,7 +243,7 @@ def main():
     elif command == "products":
         _print_products()
     elif command == "version":
-        from . import __version__
+        from .. import __version__
         print(f"agent-skill-manager v{__version__}")
     elif command in ("-h", "--help", "help"):
         print(USAGE)

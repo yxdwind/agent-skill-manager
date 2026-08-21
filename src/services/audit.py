@@ -18,6 +18,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ..models.report import SkillReport
+
 # ---------------------------------------------------------------- constants
 
 SCRIPT_EXTS = {
@@ -210,7 +212,7 @@ def _score(findings: list) -> int:
     return max(0, 100 - total)
 
 
-def analyze_skill_dir(skill_dir: Path) -> dict:
+def analyze_skill_dir(skill_dir: Path) -> SkillReport:
     """Run the full static audit on one skill directory.
 
     Returns a report dict:
@@ -341,7 +343,7 @@ def analyze_skill_dir(skill_dir: Path) -> dict:
     }
 
 
-def analyze_all(central_dir: Path) -> list[dict]:
+def analyze_all(central_dir: Path) -> list[SkillReport]:
     """Audit every skill directory under the central repository."""
     central_dir = Path(central_dir)
     if not central_dir.exists():

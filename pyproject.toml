@@ -31,7 +31,7 @@ classifiers = [
 ]
 
 [project.scripts]
-askill = "agent_skill_manager.cli:main"
+askill = "agent_skill_manager.controllers.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/albert/agent-skill-manager"
@@ -40,7 +40,14 @@ Documentation = "https://github.com/albert/agent-skill-manager#readme"
 
 [tool.setuptools]
 package-dir = {"agent_skill_manager" = "src"}
-packages = ["agent_skill_manager"]
+packages = [
+    "agent_skill_manager",
+    "agent_skill_manager.config",
+    "agent_skill_manager.controllers",
+    "agent_skill_manager.models",
+    "agent_skill_manager.services",
+    "agent_skill_manager.utils",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

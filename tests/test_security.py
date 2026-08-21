@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from agent_skill_manager.security import (
+from agent_skill_manager.services.audit import (
     analyze_skill_dir,
     analyze_all,
     _grade,

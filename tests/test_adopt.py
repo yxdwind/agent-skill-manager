@@ -5,17 +5,17 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from agent_skill_manager.core import adopt_from_platform
+from agent_skill_manager.services.sync import adopt_from_platform
 
 
 class TestAdoptFromPlatform:
     def test_unknown_platform(self, tmp_path):
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path):
             result = adopt_from_platform("nope", verbose=False)
             assert result["adopted"] == []
 
     def test_native_platform_skipped(self, tmp_path):
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path):
             result = adopt_from_platform("minimax", verbose=False)
             assert result["adopted"] == []
 
@@ -40,11 +40,11 @@ class TestAdoptFromPlatform:
         central = tmp_path / "central"
         central.mkdir()
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", central), \
-             patch("agent_skill_manager.core.PRODUCTS", [product]), \
-             patch("agent_skill_manager.core.get_product_path",
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
+             patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=platform_dir), \
-             patch("agent_skill_manager.core._is_junction",
+             patch("agent_skill_manager.services.sync._is_junction",
                    return_value=False):
             result = adopt_from_platform("testprod", "my-skill", verbose=False)
 
@@ -68,9 +68,9 @@ class TestAdoptFromPlatform:
         central = tmp_path / "central"
         central.mkdir()
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", central), \
-             patch("agent_skill_manager.core.PRODUCTS", [product]), \
-             patch("agent_skill_manager.core.get_product_path",
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
+             patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=platform_dir):
             result = adopt_from_platform("testprod", "nonexistent", verbose=False)
 
@@ -103,11 +103,11 @@ class TestAdoptFromPlatform:
             "---\nname: my-skill\n---\n# central version"
         )
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", central), \
-             patch("agent_skill_manager.core.PRODUCTS", [product]), \
-             patch("agent_skill_manager.core.get_product_path",
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
+             patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=platform_dir), \
-             patch("agent_skill_manager.core._is_junction",
+             patch("agent_skill_manager.services.sync._is_junction",
                    return_value=False):
             result = adopt_from_platform("testprod", "my-skill", verbose=False)
 
@@ -150,11 +150,11 @@ class TestAdoptFromPlatform:
                 return central / "my-skill"
             return self
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", central), \
-             patch("agent_skill_manager.core.PRODUCTS", [product]), \
-             patch("agent_skill_manager.core.get_product_path",
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
+             patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=platform_dir), \
-             patch("agent_skill_manager.core._is_junction",
+             patch("agent_skill_manager.services.sync._is_junction",
                    return_value=False), \
              patch("pathlib.Path.resolve", _fake_resolve):
             result = adopt_from_platform("testprod", "my-skill", verbose=False)
@@ -195,11 +195,11 @@ class TestAdoptFromPlatform:
         central = tmp_path / "central"
         central.mkdir()
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", central), \
-             patch("agent_skill_manager.core.PRODUCTS", [product_a, product_b]), \
-             patch("agent_skill_manager.core.get_product_path",
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product_a, product_b]), \
+             patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=primary), \
-             patch("agent_skill_manager.core._is_junction",
+             patch("agent_skill_manager.services.sync._is_junction",
                    return_value=False):
             result = adopt_from_platform("product-a", "my-skill", verbose=False)
 

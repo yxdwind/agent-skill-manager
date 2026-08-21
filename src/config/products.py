@@ -1,7 +1,11 @@
 """Product definitions for supported AI agent platforms."""
 
+from __future__ import annotations
+
 import platform
 from pathlib import Path
+
+from ..models.product import ProductSpec
 
 HOME = Path.home()
 IS_WINDOWS = platform.system() == "Windows"
@@ -10,7 +14,7 @@ IS_MACOS = platform.system() == "Darwin"
 # Central repository - the authoritative source for all skills
 CENTRAL_DIR = HOME / ".agents" / "skills"
 
-PRODUCTS = [
+PRODUCTS: list[ProductSpec] = [
     {
         "name": "AutoClaw/OpenClaw",
         "short": "autoclaw",

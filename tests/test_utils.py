@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from agent_skill_manager.utils import (
+from agent_skill_manager.utils.filesystem import (
     is_symlink_or_junction,
     create_link,
     copy_skill,

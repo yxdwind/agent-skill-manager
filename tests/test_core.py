@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
-from agent_skill_manager.core import (
+from agent_skill_manager.services.sync import (
     list_skills,
     get_status,
     sync_skill,
@@ -17,7 +17,7 @@ from agent_skill_manager.core import (
 
 class TestListSkills:
     def test_empty_when_no_central_dir(self, tmp_path):
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "nonexistent"):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path / "nonexistent"):
             assert list_skills() == []
 
     def test_lists_skill_dirs(self, tmp_path):
@@ -32,7 +32,7 @@ class TestListSkills:
         not_skill = tmp_path / "not-skill"
         not_skill.mkdir()
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path):
             skills = list_skills()
             assert len(skills) == 2
             assert skill1 in skills
@@ -44,7 +44,7 @@ class TestListSkills:
             d.mkdir()
             (d / "SKILL.md").write_text("---\nname: %s\n---\n" % name)
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path):
             skills = list_skills()
             names = [s.name for s in skills]
             assert names == sorted(names)
@@ -56,7 +56,7 @@ class TestGetStatus:
         skill_dir.mkdir()
         (skill_dir / "SKILL.md").write_text("---\nname: my-skill\n---\n")
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path):
             results = get_status("my-skill")
             assert len(results) > 0
             shorts = {r["product_short"] for r in results}
@@ -64,7 +64,7 @@ class TestGetStatus:
             assert "minimax" in shorts
 
     def test_empty_for_nonexistent_skill(self, tmp_path):
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path):
             assert get_status("nonexistent") == []
 
 
@@ -76,21 +76,21 @@ class TestPackSkill:
         (skill_dir / "scripts").mkdir()
         (skill_dir / "scripts" / "run.py").write_text("# script")
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path):
             result = pack_skill("my-skill", verbose=False)
             assert result is not None
             assert result.suffix == ".zip"
             assert result.exists()
 
     def test_returns_none_for_missing_skill(self, tmp_path):
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path):
             assert pack_skill("nonexistent", verbose=False) is None
 
     def test_returns_none_without_skill_md(self, tmp_path):
         d = tmp_path / "no-md"
         d.mkdir()
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path):
             assert pack_skill("no-md", verbose=False) is None
 
 
@@ -117,7 +117,7 @@ class TestExtraDirsSync:
     def test_sync_creates_links_in_extra_dirs(self, tmp_path):
         """sync_skill should create junction/symlink in each declared extra dir."""
         from unittest.mock import patch, MagicMock
-        from agent_skill_manager import core
+        from agent_skill_manager.services import sync as core
 
         skill_dir = tmp_path / "my-skill"
         skill_dir.mkdir()
@@ -134,9 +134,9 @@ class TestExtraDirsSync:
             "extra_dirs_windows": [extra_dir],
         }
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path), \
-             patch("agent_skill_manager.core.PRODUCTS", [product]), \
-             patch("agent_skill_manager.core.get_product_path", return_value=tmp_path / "primary"):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
+             patch("agent_skill_manager.services.sync.get_product_path", return_value=tmp_path / "primary"):
             results = core.sync_skill("my-skill", verbose=False)
 
         assert "my-skill" in results
@@ -145,7 +145,7 @@ class TestExtraDirsSync:
     def test_get_status_reports_ok_when_extra_dir_has_link(self, tmp_path):
         """get_status should report ok if the skill exists only in an extra dir."""
         from unittest.mock import patch
-        from agent_skill_manager import core
+        from agent_skill_manager.services import sync as core
 
         skill_dir = tmp_path / "my-skill"
         skill_dir.mkdir()
@@ -166,9 +166,9 @@ class TestExtraDirsSync:
             "extra_dirs_windows": [extra_dir],
         }
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path), \
-             patch("agent_skill_manager.core.PRODUCTS", [product]), \
-             patch("agent_skill_manager.core.get_product_path", return_value=tmp_path / "primary"):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
+             patch("agent_skill_manager.services.sync.get_product_path", return_value=tmp_path / "primary"):
             results = core.get_status("my-skill")
 
         assert len(results) == 1
@@ -182,7 +182,7 @@ class TestInstallSync:
     def test_install_local_with_sync(self, tmp_path):
         """install --sync from local path should install + sync."""
         from unittest.mock import patch, MagicMock
-        from agent_skill_manager import core
+        from agent_skill_manager.services import sync as core
 
         skill_dir = tmp_path / "my-skill"
         skill_dir.mkdir()
@@ -198,9 +198,9 @@ class TestInstallSync:
             "extra_dirs_windows": [],
         }
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "central"), \
-             patch("agent_skill_manager.core.PRODUCTS", [product]), \
-             patch("agent_skill_manager.core.get_product_path",
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path / "central"), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
+             patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=tmp_path / "primary"):
             ok = core.install_skill(str(skill_dir), sync=True, verbose=False)
             assert ok is True
@@ -211,14 +211,14 @@ class TestInstallSync:
     def test_install_url_returns_name(self, tmp_path):
         """_install_from_url returns skill name on success."""
         from unittest.mock import patch, MagicMock
-        from agent_skill_manager import core
+        from agent_skill_manager.services import sync as core
 
         # tmp is the clone root; code appends sub_path "my-skill"
         skill_dir = tmp_path / "my-skill"
         skill_dir.mkdir()
         (skill_dir / "SKILL.md").write_text("---\nname: my-skill\n---\n")
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "central"), \
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path / "central"), \
              patch("subprocess.run", return_value=MagicMock(returncode=0)), \
              patch("tempfile.TemporaryDirectory") as mock_tmp, \
              patch("shutil.copytree") as mock_copy:
@@ -234,13 +234,13 @@ class TestInstallSync:
     def test_install_blob_url(self, tmp_path):
         """_install_from_url handles /blob/ URLs (strips SKILL.md)."""
         from unittest.mock import patch, MagicMock
-        from agent_skill_manager import core
+        from agent_skill_manager.services import sync as core
 
         skill_dir = tmp_path / "my-skill"
         skill_dir.mkdir()
         (skill_dir / "SKILL.md").write_text("---\nname: my-skill\n---\n")
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "central"), \
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path / "central"), \
              patch("subprocess.run", return_value=MagicMock(returncode=0)), \
              patch("tempfile.TemporaryDirectory") as mock_tmp, \
              patch("shutil.copytree") as mock_copy:
@@ -257,14 +257,14 @@ class TestInstallSync:
     def test_install_repo_root_url(self, tmp_path):
         """_install_from_url handles repo root URL (no /tree/ or /blob/)."""
         from unittest.mock import patch, MagicMock
-        from agent_skill_manager import core
+        from agent_skill_manager.services import sync as core
 
         # repo root: sub_path="", so src = tmp (clone root) itself
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
         (repo_root / "SKILL.md").write_text("---\nname: agent-skill-manager\n---\n")
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "central"), \
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path / "central"), \
              patch("subprocess.run", return_value=MagicMock(returncode=0)), \
              patch("tempfile.TemporaryDirectory") as mock_tmp, \
              patch("shutil.copytree") as mock_copy:
@@ -281,9 +281,9 @@ class TestInstallSync:
     def test_install_rejects_non_github_url(self, tmp_path):
         """_install_from_url rejects non-GitHub URLs."""
         from unittest.mock import patch
-        from agent_skill_manager import core
+        from agent_skill_manager.services import sync as core
 
-        with patch("agent_skill_manager.core.CENTRAL_DIR", tmp_path / "central"):
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path / "central"):
             name, ok = core._install_from_url("https://gitlab.com/user/repo", verbose=False)
             assert name is None
             assert ok is False
