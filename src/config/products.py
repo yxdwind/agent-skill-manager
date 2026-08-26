@@ -110,7 +110,7 @@ PRODUCTS: list[ProductSpec] = [
 ]
 
 
-def get_product_path(product: dict) -> Path | None:
+def get_product_path(product: ProductSpec) -> Path | None:
     """Get the primary skill directory for a product on the current platform."""
     if IS_WINDOWS:
         return product.get("windows_path")
@@ -118,7 +118,7 @@ def get_product_path(product: dict) -> Path | None:
         return product.get("macos_path")
 
 
-def get_all_product_dirs(product: dict) -> list[Path]:
+def get_all_product_dirs(product: ProductSpec) -> list[Path]:
     """Get all skill directories for a product on the current platform."""
     primary = get_product_path(product)
     dirs = []
@@ -131,7 +131,7 @@ def get_all_product_dirs(product: dict) -> list[Path]:
     return dirs
 
 
-def get_product_by_short(name: str) -> dict | None:
+def get_product_by_short(name: str) -> ProductSpec | None:
     """Find a product by its short name."""
     for p in PRODUCTS:
         if p["short"] == name:

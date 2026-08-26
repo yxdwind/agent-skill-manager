@@ -8,7 +8,13 @@ import contextlib
 import subprocess
 from pathlib import Path
 
-from ..config.products import PRODUCTS, CENTRAL_DIR, get_product_path, get_all_product_dirs
+from ..config.products import (
+    PRODUCTS,
+    CENTRAL_DIR,
+    get_product_path,
+    get_all_product_dirs,
+    ProductSpec,
+)
 from ..utils.filesystem import (
     is_symlink_or_junction,
     create_link,
@@ -16,6 +22,7 @@ from ..utils.filesystem import (
     remove_path,
     read_skill_metadata,
 )
+from ..models.report import SkillReport, StatusEntry
 from .audit import analyze_skill_dir, analyze_all
 
 
@@ -33,14 +40,15 @@ def list_skills() -> list[Path]:
     )
 
 
-def get_status(skill_name: str | None = None) -> list[dict]:
+def get_status(skill_name: str | None = None) -> list[StatusEntry]:
     """Get installation status of skills across all products.
 
     Args:
         skill_name: If specified, only check this skill.
 
     Returns:
-        List of dicts with keys: skill_name, product_short, status, method.
+        List of :class:`StatusEntry` dicts with keys:
+        skill_name, product_short, product_name, status, method.
     """
     skills = list_skills()
     if skill_name:
@@ -101,7 +109,10 @@ def get_status(skill_name: str | None = None) -> list[dict]:
     return results
 
 
-def sync_skill(skill_name: str | None = None, verbose: bool = True) -> dict:
+def sync_skill(
+    skill_name: str | None = None,
+    verbose: bool = True,
+) -> dict[str, list[tuple[str, bool, str]]]:
     """Sync skills from central repo to all products.
 
     Args:
@@ -485,7 +496,7 @@ def _remove_from_workbuddy_settings(
 
 
 
-def audit_skill(skill_name: str, verbose: bool = True) -> dict | None:
+def audit_skill(skill_name: str, verbose: bool = True) -> SkillReport | None:
     """Run the static security audit on a skill in the central repository.
 
     Args:
@@ -493,7 +504,7 @@ def audit_skill(skill_name: str, verbose: bool = True) -> dict | None:
         verbose: Print the report.
 
     Returns:
-        Report dict, or None if the skill does not exist.
+        :class:`SkillReport`, or None if the skill does not exist.
     """
     skill_dir = CENTRAL_DIR / skill_name
     if not skill_dir.exists():
@@ -506,7 +517,7 @@ def audit_skill(skill_name: str, verbose: bool = True) -> dict | None:
     return report
 
 
-def audit_all(verbose: bool = True) -> list[dict]:
+def audit_all(verbose: bool = True) -> list[SkillReport]:
     """Audit all skills in the central repository. Returns list of reports."""
     reports = analyze_all(CENTRAL_DIR)
     if verbose:
@@ -519,7 +530,7 @@ def audit_all(verbose: bool = True) -> list[dict]:
     return reports
 
 
-def _print_audit_report(report: dict, brief: bool = False) -> None:
+def _print_audit_report(report: SkillReport, brief: bool = False) -> None:
     """Pretty-print an audit report."""
     verdict_icon = {
         "safe": "OK",
@@ -569,7 +580,7 @@ def adopt_from_platform(
     """
     from ..config.products import get_all_product_dirs, IS_WINDOWS
 
-    product = None
+    product: ProductSpec | None = None
     for p in PRODUCTS:
         if p["short"] == platform_short:
             product = p

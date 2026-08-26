@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from ..models.report import SkillReport
+from ..models.report import Finding, SkillReport
 
 # ---------------------------------------------------------------- constants
 
@@ -167,7 +167,13 @@ def _is_binary(chunk: bytes) -> bool:
     return b"\x00" in chunk
 
 
-def _scan_text(content: str, patterns, path: Path, findings: list, category: str) -> None:
+def _scan_text(
+    content: str,
+    patterns: list[tuple[str, re.Pattern[str], str]],
+    path: Path,
+    findings: list[Finding],
+    category: str,
+) -> None:
     """Match patterns against text content; one finding per (file, pattern)."""
     seen = set()
     for severity, regex, message in patterns:
@@ -200,7 +206,7 @@ def _grade(score: int) -> tuple[str, str]:
     return "F", "dangerous"
 
 
-def _score(findings: list) -> int:
+def _score(findings: list[Finding]) -> int:
     """100 minus weighted severities, capped per category."""
     per_category: dict[str, int] = {}
     for f in findings:
@@ -215,12 +221,12 @@ def _score(findings: list) -> int:
 def analyze_skill_dir(skill_dir: Path) -> SkillReport:
     """Run the full static audit on one skill directory.
 
-    Returns a report dict:
+    Returns a :class:`SkillReport` (TypedDict) with:
       skill, path, files, total_bytes, score, grade, verdict,
       summary {critical/high/medium/low/info: count}, findings [ ... ]
     """
     skill_dir = Path(skill_dir)
-    findings: list = []
+    findings: list[Finding] = []
 
     skill_md = skill_dir / "SKILL.md"
     files = []
