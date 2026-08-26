@@ -97,6 +97,35 @@ Comate 鍚姩鏃惰嚜鍔ㄤ粠 `~/.comate/skills/` 鍙戠幇骞跺姞杞?Ski
 - https://help.aliyun.com/zh/lingma/qoder-cn/user-guide/skills
 
 ---
+
+### 10. QwenWork / 千问办公 (Alibaba)
+
+| 属性 | macOS | Windows |
+|------|-------|---------|
+| Skill 目录 | `~/.qwenworkcn/skills/` | `%USERPROFILE%\.qwenworkcn\skills\` |
+
+QwenWork 桌面端从 `~/.qwenworkcn/skills/` 自动发现技能，每个 Skill 是包含 `SKILL.md` 的独立文件夹。
+frontmatter 需要 `name` + `version` + `description` + `description_zh` 字段。
+**参考来源**：
+- https://help.aliyun.com/zh/qwenwork/skills
+- https://www.aliyun.com/product/qwenwork
+
+---
+
+### 11. DoubaoWork / 豆包工作 (ByteDance)
+
+| 属性 | macOS | Windows |
+|------|-------|---------|
+| 用户 Skill 目录 | `~/.super_doubao/super-doubao-runtime/workspace/.user_skills/` | `%LOCALAPPDATA%\DoubaoWork\User Data\Default\.doubaowork\agent_mode\workspace\.user_skills\` |
+| 系统 Skill 目录 | `~/.super_doubao/super-doubao-runtime/workspace/.skills/` | `%LOCALAPPDATA%\DoubaoWork\User Data\Default\.doubaowork\agent_mode\workspace\.skills\` |
+
+豆包工作（豆包专业版）通过 super-doubao runtime 加载技能：系统内置技能在 `.skills/`，
+用户自定义技能放在 `.user_skills/`（与系统技能隔离，避免升级时被覆盖）。
+**参考来源**：
+- https://www.doubao.com/work
+- https://www.luomor.com/blog/2026/08/14/豆包新工作任务
+
+---
 
 ## 閫氱敤鏍囧噯锛歚.agents/skills/`
 

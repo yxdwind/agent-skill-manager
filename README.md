@@ -5,8 +5,8 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-73%20passed-22c55e)](tests/)
-[![Products](https://img.shields.io/badge/Products-9%20supported-8b5cf6)](#支持的产品)
+[![Tests](https://img.shields.io/badge/Tests-76%20passed-22c55e)](tests/)
+[![Products](https://img.shields.io/badge/Products-11%20supported-8b5cf6)](#支持的产品)
 
 **一次开发，九端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
 
@@ -33,7 +33,7 @@
 
 **agent-skill-manager** 用「中央仓库 + 一键分发」解决这个问题：改一处，全同步。
 
-## 支持的产品（9 个）
+## 支持的产品（11 个）
 
 | 产品 | 公司 | macOS 目录 | Windows 目录 | 同步方式 |
 |------|------|-----------|-------------|----------|
@@ -46,12 +46,14 @@
 | CodeBuddy | 腾讯 | `~/.codebuddy/skills/` | `%USERPROFILE%\.codebuddy\skills\` | symlink + settings.json |
 | Comate / 文心快码 | 百度 | `~/.comate/skills/` | `%USERPROFILE%\.comate\skills\` | symlink/junction |
 | Qoder / 通义灵码 | 阿里 | `~/.qoderwork/skills/` | `%USERPROFILE%\.qoderwork\skills\` | symlink/junction |
+| QwenWork / 千问办公 | 阿里 | `~/.qwenworkcn/skills/` | `%USERPROFILE%\.qwenworkcn\skills\` | symlink/junction |
+| DoubaoWork / 豆包工作 | 字节跳动 | `~/.super_doubao/super-doubao-runtime/workspace/.user_skills/` | `%LOCALAPPDATA%\DoubaoWork\User Data\Default\.doubaowork\agent_mode\workspace\.user_skills\` | symlink/junction |
 
 ## 架构原理
 
 ![Architecture](docs/architecture.svg)
 
-**核心设计**：中央仓库 `~/.agents/skills/` 作为唯一权威源，通过 symlink（macOS）或 junction（Windows）自动分发到各产品。对不支持文件系统的 DuMate，打包为 .zip 手动上传。
+**核心设计**：中央仓库 `~/.agents/skills/` 作为唯一权威源，通过 symlink（macOS）或 junction（Windows）自动分发到各产品。对不支持文件系统的 DuMate，打包为 .zip 手动上传；QwenWork/豆包工作 同样支持 junction 同步。
 
 - **Windows**：使用 `mklink /J` 创建 junction，无需管理员权限
 - **macOS**：使用 `ln -s` 创建 symlink
@@ -126,7 +128,7 @@ askill products
 ```
 1. askill status         ← 检查各产品安装情况
 2. 编辑 ~/.agents/skills/my-skill/SKILL.md
-3. askill sync my-skill  ← 一键分发到 8 个产品
+3. askill sync my-skill  ← 一键分发到 10 个产品
 4. askill pack my-skill  ← 为 DuMate 生成 .zip
 ```
 
@@ -143,9 +145,9 @@ agent-skill-manager/
 │   ├── cli.py                  # CLI 命令（10 commands）
 │   ├── core.py                 # 核心逻辑（sync/install/remove/pack/adopt/audit）
 │   ├── security.py             # 静态安全评测引擎（零依赖）
-│   ├── products.py             # 9 个产品定义
+│   ├── products.py             # 11 个产品定义
 │   └── utils.py                # 跨平台文件操作
-└── tests/                      # 73 个测试
+└── tests/                      # 76 个测试
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py

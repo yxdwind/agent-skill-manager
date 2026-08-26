@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import platform
 from pathlib import Path
 
 from ..models.product import ProductSpec
 
 HOME = Path.home()
+LOCALAPPDATA = Path(os.environ.get("LOCALAPPDATA", HOME / "AppData" / "Local"))
 IS_WINDOWS = platform.system() == "Windows"
 IS_MACOS = platform.system() == "Darwin"
 
@@ -104,6 +106,26 @@ PRODUCTS: list[ProductSpec] = [
         "windows_path": HOME / ".qoderwork" / "skills",
         "sync_method": "symlink",
         "note": "QoderWork CN stores skills in ~/.qoderwork/skills/",
+        "extra_dirs_macos": [],
+        "extra_dirs_windows": [],
+    },
+    {
+        "name": "QwenWork / Qianwen Office (Alibaba)",
+        "short": "qwenwork",
+        "macos_path": HOME / ".qwenworkcn" / "skills",
+        "windows_path": HOME / ".qwenworkcn" / "skills",
+        "sync_method": "symlink",
+        "note": "QwenWork desktop scans ~/.qwenworkcn/skills/; frontmatter needs name+version+description+description_zh",
+        "extra_dirs_macos": [],
+        "extra_dirs_windows": [],
+    },
+    {
+        "name": "DoubaoWork (ByteDance)",
+        "short": "doubaowork",
+        "macos_path": HOME / ".super_doubao" / "super-doubao-runtime" / "workspace" / ".user_skills",
+        "windows_path": LOCALAPPDATA / "DoubaoWork" / "User Data" / "Default" / ".doubaowork" / "agent_mode" / "workspace" / ".user_skills",
+        "sync_method": "symlink",
+        "note": "DoubaoWork user skills live in workspace/.user_skills; system skills in workspace/.skills",
         "extra_dirs_macos": [],
         "extra_dirs_windows": [],
     },

@@ -78,3 +78,28 @@ class TestProducts:
         assert "codebuddy" in shorts
         assert "comate" in shorts
         assert "qoder" in shorts
+
+
+    def test_qwenwork_path(self):
+        qwenwork = get_product_by_short("qwenwork")
+        assert qwenwork is not None
+        assert qwenwork["sync_method"] == "symlink"
+        path = get_product_path(qwenwork)
+        assert path is not None
+        assert ".qwenworkcn" in str(path)
+        assert path.name == "skills"
+
+    def test_doubaowork_path(self):
+        dbw = get_product_by_short("doubaowork")
+        assert dbw is not None
+        assert dbw["sync_method"] == "symlink"
+        path = get_product_path(dbw)
+        assert path is not None
+        assert ".user_skills" in str(path)
+
+    def test_newest_products_count(self):
+        """Verify qwenwork + doubaowork were added."""
+        shorts = {p["short"] for p in PRODUCTS}
+        assert "qwenwork" in shorts
+        assert "doubaowork" in shorts
+        assert len(PRODUCTS) == 11
