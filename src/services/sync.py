@@ -179,7 +179,7 @@ def sync_skill(
             #
             # 背景：部分产品会扫描多个技能目录。例如 AutoClaw 桌面版除了
             # 主路径 ~/.openclaw/skills/ 外，还会扫描 ~/.openclaw-autoclaw/skills/；
-            # Kimi Code 除 ~/.config/agents/skills/ 外还扫描 ~/.kimi-code/skills/。
+            # Kimi 除 ~/.config/agents/skills/ 外还扫描 ~/.kimi-code/skills/。
             # 旧代码只同步主路径，导致通过 askill 安装的技能在这些"额外目录"中
             # 缺失，产品内无法识别。
             #

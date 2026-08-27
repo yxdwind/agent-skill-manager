@@ -28,7 +28,7 @@
   <text x="105" y="258" text-anchor="middle" fill="#22c55e" font-size="10">junction</text>
   <line x1="200" y1="235" x2="330" y2="120" stroke="#475569" stroke-width="1.5" marker-end="url(#ah)" stroke-dasharray="4,3"/>
   <rect x="200" y="200" width="150" height="70" rx="10" fill="url(#pg)" filter="url(#sh)"/>
-  <text x="275" y="225" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">Kimi Code</text>
+  <text x="275" y="225" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">Kimi</text>
   <text x="275" y="243" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="monospace">.config/agents/skills/</text>
   <text x="275" y="258" text-anchor="middle" fill="#22c55e" font-size="10">junction</text>
   <line x1="275" y1="200" x2="380" y2="140" stroke="#475569" stroke-width="1.5" marker-end="url(#ah)" stroke-dasharray="4,3"/>
@@ -43,7 +43,7 @@
   <text x="625" y="258" text-anchor="middle" fill="#22c55e" font-size="10">junction+json</text>
   <line x1="625" y1="200" x2="520" y2="140" stroke="#475569" stroke-width="1.5" marker-end="url(#ah)" stroke-dasharray="4,3"/>
   <rect x="720" y="200" width="150" height="70" rx="10" fill="url(#pg)" filter="url(#sh)"/>
-  <text x="795" y="225" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">Trae Solo</text>
+  <text x="795" y="225" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">Trae</text>
   <text x="795" y="243" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="monospace">.trae/skills/</text>
   <text x="795" y="258" text-anchor="middle" fill="#22c55e" font-size="10">junction</text>
   <line x1="720" y1="235" x2="570" y2="120" stroke="#475569" stroke-width="1.5" marker-end="url(#ah)" stroke-dasharray="4,3"/>

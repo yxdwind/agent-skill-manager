@@ -15,12 +15,12 @@
 
 ---
 
-### 2. Kimi Code
+### 2. Kimi
 
 | 灞炴€?| macOS | Windows |
 |------|-------|---------|
 | 鐢ㄦ埛绾?Skill 鐩綍 | `~/.config/agents/skills/` | `%USERPROFILE%\.config\agents\skills\` |
-| Kimi Code 涓撶敤鐩綍 | `~/.kimi-code/skills/` | `%USERPROFILE%\.kimi-code\skills\` |
+| Kimi 涓撶敤鐩綍 | `~/.kimi-code/skills/` | `%USERPROFILE%\.kimi-code\skills\` |
 
 ---
 
@@ -44,7 +44,7 @@ settings.json: `{"skills": {"my-skill": true}}`
 
 ---
 
-### 5. Trae Solo
+### 5. Trae
 
 | 灞炴€?| macOS | Windows |
 |------|-------|---------|
@@ -97,7 +97,8 @@ Comate 鍚姩鏃惰嚜鍔ㄤ粠 `~/.comate/skills/` 鍙戠幇骞跺姞杞?Ski
 - https://help.aliyun.com/zh/lingma/qoder-cn/user-guide/skills
 
 ---
-
+
+
 ### 10. QwenWork / 千问办公 (Alibaba)
 
 | 属性 | macOS | Windows |

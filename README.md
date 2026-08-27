@@ -8,7 +8,7 @@
 [![Tests](https://img.shields.io/badge/Tests-76%20passed-22c55e)](tests/)
 [![Products](https://img.shields.io/badge/Products-11%20supported-8b5cf6)](#支持的产品)
 
-**一次开发，九端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
+**一次开发，十一端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
 
 [安装](#安装) · [使用](#使用) · [二次开发](#二次开发) · [架构原理](#架构原理)
 
@@ -22,9 +22,9 @@
 
 ```
 ~/.openclaw/skills/my-skill/          ← AutoClaw
-~/.config/agents/skills/my-skill/      ← Kimi Code
+~/.config/agents/skills/my-skill/      ← Kimi
 ~/.workbuddy/skills/my-skill/          ← WorkBuddy
-~/.trae/skills/my-skill/               ← Trae Solo
+~/.trae/skills/my-skill/               ← Trae
 ~/.codebuddy/skills/my-skill/          ← CodeBuddy
 ~/.comate/skills/my-skill/             ← Comate
 ~/.qoderwork/skills/my-skill/          ← Qoder
@@ -38,10 +38,10 @@
 | 产品 | 公司 | macOS 目录 | Windows 目录 | 同步方式 |
 |------|------|-----------|-------------|----------|
 | AutoClaw/OpenClaw | — | `~/.openclaw/skills/` | `%USERPROFILE%\.openclaw\skills\` | symlink/junction |
-| Kimi Code | 月之暗面 | `~/.config/agents/skills/` | `%USERPROFILE%\.config\agents\skills\` | symlink/junction |
+| Kimi | 月之暗面 | `~/.config/agents/skills/` | `%USERPROFILE%\.config\agents\skills\` | symlink/junction |
 | MiniMax Code | MiniMax | `~/.agents/skills/` | `%USERPROFILE%\.agents\skills\` | 原生支持 |
 | WorkBuddy | 腾讯 | `~/.workbuddy/skills/` | `%USERPROFILE%\.workbuddy\skills\` | symlink + settings.json |
-| Trae Solo | 字节跳动 | `~/.trae/skills/` | `%USERPROFILE%\.trae\skills\` | symlink/junction |
+| Trae | 字节跳动 | `~/.trae/skills/` | `%USERPROFILE%\.trae\skills\` | symlink/junction |
 | DuMate | 百度 | App 内管理 | App 内管理 | 打包 .zip 上传 |
 | CodeBuddy | 腾讯 | `~/.codebuddy/skills/` | `%USERPROFILE%\.codebuddy\skills\` | symlink + settings.json |
 | Comate / 文心快码 | 百度 | `~/.comate/skills/` | `%USERPROFILE%\.comate\skills\` | symlink/junction |
@@ -108,7 +108,7 @@ askill install --sync https://github.com/user/repo/blob/main/my-skill/SKILL.md  
 
 # 从一个平台拉取 skill 到中央仓库，并同步到其他所有平台（adopt）
 askill adopt autoclaw my-skill                       # 从 AutoClaw 采纳指定 skill
-askill adopt kimi                                    # 从 Kimi Code 采纳全部 skill
+askill adopt kimi                                    # 从 Kimi 采纳全部 skill
 # 安全评测（静态分析：提示注入 / 危险代码 / 敏感信息 / 二进制文件）
 askill audit                                         # 评测中央仓库全部 skill
 askill audit my-skill                                # 评测指定 skill

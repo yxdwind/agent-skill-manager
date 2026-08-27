@@ -28,12 +28,12 @@ PRODUCTS: list[ProductSpec] = [
         "extra_dirs_windows": [HOME / ".openclaw-autoclaw" / "skills"],
     },
     {
-        "name": "Kimi Code",
+        "name": "Kimi",
         "short": "kimi",
         "macos_path": HOME / ".config" / "agents" / "skills",
         "windows_path": HOME / ".config" / "agents" / "skills",
         "sync_method": "symlink",
-        "note": "Kimi Code also scans ~/.kimi-code/skills/",
+        "note": "Kimi also scans ~/.kimi-code/skills/",
         "extra_dirs_macos": [HOME / ".kimi-code" / "skills"],
         "extra_dirs_windows": [HOME / ".kimi-code" / "skills"],
     },
@@ -59,7 +59,7 @@ PRODUCTS: list[ProductSpec] = [
         "settings_file": HOME / ".workbuddy" / "settings.json",
     },
     {
-        "name": "Trae Solo",
+        "name": "Trae",
         "short": "trae",
         "macos_path": HOME / ".trae" / "skills",
         "windows_path": HOME / ".trae" / "skills",

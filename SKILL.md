@@ -1,8 +1,8 @@
 ---
 name: agent-skill-manager
 description: >
-  Cross-platform skill manager for 9 domestic Chinese AI agent products
-  (AutoClaw, Kimi Code, MiniMax Code, WorkBuddy, Trae Solo, DuMate,
+  Cross-platform skill manager for 11 domestic Chinese AI agent products
+  (AutoClaw, Kimi, MiniMax Code, WorkBuddy, Trae, DuMate,
   CodeBuddy, Comate, Qoder). Installs as the `askill` CLI — sync your
   skills to all products with one command. Use when the user wants to
   manage, install, sync, or remove Agent Skills across multiple AI coding
@@ -12,7 +12,7 @@ license: MIT
 
 # Agent Skill Manager
 
-Cross-platform (macOS / Windows) skill sync for 9 domestic AI agent products.
+Cross-platform (macOS / Windows) skill sync for 11 domestic AI agent products.
 
 ## Quick Start
 
@@ -56,10 +56,10 @@ askill sync
 | Product | Company | Sync Method |
 |---------|---------|-------------|
 | AutoClaw/OpenClaw | — | symlink/junction |
-| Kimi Code | Moonshot AI | symlink/junction |
+| Kimi | Moonshot AI | symlink/junction |
 | MiniMax Code | MiniMax | native |
 | WorkBuddy | Tencent | symlink + settings.json |
-| Trae Solo | ByteDance | symlink/junction |
+| Trae | ByteDance | symlink/junction |
 | DuMate | Baidu | pack .zip |
 | CodeBuddy | Tencent | symlink + settings.json |
 | Comate / Wenxin Kuaima | Baidu | symlink/junction |
