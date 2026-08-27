@@ -209,6 +209,12 @@ pytest tests/ -v
 - [skills CLI](https://www.npmjs.com/package/skills) — npm 上的 agent skills 包管理器
 - [skill-creator](https://github.com/yxdwind/agent-skill-manager) — Skill 编写规范参考
 
+## 贡献者
+
+感谢以下贡献者参与本项目开发：
+
+- [**@GLM-5.2**](https://github.com/zai-org) — AI 协作开发（智谱 GLM-5.2）
+
 ## 安全与隐私
 
 - [安全政策（SECURITY.md）](SECURITY.md) — 漏洞报告指引与安全建议
