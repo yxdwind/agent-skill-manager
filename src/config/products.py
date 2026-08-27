@@ -18,7 +18,7 @@ CENTRAL_DIR = HOME / ".agents" / "skills"
 
 PRODUCTS: list[ProductSpec] = [
     {
-        "name": "AutoClaw/OpenClaw",
+        "name": "AutoClaw",
         "short": "autoclaw",
         "macos_path": HOME / ".openclaw" / "skills",
         "windows_path": HOME / ".openclaw" / "skills",

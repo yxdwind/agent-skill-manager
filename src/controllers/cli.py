@@ -169,7 +169,7 @@ def _print_audit(skill_name=None):
 USAGE = """\
 Agent Skill Manager - Cross-platform skill management for domestic AI agent products.
 
-Supports: AutoClaw/OpenClaw, Kimi, MiniMax Code, WorkBuddy, Trae, DuMate.
+Supports: AutoClaw, Kimi, MiniMax Code, WorkBuddy, Trae, DuMate.
 
 Usage:
     askill status [skill-name]       Show installation status across products

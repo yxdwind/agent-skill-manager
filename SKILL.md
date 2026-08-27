@@ -55,7 +55,7 @@ askill sync
 
 | Product | Company | Sync Method |
 |---------|---------|-------------|
-| AutoClaw/OpenClaw | — | symlink/junction |
+| AutoClaw | — | symlink/junction |
 | Kimi | Moonshot AI | symlink/junction |
 | MiniMax Code | MiniMax | native |
 | WorkBuddy | Tencent | symlink + settings.json |
