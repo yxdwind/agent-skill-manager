@@ -209,6 +209,11 @@ pytest tests/ -v
 - [skills CLI](https://www.npmjs.com/package/skills) — npm 上的 agent skills 包管理器
 - [skill-creator](https://github.com/yxdwind/agent-skill-manager) — Skill 编写规范参考
 
+## 安全与隐私
+
+- [安全政策（SECURITY.md）](SECURITY.md) — 漏洞报告指引与安全建议
+- [隐私政策（PRIVACY.md）](PRIVACY.md) — 数据本地处理说明
+
 ## 许可证
 
 [MIT](LICENSE)
