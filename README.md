@@ -2,10 +2,12 @@
 
 # Agent Skill Manager
 
+[English](README.en.md) | [简体中文](README.md)
+
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-76%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml)
 [![Products](https://img.shields.io/badge/Products-11%20supported-8b5cf6)](#支持的产品)
 
 **一次开发，十一端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
@@ -59,6 +61,8 @@
 - **macOS**：使用 `ln -s` 创建 symlink
 - **自动降级**：链接创建失败时自动降级为复制模式
 - **零依赖**：仅使用 Python 标准库
+
+![Demo](docs/demo.svg)
 
 ## 安装
 
@@ -140,13 +144,15 @@ agent-skill-manager/
 ├── setup.py                    # setuptools 兼容入口
 ├── docs/
 │   ├── architecture.svg        # 架构图
+│   ├── demo.svg                # 终端演示图
 │   └── product-paths.md        # 各产品详细路径参考
-├── src/agent_skill_manager/
-│   ├── cli.py                  # CLI 命令（10 commands）
-│   ├── core.py                 # 核心逻辑（sync/install/remove/pack/adopt/audit）
-│   ├── security.py             # 静态安全评测引擎（零依赖）
-│   ├── products.py             # 11 个产品定义
-│   └── utils.py                # 跨平台文件操作
+├── src/                        # 包根（映射为 agent_skill_manager 包）
+│   ├── __init__.py / __main__.py
+│   ├── config/products.py      # 11 个产品定义
+│   ├── controllers/cli.py      # CLI 命令（10 commands）
+│   ├── models/                 # TypedDict 数据模型
+│   ├── services/               # 业务逻辑（sync / audit）
+│   └── utils/filesystem.py     # 跨平台文件操作
 └── tests/                      # 76 个测试
     ├── test_products.py
     ├── test_utils.py
