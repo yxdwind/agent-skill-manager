@@ -1,4 +1,5 @@
 """Core sync logic: install, sync, remove, pack operations."""
+from __future__ import annotations
 
 import json
 import shutil
