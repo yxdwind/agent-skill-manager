@@ -8,5 +8,5 @@ Layered package layout (mirrors MoneyPrinterTurbo's ``app/`` structure):
     utils/        cross-platform filesystem helpers
 """
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 __all__ = ["config", "controllers", "models", "services", "utils"]
