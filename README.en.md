@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/logo.png" alt="Agent Skill Manager logo" width="140"/>
+
 # Agent Skill Manager
 
 [English](README.en.md) | [简体中文](README.md)
