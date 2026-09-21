@@ -70,6 +70,10 @@
 
 ```bash
 # 开发模式安装（推荐）
+# 从 PyPI 安装（推荐）
+pip install askill
+
+# 开发模式安装
 cd agent-skill-manager
 pip install -e .
 

@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="agent-skill-manager",
-    version="0.1.0",
+    name="askill",
+    version="0.7.0",
     description="Cross-platform skill management for domestic AI agent products",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
@@ -22,5 +22,5 @@ setup(
             "askill=agent_skill_manager.controllers.cli:main",
         ],
     },
-    python_requires=">=3.8",
+    python_requires=">=3.10",
 )
