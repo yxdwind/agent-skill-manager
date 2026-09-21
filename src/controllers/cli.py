@@ -6,6 +6,7 @@ import platform
 from ..config.products import PRODUCTS, CENTRAL_DIR, get_product_path, get_all_product_dirs
 from ..utils.filesystem import is_symlink_or_junction, read_skill_metadata
 from ..services.audit import analyze_skill_dir
+from ..services.sync import FOOTER
 from ..services.sync import (
     list_skills,
     get_status,
@@ -129,6 +130,7 @@ def _print_status(skill_name=None):
         else:
             row += f" {'n/a':<13}"
         print(row)
+    print(f"  --  {FOOTER}")
     print()
 
 
