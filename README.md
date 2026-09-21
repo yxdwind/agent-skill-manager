@@ -71,7 +71,7 @@
 ```bash
 # 开发模式安装（推荐）
 # 从 PyPI 安装（推荐）
-pip install askill
+pip install cn-skill-sync
 
 # 开发模式安装
 cd agent-skill-manager

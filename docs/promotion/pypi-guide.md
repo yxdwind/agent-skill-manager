@@ -1,4 +1,8 @@
-# PyPI 上架操作指南（askill）
+# PyPI 上架：已完成（2026-09-21）
+
+> **cn-skill-sync 0.7.0 已上线**：https://pypi.org/project/cn-skill-sync/
+> 首发已完成；以下为后续发版参考。
+
 
 > 目标：让用户 `pip install askill` 一键安装。包名 `askill` 已确认可用（2026-09-21 查询）。
 > 本地已构建好 `dist/askill-0.7.0.tar.gz` 和 `dist/askill-0.7.0-py3-none-any.whl`（twine check PASSED）。

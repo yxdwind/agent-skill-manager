@@ -71,7 +71,7 @@ Every Chinese AI agent product keeps its skills in its own directory. Developing
 ```bash
 # Development install (recommended)
 # Install from PyPI (recommended)
-pip install askill
+pip install cn-skill-sync
 
 # Development install
 cd agent-skill-manager
