@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-94%20passed-22c55e)](tests/)
 [![Products](https://img.shields.io/badge/Products-11%20supported-8b5cf6)](#支持的产品)
 
 **一次开发，十一端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
@@ -123,6 +123,15 @@ askill adopt kimi                                    # 从 Kimi 采纳全部 ski
 askill audit                                         # 评测中央仓库全部 skill
 askill audit my-skill                                # 评测指定 skill
 
+# 实时监听：skill 一改动自动同步到全部产品（v0.8.0 新增）
+askill watch                                         # 常驻监听 ~/.agents/skills/
+askill watch --interval 5                            # 自定义轮询间隔（秒）
+
+# skill 升级：GitHub 来源自动追踪，一键检测/应用更新（v0.8.0 新增）
+askill update --check                                # 只检查有哪些更新
+askill update my-skill                               # 更新指定 skill 并同步
+askill update                                        # 检查并更新全部 tracked skill
+
 # 从所有产品移除 skill
 askill remove my-skill
 
@@ -136,10 +145,9 @@ askill products
 ### 典型工作流
 
 ```
-1. askill status         ← 检查各产品安装情况
-2. 编辑 ~/.agents/skills/my-skill/SKILL.md
-3. askill sync my-skill  ← 一键分发到 10 个产品
-4. askill pack my-skill  ← 为 DuMate 生成 .zip
+1. askill watch         ← 开启实时监听（推荐常驻）
+2. 编辑 ~/.agents/skills/my-skill/SKILL.md   ← 保存即自动同步 + 安全复检
+3. askill update --check ← 想升级时看看哪些 skill 有新版本
 ```
 
 ## 项目结构
@@ -155,17 +163,38 @@ agent-skill-manager/
 ├── src/                        # 包根（映射为 agent_skill_manager 包）
 │   ├── __init__.py / __main__.py
 │   ├── config/products.py      # 11 个产品定义
-│   ├── controllers/cli.py      # CLI 命令（10 commands）
+│   ├── controllers/cli.py      # CLI 命令（12 commands）
 │   ├── models/                 # TypedDict 数据模型
-│   ├── services/               # 业务逻辑（sync / audit）
+│   ├── services/               # 业务逻辑（sync / audit / watch / sources）
 │   └── utils/filesystem.py     # 跨平台文件操作
-└── tests/                      # 76 个测试
+└── tests/                      # 94 个测试
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
     ├── test_adopt.py
     ├── test_security.py
-    └── test_cli.py
+    ├── test_cli.py
+    └── test_watch.py
+```
+
+## 实时监听与升级（v0.8.0）
+
+### askill watch — 改完即同步
+
+`askill watch` 常驻监听中央仓库，每 3 秒（可调）做一次快照对比，零第三方依赖：
+
+- **新增/修改** skill → 数秒内自动同步到全部产品，实时打印每个产品结果
+- **删除** skill → 自动清理所有产品残留链接，杜绝死链
+- **安全复检** → 每次同步后重跑 audit；安全评级从 safe 跌到 risky/dangerous 时高亮告警并列出主要问题
+
+### askill update — 来源追踪与一键升级
+
+通过 GitHub URL 安装的 skill 会自动记录来源（仓库/路径/分支/commit）到 `~/.agents/skills/.askill-sources.json`：
+
+```bash
+askill update --check      # 列出哪些 skill 远端有新版本
+askill update              # 检查并应用全部更新（更新后自动同步 + 复检）
+askill update my-skill     # 只更新指定 skill
 ```
 
 ## 安全评测（audit）

@@ -182,6 +182,8 @@ Usage:
     askill pack <skill-name>         Package a skill as .zip for DuMate
     askill adopt <platform> [skill]  Adopt skills from one platform to all others
     askill audit [skill-name]        Security audit of skill(s) in central repo
+    askill watch                     Watch central repo; auto-sync changes
+    askill update [skill-name]       Check/apply updates for tracked skills
     askill products                  List all supported products
     askill version                   Show version
 """
@@ -242,6 +244,52 @@ def main():
     elif command == "audit":
         skill_name = sys.argv[2] if len(sys.argv) > 2 else None
         _print_audit(skill_name)
+    elif command == "watch":
+        from ..services.watch import watch_loop
+        interval = 3
+        if "--interval" in sys.argv:
+            i = sys.argv.index("--interval")
+            if i + 1 < len(sys.argv):
+                try:
+                    interval = max(1, int(sys.argv[i + 1]))
+                except ValueError:
+                    print("Invalid --interval value; using 3s")
+        watch_loop(interval=interval)
+    elif command == "update":
+        from ..services.sources import check_update, check_all_updates, update_skill
+        target = None
+        if "--check" in sys.argv:
+            args = [a for a in sys.argv[3:] if a != "--check"]
+            target = args[0] if args else None
+            if target:
+                print(check_update(target))
+            else:
+                for r in check_all_updates():
+                    if r["status"] == "up-to-date":
+                        print(f"  {r['skill']:<28} up-to-date ({r.get('branch', '')})")
+                    elif r["status"] == "update-available":
+                        print(f"  {r['skill']:<28} UPDATE {r.get('local_commit')} -> {r.get('remote_commit')} ({r.get('branch', '')})")
+                    elif r["status"] == "error":
+                        print(f"  {r['skill']:<28} remote unreachable")
+                    else:
+                        print(f"  {r['skill']:<28} {r['status']}")
+            return
+        if len(sys.argv) > 2 and not sys.argv[2].startswith("-"):
+            target = sys.argv[2]
+            update_skill(target)
+            return
+        # no target: check all, then apply what's available
+        results = check_all_updates()
+        if not results:
+            print("No tracked skills (install via GitHub URL to enable tracking).")
+            return
+        pending = [r["skill"] for r in results if r["status"] == "update-available"]
+        if not pending:
+            print("All tracked skills are up to date.")
+            return
+        print(f"Updating {len(pending)} skill(s): {', '.join(pending)}")
+        for name in pending:
+            update_skill(name, verbose=True)
     elif command == "products":
         _print_products()
     elif command == "version":

@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="askill",
-    version="0.7.0",
+    name="cn-skill-sync",
+    version="0.8.0",
     description="Cross-platform skill management for domestic AI agent products",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",

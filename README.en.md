@@ -6,7 +6,7 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-94%20passed-22c55e)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
@@ -123,6 +123,15 @@ askill adopt kimi                                    # adopt all skills from Kim
 askill audit                                         # audit all skills
 askill audit my-skill                                # audit one skill
 
+# Live watch: auto-sync on every skill change (new in v0.8.0)
+askill watch                                         # watch ~/.agents/skills/
+askill watch --interval 5                            # custom poll interval (s)
+
+# Skill upgrades: GitHub-origin tracking + one-command update (v0.8.0)
+askill update --check                                # list available updates
+askill update my-skill                               # update one skill & sync
+askill update                                        # update all tracked skills
+
 # Remove a skill from all products
 askill remove my-skill
 
@@ -159,7 +168,7 @@ agent-skill-manager/
 │   ├── models/                 # TypedDict data shapes
 │   ├── services/               # business logic (sync / audit)
 │   └── utils/filesystem.py     # cross-platform filesystem ops
-└── tests/                      # 76 tests
+└── tests/                      # 94 tests
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py

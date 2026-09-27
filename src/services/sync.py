@@ -364,6 +364,12 @@ def _install_from_url(source: str, verbose: bool = True) -> tuple[str | None, bo
             shutil.copytree(src, dest)
             if verbose:
                 print(f"Installed: {dest}")
+            # v0.8.0: record origin so 'askill update' can track upgrades
+            try:
+                from .sources import record_source
+                record_source(skill_name, repo_url, sub_path, branch)
+            except Exception:
+                pass  # tracking is best-effort, never blocks install
             return skill_name, True
         except subprocess.CalledProcessError as e:
             if verbose:
@@ -416,6 +422,13 @@ def remove_skill(skill_name: str, verbose: bool = True) -> list[str]:
 
     shutil.rmtree(skill_dir)
     removed.append("central")
+
+    # v0.8.0: drop source-tracking entry as well
+    try:
+        from .sources import remove_source
+        remove_source(skill_name)
+    except Exception:
+        pass
 
     if verbose:
         print(f"Removed '{skill_name}' from: {', '.join(removed)}")
