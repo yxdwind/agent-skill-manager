@@ -64,20 +64,22 @@ class TestProducts:
         assert path is not None
         assert ".comate" in str(path)
 
-    def test_qoder_path(self):
-        qoder = get_product_by_short("qoder")
-        assert qoder is not None
-        assert qoder["sync_method"] == "symlink"
-        path = get_product_path(qoder)
+    def test_qodercn_path(self):
+        """v0.9.0: qoder entry was reworked to Qoder CN (~/.qoder-cn)."""
+        qodercn = get_product_by_short("qodercn")
+        assert qodercn is not None
+        assert qodercn["sync_method"] == "symlink"
+        path = get_product_path(qodercn)
         assert path is not None
-        assert ".qoderwork" in str(path)
+        assert ".qoder-cn" in str(path)
+        assert get_product_by_short("qoder") is None
 
     def test_new_products_count(self):
         """Verify 3 new products were added."""
         shorts = {p["short"] for p in PRODUCTS}
         assert "codebuddy" in shorts
         assert "comate" in shorts
-        assert "qoder" in shorts
+        assert "qodercn" in shorts
 
 
     def test_qwenwork_path(self):
@@ -102,4 +104,40 @@ class TestProducts:
         shorts = {p["short"] for p in PRODUCTS}
         assert "qwenwork" in shorts
         assert "doubaowork" in shorts
-        assert len(PRODUCTS) == 11
+
+    def test_v090_products_count(self):
+        """v0.9.0: 15 products after adding Trae CN, TRAE SOLO CN, Qoder CN IDE, ZCode and reworking qoder/autoclaw."""
+        assert len(PRODUCTS) == 15
+
+    def test_traecn_path(self):
+        traecn = get_product_by_short("traecn")
+        assert traecn is not None
+        path = get_product_path(traecn)
+        assert path is not None
+        assert ".trae-cn" in str(path)
+
+    def test_traesolo_shares_dir_with_traecn(self):
+        traecn = get_product_path(get_product_by_short("traecn"))
+        traesolo = get_product_path(get_product_by_short("traesolo"))
+        assert traesolo == traecn
+
+    def test_qodercnide_shares_dir_with_qodercn(self):
+        qodercn = get_product_path(get_product_by_short("qodercn"))
+        qodercnide = get_product_path(get_product_by_short("qodercnide"))
+        assert qodercnide == qodercn
+
+    def test_zcode_path(self):
+        zcode = get_product_by_short("zcode")
+        assert zcode is not None
+        path = get_product_path(zcode)
+        assert path is not None
+        assert ".zcode" in str(path)
+
+    def test_autoclaw2_path(self):
+        """v0.9.0: autoclaw entry reworked to AutoClaw2 (~/.openclaw-autoclaw)."""
+        autoclaw2 = get_product_by_short("autoclaw2")
+        assert autoclaw2 is not None
+        path = get_product_path(autoclaw2)
+        assert path is not None
+        assert ".openclaw-autoclaw" in str(path)
+        assert get_product_by_short("autoclaw") is None

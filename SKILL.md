@@ -1,18 +1,18 @@
 ---
 name: agent-skill-manager
 description: >
-  Cross-platform skill manager for 11 domestic Chinese AI agent products
-  (AutoClaw, Kimi, MiniMax Code, WorkBuddy, Trae, DuMate,
-  CodeBuddy, Comate, Qoder). Installs as the `askill` CLI — sync your
-  skills to all products with one command. Use when the user wants to
-  manage, install, sync, or remove Agent Skills across multiple AI coding
-  tools and platforms.
+  Cross-platform skill manager for 15 domestic Chinese AI agent products
+  (AutoClaw2, Kimi, MiniMax Code, WorkBuddy, Trae, Trae CN, TRAE SOLO CN,
+  DuMate, CodeBuddy, Comate, Qoder CN, Qoder CN IDE, QwenWork, DoubaoWork,
+  ZCode). Installs as the `askill` CLI — sync your skills to all products
+  with one command. Use when the user wants to manage, install, sync, or
+  remove Agent Skills across multiple AI coding tools and platforms.
 license: MIT
 ---
 
 # Agent Skill Manager
 
-Cross-platform (macOS / Windows) skill sync for 11 domestic AI agent products.
+Cross-platform (macOS / Windows) skill sync for 15 domestic AI agent products.
 
 ## Quick Start
 
@@ -42,7 +42,7 @@ askill sync
 
 | Command | Description |
 |---------|-------------|
-| `askill status [name]` | Show installation status across all 9 products |
+| `askill status [name]` | Show installation status across all 15 products |
 | `askill sync [name]` | Sync skill(s) from central repo to all products |
 | `askill list` | List all skills in central repository |
 | `askill install <path\|url>` | Install a skill to central repository |
@@ -55,19 +55,25 @@ askill sync
 
 | Product | Company | Sync Method |
 |---------|---------|-------------|
-| AutoClaw | — | symlink/junction |
+| AutoClaw2 | Zhipu | symlink/junction |
 | Kimi | Moonshot AI | symlink/junction |
 | MiniMax Code | MiniMax | native |
 | WorkBuddy | Tencent | symlink + settings.json |
 | Trae | ByteDance | symlink/junction |
+| Trae CN | ByteDance | symlink/junction |
+| TRAE SOLO CN | ByteDance | symlink/junction |
 | DuMate | Baidu | pack .zip |
 | CodeBuddy | Tencent | symlink + settings.json |
 | Comate / Wenxin Kuaima | Baidu | symlink/junction |
-| Qoder / Tongyi Lingma | Alibaba | symlink/junction |
+| Qoder CN | Alibaba | symlink/junction |
+| Qoder CN IDE | Alibaba | symlink/junction |
+| QwenWork / Qianwen Office | Alibaba | symlink/junction |
+| DoubaoWork | ByteDance | symlink/junction |
+| ZCode | ZCode | symlink/junction |
 
 ## Adding New Products
 
-Edit `src/agent_skill_manager/products.py` and add to the `PRODUCTS` list:
+Edit `src/config/products.py` and add to the `PRODUCTS` list:
 
 ```python
 {
@@ -93,13 +99,13 @@ to each product's skill directory.
   └── my-skill/
       └── SKILL.md
            │
-           ├── junction → ~/.openclaw/skills/my-skill/
+           ├── junction → ~/.openclaw-autoclaw/skills/my-skill/
            ├── junction → ~/.config/agents/skills/my-skill/
            ├── junction → ~/.workbuddy/skills/my-skill/
-           ├── junction → ~/.trae/skills/my-skill/
+           ├── junction → ~/.trae-cn/skills/my-skill/
            ├── junction → ~/.codebuddy/skills/my-skill/
            ├── junction → ~/.comate/skills/my-skill/
-           └── junction → ~/.qoderwork/skills/my-skill/
+           └── junction → ~/.qoder-cn/skills/my-skill/
 ```
 
 For detailed product paths and configuration, see `docs/product-paths.md`.

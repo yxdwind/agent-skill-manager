@@ -10,7 +10,7 @@
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-94%20passed-22c55e)](tests/)
-[![Products](https://img.shields.io/badge/Products-11%20supported-8b5cf6)](#支持的产品)
+[![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#支持的产品)
 
 **一次开发，十一端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
 
@@ -25,33 +25,37 @@
 每个国产 AI Agent 产品都有自己独立的 skill 目录，开发一个 skill 要手动复制到每个产品：
 
 ```
-~/.openclaw/skills/my-skill/          ← AutoClaw
+~/.openclaw-autoclaw/skills/my-skill/   ← AutoClaw2
 ~/.config/agents/skills/my-skill/      ← Kimi
 ~/.workbuddy/skills/my-skill/          ← WorkBuddy
-~/.trae/skills/my-skill/               ← Trae
+~/.trae-cn/skills/my-skill/            ← Trae CN
 ~/.codebuddy/skills/my-skill/          ← CodeBuddy
 ~/.comate/skills/my-skill/             ← Comate
-~/.qoderwork/skills/my-skill/          ← Qoder
+~/.qoder-cn/skills/my-skill/           ← Qoder CN
 ... 每改一次都要重复一遍
 ```
 
 **agent-skill-manager** 用「中央仓库 + 一键分发」解决这个问题：改一处，全同步。
 
-## 支持的产品（11 个）
+## 支持的产品（15 个）
 
 | 产品 | 公司 | macOS 目录 | Windows 目录 | 同步方式 |
 |------|------|-----------|-------------|----------|
-| AutoClaw | 智谱 | `~/.openclaw/skills/` | `%USERPROFILE%\.openclaw\skills\` | symlink/junction |
+| AutoClaw2 | 智谱 | `~/.openclaw-autoclaw/skills/` | `%USERPROFILE%\.openclaw-autoclaw\skills\` | symlink/junction |
 | Kimi | 月之暗面 | `~/.config/agents/skills/` | `%USERPROFILE%\.config\agents\skills\` | symlink/junction |
 | MiniMax Code | MiniMax | `~/.agents/skills/` | `%USERPROFILE%\.agents\skills\` | 原生支持 |
 | WorkBuddy | 腾讯 | `~/.workbuddy/skills/` | `%USERPROFILE%\.workbuddy\skills\` | symlink + settings.json |
 | Trae | 字节跳动 | `~/.trae/skills/` | `%USERPROFILE%\.trae\skills\` | symlink/junction |
+| Trae CN | 字节跳动 | `~/.trae-cn/skills/` | `%USERPROFILE%\.trae-cn\skills\` | symlink/junction |
+| TRAE SOLO CN | 字节跳动 | `~/.trae-cn/skills/`（与 Trae CN 共用） | `%USERPROFILE%\.trae-cn\skills\` | symlink/junction |
 | DuMate | 百度 | App 内管理 | App 内管理 | 打包 .zip 上传 |
 | CodeBuddy | 腾讯 | `~/.codebuddy/skills/` | `%USERPROFILE%\.codebuddy\skills\` | symlink + settings.json |
 | Comate / 文心快码 | 百度 | `~/.comate/skills/` | `%USERPROFILE%\.comate\skills\` | symlink/junction |
-| Qoder / 通义灵码 | 阿里 | `~/.qoderwork/skills/` | `%USERPROFILE%\.qoderwork\skills\` | symlink/junction |
+| Qoder CN | 阿里 | `~/.qoder-cn/skills/` | `%USERPROFILE%\.qoder-cn\skills\` | symlink/junction |
+| Qoder CN IDE | 阿里 | `~/.qoder-cn/skills/`（与 Qoder CN 共用） | `%USERPROFILE%\.qoder-cn\skills\` | symlink/junction |
 | QwenWork / 千问办公 | 阿里 | `~/.qwenworkcn/skills/` | `%USERPROFILE%\.qwenworkcn\skills\` | symlink/junction |
 | DoubaoWork / 豆包工作 | 字节跳动 | `~/.super_doubao/super-doubao-runtime/workspace/.user_skills/` | `%LOCALAPPDATA%\DoubaoWork\User Data\Default\.doubaowork\agent_mode\workspace\.user_skills\` | symlink/junction |
+| ZCode | ZCode | `~/.zcode/skills/` | `%USERPROFILE%\.zcode\skills\` | symlink/junction |
 
 ## 架构原理
 
@@ -162,12 +166,12 @@ agent-skill-manager/
 │   └── product-paths.md        # 各产品详细路径参考
 ├── src/                        # 包根（映射为 agent_skill_manager 包）
 │   ├── __init__.py / __main__.py
-│   ├── config/products.py      # 11 个产品定义
+│   ├── config/products.py      # 15 个产品定义
 │   ├── controllers/cli.py      # CLI 命令（12 commands）
 │   ├── models/                 # TypedDict 数据模型
 │   ├── services/               # 业务逻辑（sync / audit / watch / sources）
 │   └── utils/filesystem.py     # 跨平台文件操作
-└── tests/                      # 94 个测试
+└── tests/                      # 100 个测试
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py

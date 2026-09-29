@@ -10,9 +10,9 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Products](https://img.shields.io/badge/Products-11%20supported-8b5cf6)](#supported-products)
+[![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#supported-products)
 
-**Write once, sync everywhere** — Cross-platform skill management for 11 domestic Chinese AI agent products.
+**Write once, sync everywhere** — Cross-platform skill management for 15 domestic Chinese AI agent products.
 
 [Install](#install) · [Usage](#usage) · [Security Audit](#security-audit) · [Architecture](#architecture)
 
@@ -25,33 +25,37 @@
 Every Chinese AI agent product keeps its skills in its own directory. Developing one skill means manually copying it to every product:
 
 ```
-~/.openclaw/skills/my-skill/          <- AutoClaw
+~/.openclaw-autoclaw/skills/my-skill/  <- AutoClaw2
 ~/.config/agents/skills/my-skill/     <- Kimi
 ~/.workbuddy/skills/my-skill/         <- WorkBuddy
-~/.trae/skills/my-skill/              <- Trae
+~/.trae-cn/skills/my-skill/           <- Trae CN
 ~/.codebuddy/skills/my-skill/         <- CodeBuddy
 ~/.comate/skills/my-skill/            <- Comate
-~/.qoderwork/skills/my-skill/         <- Qoder
+~/.qoder-cn/skills/my-skill/          <- Qoder CN
 ... and again, every time you change it
 ```
 
 **agent-skill-manager** solves this with a central repository + one-command distribution: edit once, sync everywhere.
 
-## Supported Products (11)
+## Supported Products (15)
 
 | Product | Company | macOS Path | Windows Path | Sync Method |
 |---------|---------|-----------|--------------|-------------|
-| AutoClaw | Zhipu | `~/.openclaw/skills/` | `%USERPROFILE%\.openclaw\skills\` | symlink/junction |
+| AutoClaw2 | Zhipu | `~/.openclaw-autoclaw/skills/` | `%USERPROFILE%\.openclaw-autoclaw\skills\` | symlink/junction |
 | Kimi | Moonshot AI | `~/.config/agents/skills/` | `%USERPROFILE%\.config\agents\skills\` | symlink/junction |
 | MiniMax Code | MiniMax | `~/.agents/skills/` | `%USERPROFILE%\.agents\skills\` | native |
 | WorkBuddy | Tencent | `~/.workbuddy/skills/` | `%USERPROFILE%\.workbuddy\skills\` | symlink + settings.json |
 | Trae | ByteDance | `~/.trae/skills/` | `%USERPROFILE%\.trae\skills\` | symlink/junction |
+| Trae CN | ByteDance | `~/.trae-cn/skills/` | `%USERPROFILE%\.trae-cn\skills\` | symlink/junction |
+| TRAE SOLO CN | ByteDance | `~/.trae-cn/skills/` (shared with Trae CN) | `%USERPROFILE%\.trae-cn\skills\` | symlink/junction |
 | DuMate | Baidu | App-managed | App-managed | pack .zip upload |
 | CodeBuddy | Tencent | `~/.codebuddy/skills/` | `%USERPROFILE%\.codebuddy\skills\` | symlink + settings.json |
 | Comate / Wenxin Kuaima | Baidu | `~/.comate/skills/` | `%USERPROFILE%\.comate\skills\` | symlink/junction |
-| Qoder / Tongyi Lingma | Alibaba | `~/.qoderwork/skills/` | `%USERPROFILE%\.qoderwork\skills\` | symlink/junction |
+| Qoder CN | Alibaba | `~/.qoder-cn/skills/` | `%USERPROFILE%\.qoder-cn\skills\` | symlink/junction |
+| Qoder CN IDE | Alibaba | `~/.qoder-cn/skills/` (shared with Qoder CN) | `%USERPROFILE%\.qoder-cn\skills\` | symlink/junction |
 | QwenWork / Qianwen Office | Alibaba | `~/.qwenworkcn/skills/` | `%USERPROFILE%\.qwenworkcn\skills\` | symlink/junction |
 | DoubaoWork | ByteDance | `~/.super_doubao/super-doubao-runtime/workspace/.user_skills/` | `%LOCALAPPDATA%\DoubaoWork\User Data\Default\.doubaowork\agent_mode\workspace\.user_skills\` | symlink/junction |
+| ZCode | ZCode | `~/.zcode/skills/` | `%USERPROFILE%\.zcode\skills\` | symlink/junction |
 
 ## How It Works
 
@@ -168,7 +172,7 @@ agent-skill-manager/
 │   ├── models/                 # TypedDict data shapes
 │   ├── services/               # business logic (sync / audit)
 │   └── utils/filesystem.py     # cross-platform filesystem ops
-└── tests/                      # 94 tests
+└── tests/                      # 100 tests
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
