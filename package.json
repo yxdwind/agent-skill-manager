@@ -1,7 +1,7 @@
 {
   "name": "agent-skill-manager",
-  "version": "0.1.0",
-  "description": "Cross-platform skill manager for 9 domestic Chinese AI agent products",
+  "version": "0.11.0",
+  "description": "Cross-platform skill manager for 15 domestic Chinese AI agent products (macOS/Windows/Linux)",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -21,6 +21,10 @@
     "comate",
     "qoder",
     "dumate",
+    "zcode",
+    "skills-sh",
+    "security-audit",
+    "linux",
     "pip",
     "askill"
   ]

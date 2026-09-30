@@ -76,7 +76,6 @@ Every Chinese AI agent product keeps its skills in its own directory. Developing
 ## Install
 
 ```bash
-# Development install (recommended)
 # Install from PyPI (recommended)
 pip install cn-skill-sync
 
@@ -160,7 +159,7 @@ askill products
 ```
 1. askill status          <- check installation status
 2. edit ~/.agents/skills/my-skill/SKILL.md
-3. askill sync my-skill   <- distribute to 10 products
+3. askill sync my-skill   <- distribute to all 15 products
 4. askill pack my-skill   <- .zip for DuMate
 ```
 

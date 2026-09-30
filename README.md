@@ -13,7 +13,7 @@
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#支持的产品)
 
-**一次开发，十一端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
+**一次开发，十五端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
 
 [安装](#安装) · [使用](#使用) · [二次开发](#二次开发) · [架构原理](#架构原理)
 
@@ -76,7 +76,6 @@
 ## 安装
 
 ```bash
-# 开发模式安装（推荐）
 # 从 PyPI 安装（推荐）
 pip install cn-skill-sync
 
@@ -277,10 +276,12 @@ askill install --sync --audit https://github.com/user/repo/tree/main/my-skill
     "short": "short-name",
     "macos_path": HOME / ".newproduct" / "skills",
     "windows_path": HOME / ".newproduct" / "skills",
+    "linux_path": HOME / ".newproduct" / "skills",  # 无 Linux 版则省略（或 None）
     "sync_method": "symlink",  # symlink | native | pack
     "note": "说明信息",
     "extra_dirs_macos": [],
     "extra_dirs_windows": [],
+    "extra_dirs_linux": [],
 }
 ```
 
