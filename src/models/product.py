@@ -11,15 +11,18 @@ class ProductSpec(TypedDict, total=False):
 
     Declared ``total=False`` because some products (e.g. DuMate) omit the
     platform-specific path keys or the optional ``settings_file`` /
-    ``extra_dirs_*`` keys.
+    ``extra_dirs_*`` keys.  ``linux_path`` is omitted entirely for products
+    without a Linux build.
     """
 
     name: str
     short: str
     macos_path: Optional[Path]
     windows_path: Optional[Path]
+    linux_path: Optional[Path]
     sync_method: str  # "symlink" | "native" | "pack"
     note: str
     extra_dirs_macos: list[Path]
     extra_dirs_windows: list[Path]
+    extra_dirs_linux: list[Path]
     settings_file: Path

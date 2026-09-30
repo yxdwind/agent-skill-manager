@@ -2,6 +2,7 @@
 
 import pytest
 from pathlib import Path
+from agent_skill_manager.config import products as prod_mod
 from agent_skill_manager.config.products import (
     PRODUCTS, CENTRAL_DIR,
     get_product_path, get_all_product_dirs, get_product_by_short,
@@ -33,12 +34,58 @@ class TestProducts:
         assert get_product_by_short("nonexistent") is None
 
     def test_get_product_path_returns_path_or_none(self):
+        """Non-pack products expose a path on every platform they ship for.
+
+        On Linux only the CLI-based products carry a linux_path - desktop /
+        IDE apps without a Linux build stay None (v0.10.0).
+        """
+        linux_products = {
+            "autoclaw2", "kimi", "minimax", "codebuddy", "comate", "zcode",
+        }
         for p in PRODUCTS:
             path = get_product_path(p)
             if p["sync_method"] == "pack":
                 assert path is None
+            elif prod_mod.IS_LINUX:
+                if p["short"] in linux_products:
+                    assert isinstance(path, Path), p["short"]
+                else:
+                    assert path is None, p["short"]
             else:
-                assert isinstance(path, Path)
+                assert isinstance(path, Path), p["short"]
+
+    def test_linux_paths_declared(self):
+        """v0.10.0: exactly the CLI-based products support Linux."""
+        declared = {
+            p["short"] for p in PRODUCTS if p.get("linux_path") is not None
+        }
+        assert declared == {
+            "autoclaw2", "kimi", "minimax", "codebuddy", "comate", "zcode",
+        }
+
+    def test_linux_platform_dispatch(self, monkeypatch):
+        """get_product_path picks linux_path on Linux, incl. None products."""
+        monkeypatch.setattr(prod_mod, "IS_WINDOWS", False)
+        monkeypatch.setattr(prod_mod, "IS_MACOS", False)
+        traecn = get_product_by_short("traecn")
+        assert get_product_path(traecn) is None           # no Linux build
+        zcode = get_product_by_short("zcode")
+        assert get_product_path(zcode) == Path.home() / ".zcode" / "skills"
+        kimi = get_product_by_short("kimi")
+        dirs = get_all_product_dirs(kimi)
+        assert Path.home() / ".kimi-code" / "skills" in dirs
+
+    def test_windows_platform_dispatch(self, monkeypatch):
+        monkeypatch.setattr(prod_mod, "IS_WINDOWS", True)
+        monkeypatch.setattr(prod_mod, "IS_MACOS", False)
+        p = get_product_by_short("doubaowork")
+        assert "DoubaoWork" in str(get_product_path(p))
+
+    def test_macos_platform_dispatch(self, monkeypatch):
+        monkeypatch.setattr(prod_mod, "IS_WINDOWS", False)
+        monkeypatch.setattr(prod_mod, "IS_MACOS", True)
+        p = get_product_by_short("doubaowork")
+        assert ".super_doubao" in str(get_product_path(p))
 
     def test_get_all_product_dirs_returns_list(self):
         for p in PRODUCTS:

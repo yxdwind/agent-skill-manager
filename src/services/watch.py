@@ -1,17 +1,25 @@
-"""Watch service: poll-based change detection + auto sync/clean/audit.
+"""Watch service: event-driven change detection + auto sync/clean/audit.
 
 Provides the ``askill watch`` long-running mode:
 
-- Polls the central repository (~/.agents/skills/) every few seconds using a
-  cheap recursive (path -> mtime, size) snapshot; zero third-party deps.
+- Sleeps on native OS file events (Linux inotify / macOS kqueue / Windows
+  ReadDirectoryChangesW - see utils/watcher.py), falling back to snapshot
+  polling where those are unavailable; zero third-party deps either way.
+- Wakes are debounced, then classified by a cheap recursive
+  (path -> mtime, size) snapshot diff, so a wake-up only ever syncs the
+  skills that actually changed.
 - New/changed skills are re-synced to all products immediately.
 - Deleted skills are cleaned from every product (links removed) to avoid
   dead junctions/symlinks.
 - After each sync the skill is re-audited; a score drop across the
   safe/risky boundary triggers a loud warning.
+- Even in event mode a full reconciliation rescan runs every
+  RECONCILE_INTERVAL_S as a safety net (queue overflow, editors that swap
+  directories, root recreation).
 """
 from __future__ import annotations
 
+import contextlib
 import time
 from pathlib import Path
 
@@ -21,12 +29,14 @@ from ..config.products import (
     get_all_product_dirs,
 )
 from ..utils.filesystem import is_symlink_or_junction, remove_path
+from ..utils.watcher import PollingWatcher, create_watcher
 from .audit import analyze_skill_dir
 from .sync import sync_skill, list_skills
 
 # ---------------------------------------------------------------- constants
 
-POLL_INTERVAL_S = 3          # seconds between snapshots
+POLL_INTERVAL_S = 3          # seconds between snapshots (poll fallback)
+RECONCILE_INTERVAL_S = 30    # full-rescan safety net in native event mode
 _SNAPSHOT_IGNORE = {".askill-sources.json", ".tmp"}
 
 # verdict ranks used for downgrade detection: lower = safer
@@ -189,15 +199,28 @@ def watch_loop(
     """Run the watch loop until interrupted (Ctrl+C).
 
     Args:
-        interval: Seconds between polls.
+        interval: Seconds between polls. In native event mode this is only
+            the fallback poll cadence; the loop then reconciles at least
+            every RECONCILE_INTERVAL_S instead of every ``interval``.
         on_change: Optional callback(skill_name) invoked after each sync -
             used by tests to observe the loop without a real filesystem.
     """
-    print(f"Watching {CENTRAL_DIR} (poll every {interval}s, Ctrl+C to stop)")
     if not CENTRAL_DIR.exists():
         print(f"Central repository not found: {CENTRAL_DIR}")
         print("Create it by installing a skill: askill install <path-or-url>")
         return
+
+    backend = create_watcher(CENTRAL_DIR, poll_interval=interval)
+    mode = backend.describe()
+    if mode == "poll":
+        cadence = interval
+        print(f"Watching {CENTRAL_DIR} (poll every {cadence}s, Ctrl+C to stop)")
+    else:
+        cadence = max(RECONCILE_INTERVAL_S, interval)
+        print(
+            f"Watching {CENTRAL_DIR} [native {mode} events, "
+            f"reconcile every {cadence}s, Ctrl+C to stop]"
+        )
 
     known_verdicts: dict[str, str] = {}
     # prime the initial verdict table without spamming
@@ -211,7 +234,20 @@ def watch_loop(
 
     try:
         while True:
-            time.sleep(interval)
+            try:
+                backend.wait(cadence)
+            except OSError as exc:
+                # native backend died mid-run: degrade to polling, keep watching
+                print(
+                    f"  [watch] {mode} watcher failed ({exc}); "
+                    f"falling back to polling every {interval}s"
+                )
+                with contextlib.suppress(Exception):
+                    backend.close()
+                backend = PollingWatcher(CENTRAL_DIR, interval=interval)
+                mode, cadence = "poll", interval
+                continue
+
             curr = snapshot_central()
             changed, deleted = diff_snapshots(prev, curr)
             if not changed and not deleted:
@@ -238,3 +274,5 @@ def watch_loop(
             prev = snapshot_central()  # re-snapshot: sync may touch mtimes
     except KeyboardInterrupt:
         print("\nWatch stopped.")
+    finally:
+        backend.close()

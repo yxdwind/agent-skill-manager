@@ -186,6 +186,22 @@ ZCode 同时扫描 `~/.zcode/skills/` 与 `~/.agents/skills/`（经本机实测�
 - **项目级**：`<project>/.agents/skills/<skill-name>/`
 - **用户级**：`~/.agents/skills/<skill-name>/`
 
+## Linux 支持（v0.10.0）
+
+仅发布过 Linux 版本（或目录约定与平台无关）的 CLI 类产品提供 `linux_path`，与 macOS 走相同的 dotdir 约定 + 原生 symlink：
+
+| 产品 | Linux 目录 | 说明 |
+|------|-----------|------|
+| AutoClaw2 | `~/.openclaw-autoclaw/skills/` | OpenClaw 系 CLI，跨平台同路径 |
+| Kimi | `~/.config/agents/skills/`（另扫 `~/.kimi-code/skills/`） | XDG 约定 |
+| MiniMax Code | `~/.agents/skills/` | 原生支持，无需同步 |
+| CodeBuddy | `~/.codebuddy/skills/` | CLI 跨平台 |
+| Comate | `~/.comate/skills/` | CLI 跨平台 |
+| ZCode | `~/.zcode/skills/` | CLI 跨平台 |
+| DuMate | —（`pack` 命令的 .zip 打包全平台可用） | App 内管理 |
+
+其余产品（Trae / Trae CN / TRAE SOLO CN、WorkBuddy、Qoder CN / Qoder CN IDE、QwenWork、DoubaoWork）暂无 Linux 版本：Linux 上 `linux_path` 为 `None`，askill 自动跳过，`askill products` 显示 N/A。产品发布 Linux 版后，在 `src/config/products.py` 补充 `linux_path`（附实证来源）即可。
+
 ## 交叉参考
 ### manage-my-skills
 - https://github.com/hchcx/manage-my-skills

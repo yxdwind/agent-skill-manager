@@ -160,6 +160,107 @@ class TestAuditDowngrade:
         assert "SECURITY WARNING" in capsys.readouterr().out
 
 
+# ---------------------------------------------------------------- watch loop
+
+class TestWatchLoop:
+    def test_native_backend_change_cycle(self, fake_central, monkeypatch, capsys):
+        """Event mode: spurious wake syncs nothing; real change syncs once."""
+        d = _mk_skill(fake_central, "loop-skill")
+        calls = []
+        monkeypatch.setattr(
+            watch_mod, "sync_skill",
+            lambda name, verbose=False: calls.append(name),
+        )
+        monkeypatch.setattr(
+            watch_mod, "list_skills", lambda: [fake_central / "loop-skill"],
+        )
+
+        class FakeBackend:
+            def __init__(self):
+                self.n = 0
+
+            def describe(self):
+                return "fake-inotify"
+
+            def wait(self, timeout):
+                self.n += 1
+                if self.n == 1:
+                    return True          # spurious wake - nothing changed
+                if self.n == 2:
+                    time.sleep(0.01)
+                    (d / "SKILL.md").write_text("v2", encoding="utf-8")
+                    return True          # real change
+                raise KeyboardInterrupt()
+            def close(self):
+                pass
+
+        monkeypatch.setattr(
+            watch_mod, "create_watcher",
+            lambda root, poll_interval=3.0: FakeBackend(),
+        )
+        watch_mod.watch_loop(interval=1)
+
+        out = capsys.readouterr().out
+        assert calls == ["loop-skill"]
+        assert "fake-inotify" in out
+        assert "changed skill: loop-skill" in out
+
+    def test_backend_failure_falls_back_to_polling(self, fake_central, monkeypatch, capsys):
+        """A native backend dying mid-run degrades to polling, keeps watching."""
+        monkeypatch.setattr(watch_mod, "list_skills", lambda: [])
+
+        class DeadBackend:
+            def describe(self):
+                return "inotify"
+            def wait(self, timeout):
+                raise OSError("watch descriptors exhausted")
+            def close(self):
+                pass
+
+        class PollBackend:
+            def __init__(self, root=None, interval=3.0):
+                self.n = 0
+            def describe(self):
+                return "poll"
+            def wait(self, timeout):
+                self.n += 1
+                if self.n == 1:
+                    return True
+                raise KeyboardInterrupt()
+            def close(self):
+                pass
+
+        created = []
+
+        def fake_create(root, poll_interval=3.0):
+            created.append(poll_interval)
+            return DeadBackend()
+
+        monkeypatch.setattr(watch_mod, "create_watcher", fake_create)
+        # watch_loop rebuilds its fallback via PollingWatcher - intercept it
+        monkeypatch.setattr(watch_mod, "PollingWatcher", PollBackend)
+        watch_mod.watch_loop(interval=2)
+
+        out = capsys.readouterr().out
+        assert created == [2]              # native backend built once...
+        assert "falling back to polling every 2s" in out
+        assert "Watch stopped." in out
+
+    def test_missing_central_returns_before_backend(self, fake_central, monkeypatch, capsys):
+        import shutil
+        target = watch_mod.CENTRAL_DIR
+        monkeypatch.setattr(watch_mod, "CENTRAL_DIR", target.parent / "absent")
+        called = []
+        monkeypatch.setattr(
+            watch_mod, "create_watcher",
+            lambda root, poll_interval=3.0: called.append(root) or (_ for _ in ()).throw(AssertionError("backend must not be created")),
+        )
+        watch_mod.watch_loop()
+        out = capsys.readouterr().out
+        assert "Central repository not found" in out
+        assert called == []
+
+
 # ---------------------------------------------------------------- sources
 
 class TestSources:
