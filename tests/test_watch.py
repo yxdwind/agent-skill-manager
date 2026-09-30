@@ -101,7 +101,7 @@ class TestClean:
         prod_dir.mkdir()
         fake_products = [{
             "name": "Fake", "short": "fake",
-            "macos_path": prod_dir, "windows_path": prod_dir,
+            "macos_path": prod_dir, "windows_path": prod_dir, "linux_path": prod_dir,
             "sync_method": "symlink",
             "extra_dirs_macos": [], "extra_dirs_windows": [],
         }]
@@ -123,7 +123,7 @@ class TestClean:
         )
         fake_products = [{
             "name": "Fake", "short": "fake",
-            "macos_path": None, "windows_path": None,
+            "macos_path": None, "windows_path": None, "linux_path": None,
             "sync_method": "symlink",
             "extra_dirs_macos": [], "extra_dirs_windows": [],
             "settings_file": settings,

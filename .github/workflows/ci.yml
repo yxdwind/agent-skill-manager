@@ -28,7 +28,9 @@ jobs:
         run: pip install -e .
 
       - name: Install pytest
-        run: pip install pytest
+        # annotate plugin turns pytest failures into check-run annotations
+        # (readable via API even when job logs are unavailable)
+        run: pip install pytest pytest-github-actions-annotate-failures
 
       - name: Run tests
         env:

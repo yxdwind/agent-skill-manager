@@ -29,9 +29,11 @@ class TestAdoptFromPlatform:
             "short": "testprod",
             "macos_path": tmp_path / "platform-skills",
             "windows_path": tmp_path / "platform-skills",
+            "linux_path": tmp_path / "platform-skills",
             "sync_method": "symlink",
             "extra_dirs_macos": [],
             "extra_dirs_windows": [],
+            "extra_dirs_linux": [],
         }
         platform_dir = tmp_path / "platform-skills"
         platform_dir.mkdir()
@@ -58,9 +60,11 @@ class TestAdoptFromPlatform:
             "short": "testprod",
             "macos_path": tmp_path / "platform-skills",
             "windows_path": tmp_path / "platform-skills",
+            "linux_path": tmp_path / "platform-skills",
             "sync_method": "symlink",
             "extra_dirs_macos": [],
             "extra_dirs_windows": [],
+            "extra_dirs_linux": [],
         }
         platform_dir = tmp_path / "platform-skills"
         platform_dir.mkdir()
@@ -87,9 +91,11 @@ class TestAdoptFromPlatform:
             "short": "testprod",
             "macos_path": tmp_path / "platform-skills",
             "windows_path": tmp_path / "platform-skills",
+            "linux_path": tmp_path / "platform-skills",
             "sync_method": "symlink",
             "extra_dirs_macos": [],
             "extra_dirs_windows": [],
+            "extra_dirs_linux": [],
         }
         platform_dir = tmp_path / "platform-skills"
         platform_dir.mkdir()
@@ -129,9 +135,11 @@ class TestAdoptFromPlatform:
             "short": "testprod",
             "macos_path": tmp_path / "platform-skills",
             "windows_path": tmp_path / "platform-skills",
+            "linux_path": tmp_path / "platform-skills",
             "sync_method": "symlink",
             "extra_dirs_macos": [],
             "extra_dirs_windows": [],
+            "extra_dirs_linux": [],
         }
         platform_dir = tmp_path / "platform-skills"
         platform_dir.mkdir()
@@ -175,18 +183,22 @@ class TestAdoptFromPlatform:
             "short": "product-a",
             "macos_path": primary,
             "windows_path": primary,
+            "linux_path": primary,
             "sync_method": "symlink",
             "extra_dirs_macos": [],
             "extra_dirs_windows": [],
+            "extra_dirs_linux": [],
         }
         product_b = {
             "name": "ProductB",
             "short": "product-b",
             "macos_path": primary,
             "windows_path": primary,
+            "linux_path": primary,
             "sync_method": "symlink",
             "extra_dirs_macos": [],
             "extra_dirs_windows": [],
+            "extra_dirs_linux": [],
         }
 
         # The platform skill dir IS the product path (get_product_path -> primary)

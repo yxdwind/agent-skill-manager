@@ -14,7 +14,7 @@ class TestProducts:
         assert len(PRODUCTS) >= 9
 
     def test_all_have_required_fields(self):
-        required = {"name", "short", "macos_path", "windows_path", "sync_method"}
+        required = {"name", "short", "macos_path", "windows_path", "linux_path", "sync_method"}
         for p in PRODUCTS:
             assert required.issubset(p.keys()), f"Missing fields in {p.get('name')}"
 

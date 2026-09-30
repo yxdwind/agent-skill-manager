@@ -58,9 +58,11 @@ def test_status_shows_score_column(tmp_path, capsys):
         "short": "testprod",
         "macos_path": tmp_path / "primary",
         "windows_path": tmp_path / "primary",
+            "linux_path": tmp_path / "primary",
         "sync_method": "symlink",
         "extra_dirs_macos": [],
         "extra_dirs_windows": [],
+            "extra_dirs_linux": [],
     }
 
     with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \

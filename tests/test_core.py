@@ -129,9 +129,11 @@ class TestExtraDirsSync:
             "short": "testprod",
             "macos_path": tmp_path / "primary",
             "windows_path": tmp_path / "primary",
+            "linux_path": tmp_path / "primary",
             "sync_method": "symlink",
             "extra_dirs_macos": [extra_dir],
             "extra_dirs_windows": [extra_dir],
+            "extra_dirs_linux": [extra_dir],
         }
 
         with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path), \
@@ -161,9 +163,11 @@ class TestExtraDirsSync:
             "short": "testprod",
             "macos_path": tmp_path / "primary",
             "windows_path": tmp_path / "primary",
+            "linux_path": tmp_path / "primary",
             "sync_method": "symlink",
             "extra_dirs_macos": [extra_dir],
             "extra_dirs_windows": [extra_dir],
+            "extra_dirs_linux": [extra_dir],
         }
 
         with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path), \
@@ -193,9 +197,11 @@ class TestInstallSync:
             "short": "testprod",
             "macos_path": tmp_path / "primary",
             "windows_path": tmp_path / "primary",
+            "linux_path": tmp_path / "primary",
             "sync_method": "symlink",
             "extra_dirs_macos": [],
             "extra_dirs_windows": [],
+            "extra_dirs_linux": [],
         }
 
         with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path / "central"), \
