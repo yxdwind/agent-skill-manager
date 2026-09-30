@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 authors = [
     {name = "Albert", email = "yxdwind@126.com"},
 ]
-keywords = ["agent", "agent-skills", "skill", "sync", "autoclaw", "kimi", "minimax", "workbuddy", "trae", "dumate", "codebuddy", "comate", "qoder", "qwenwork", "doubaowork", "cli", "security-audit", "linux", "inotify", "fs-events"]
+keywords = ["agent", "agent-skills", "skill", "sync", "autoclaw", "kimi", "minimax", "workbuddy", "trae", "dumate", "codebuddy", "comate", "qoder", "qwenwork", "doubaowork", "zcode", "cli", "security-audit", "skills-sh", "linux", "inotify", "fs-events"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
