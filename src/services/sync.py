@@ -43,6 +43,15 @@ def list_skills() -> list[Path]:
     )
 
 
+def print_onboarding() -> None:
+    """3-step first-run guidance shown whenever the central repo is empty."""
+    print("No skills yet. Get started in 3 steps:")
+    print("  1. askill search <keyword>            find skills on skills.sh")
+    print("  2. askill install owner/repo@skill    install into the central repo")
+    print("  3. askill watch                       auto-sync on every change")
+    print()
+
+
 def get_status(skill_name: str | None = None) -> list[StatusEntry]:
     """Get installation status of skills across all products.
 
@@ -141,6 +150,7 @@ def sync_skill(
     if not skills:
         if verbose:
             print("No skills to sync.")
+            print_onboarding()
         return {}
 
     if verbose:
@@ -215,15 +225,25 @@ def sync_skill(
     return results
 
 
-def install_skill(source: str, sync: bool = False, audit: bool = False, verbose: bool = True) -> bool:
+def install_skill(
+    source: str,
+    sync: bool = False,
+    audit: bool = False,
+    verbose: bool = True,
+    no_audit: bool = False,
+) -> bool:
     """Install a skill to the central repository.
 
     Args:
         source: Local path, GitHub URL, or skills.sh-ecosystem shorthand
             (``owner/repo``, ``owner/repo@skill``, ``https://skills.sh/...``).
         sync: If True, also sync the installed skill to all products.
-        audit: If True, run the security audit after install.
+        audit: If True, print the full audit report after install.
         verbose: Print progress messages.
+        no_audit: If True, skip the post-install checks entirely.  By
+            default every install runs the agentskills.io spec check plus a
+            security audit scan (v0.12.0) - safe results print one line,
+            risky/dangerous results warn loudly regardless of verbosity.
 
     Returns:
         True if installation succeeded.
@@ -245,18 +265,57 @@ def install_skill(source: str, sync: bool = False, audit: bool = False, verbose:
     else:
         name, ok = _install_from_local(source, verbose=verbose)
 
+    if ok and name and not no_audit:
+        _post_install_checks(name, full_report=audit, verbose=verbose)
+
     if ok and sync and name:
         if verbose:
             print()
         sync_skill(name, verbose=verbose)
 
-    if ok and audit and name:
-        if verbose:
-            print()
-            print(f"Running security audit on {name}...")
-        audit_skill(name, verbose=verbose)
-
     return ok
+
+
+def _post_install_checks(skill_name: str, full_report: bool = False, verbose: bool = True) -> None:
+    """Spec + security checks after install (v0.12.0: on by default).
+
+    Quiet mode (default): one ``[check]`` summary line when verbose; spec
+    errors and risky/dangerous verdicts print their details in any mode.
+    ``full_report=True`` additionally prints the complete audit report.
+    """
+    from .audit import analyze_skill_dir
+    from .spec import check_spec
+
+    skill_dir = CENTRAL_DIR / skill_name
+    if not skill_dir.exists():
+        return
+
+    spec = check_spec(skill_dir)
+    report = analyze_skill_dir(skill_dir)
+    score = report.get("score", 100)
+    grade = report.get("grade", "?")
+    verdict = report.get("verdict", "safe")
+    icon = {"safe": "OK", "caution": "CAUTION", "risky": "RISKY", "dangerous": "DANGEROUS"}.get(verdict, verdict)
+
+    risky = verdict in ("risky", "dangerous")
+    spec_part = "spec PASS" if spec["ok"] else f"spec FAIL ({len(spec['errors'])} error(s))"
+    if verbose:
+        print(f"  [check] {spec_part} - audit {score}/100 grade {grade} ({icon})")
+        for w in spec["warnings"]:
+            print(f"      warning: {w}")
+        for e in spec["errors"]:
+            print(f"      spec error: {e}")
+
+    if risky:
+        print(f"  !! SECURITY WARNING: '{skill_name}' scored {score}/100 ({verdict})")
+        for f in report.get("findings", [])[:3]:
+            print(f"     - [{f.get('severity', '?')}] {f.get('message', '?')} ({f.get('file', '?')})")
+        print(f"     Review with: askill audit {skill_name}")
+
+    if full_report and verbose:
+        print()
+        print(f"Running security audit on {skill_name}...")
+        audit_skill(skill_name, verbose=True)
 
 
 def _install_from_local(source: str, verbose: bool = True) -> tuple[str | None, bool]:

@@ -207,7 +207,8 @@ def watch_loop(
     """
     if not CENTRAL_DIR.exists():
         print(f"Central repository not found: {CENTRAL_DIR}")
-        print("Create it by installing a skill: askill install <path-or-url>")
+        from .sync import print_onboarding
+        print_onboarding()
         return
 
     backend = create_watcher(CENTRAL_DIR, poll_interval=interval)

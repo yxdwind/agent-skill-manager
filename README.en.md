@@ -6,7 +6,7 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-161%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-169%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
@@ -110,14 +110,17 @@ askill sync my-skill
 # List all skills in the central repository (with audit scores)
 askill list
 
-# Install a skill (local path or GitHub URL)
+# Install a skill (local path / GitHub URL / skills.sh shorthand)
+# since v0.12.0: spec + security checks run by default, risky/dangerous warns loudly
 askill install /path/to/skill-folder
 askill install --sync /path/to/skill-folder          # auto-sync after install
-askill install --audit /path/to/skill-folder         # run security audit after install
-askill install --sync --audit <github-url>           # sync + audit together
+askill install --audit /path/to/skill-folder         # print the full audit report
+askill install --no-audit /path/to/skill-folder      # skip the default checks
+askill install --sync --audit <github-url>           # sync + full audit together
 
 # skills.sh ecosystem shorthand (v0.11.0, same syntax as npx skills)
 askill search pdf                                    # search the skills.sh registry
+askill search pdf --install 1                        # search and install result #1
 askill install anthropics/skills                     # owner/repo shorthand
 askill install anthropics/skills@pdf                 # one skill inside a repo
 askill install https://skills.sh/anthropics/skills/pdf   # skills.sh page URL
@@ -182,7 +185,7 @@ agent-skill-manager/
 │   │                           #             / registry / spec)
 │   └── utils/                  # filesystem.py (cross-platform file ops)
 │                               # watcher.py (native fs events: inotify/kqueue/ReadDirectoryChangesW)
-└── tests/                      # 161 tests
+└── tests/                      # 169 tests
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
@@ -203,6 +206,7 @@ agent-skill-manager/
 
 ```bash
 askill search pdf                        # search the registry (name / source / installs)
+askill search pdf --install 1            # install result #1 directly
 askill install anthropics/skills@pdf     # shorthand, same syntax as npx skills add
 askill install https://skills.sh/anthropics/skills/pdf   # pasted page URLs work too
 ```

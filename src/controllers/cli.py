@@ -17,6 +17,7 @@ from ..services.sync import (
     adopt_from_platform,
     audit_skill,
     audit_all,
+    print_onboarding,
 )
 
 
@@ -58,9 +59,9 @@ def _print_list():
     if not skills:
         if not CENTRAL_DIR.exists():
             print(f"Central repository not found: {CENTRAL_DIR}")
-            print("Create it by installing a skill: askill install <path>")
         else:
             print(f"No skills found in {CENTRAL_DIR}")
+        print_onboarding()
         return
 
     print(f"\nSkills in central repository ({CENTRAL_DIR}):")
@@ -84,6 +85,7 @@ def _print_status(skill_name=None):
             print(f"Skill not found: {skill_name}")
         else:
             print("No skills found in central repository.")
+            print_onboarding()
         return
 
     # Build table
@@ -141,9 +143,9 @@ def _print_sync(skill_name=None):
     sync_skill(skill_name, verbose=True)
 
 
-def _print_install(source, sync=False, audit=False):
+def _print_install(source, sync=False, audit=False, no_audit=False):
     """Install a skill and print results."""
-    install_skill(source, sync=sync, audit=audit, verbose=True)
+    install_skill(source, sync=sync, audit=audit, no_audit=no_audit, verbose=True)
 
 
 def _print_remove(skill_name):
@@ -180,10 +182,11 @@ Usage:
     askill sync [skill-name]         Sync skill(s) to all products
     askill list                      List skills in central repository
     askill install [--sync] <source> Install a skill, optionally sync to all
-        [--audit]                    Sources: local path, GitHub URL, or
+        [--audit] [--no-audit]       Sources: local path, GitHub URL, or
                                      skills.sh shorthand (owner/repo,
-                                     owner/repo@skill, skills.sh URL)
-    askill search <query>            Search the skills.sh registry
+                                     owner/repo@skill, skills.sh URL).
+                                     Spec + security checks run by default
+    askill search <query> [--install N]  Search skills.sh; N installs that result
     askill verify [skill-name]       Check skills against the agentskills.io spec
     askill remove <skill-name>       Remove a skill from all products
     askill pack <skill-name>         Package a skill as .zip for DuMate
@@ -218,16 +221,18 @@ def main():
         _print_list()
     elif command == "install":
         if len(sys.argv) < 3 or "--help" in sys.argv or "-h" in sys.argv:
-            print("Usage: askill install [--sync] [--audit] <source>")
+            print("Usage: askill install [--sync] [--audit] [--no-audit] <source>")
             print("  Sources: local path, GitHub URL, or skills.sh shorthand:")
             print("    owner/repo                     e.g. anthropics/skills")
             print("    owner/repo@skill               e.g. anthropics/skills@pdf")
             print("    https://skills.sh/owner/repo/skill")
-            print("  --sync   Also sync to all products after install")
-            print("  --audit  Run security audit after install")
+            print("  --sync      Also sync to all products after install")
+            print("  --audit     Print the full audit report after install")
+            print("  --no-audit  Skip the default spec + security checks")
             return
         do_sync = False
         do_audit = False
+        no_audit = False
         args = sys.argv[2:]
         if "--sync" in args:
             do_sync = True
@@ -235,10 +240,13 @@ def main():
         if "--audit" in args:
             do_audit = True
             args.remove("--audit")
+        if "--no-audit" in args:
+            no_audit = True
+            args.remove("--no-audit")
         if not args:
-            print("Usage: askill install [--sync] [--audit] <path-or-url>")
+            print("Usage: askill install [--sync] [--audit] [--no-audit] <path-or-url>")
             return
-        _print_install(args[0], sync=do_sync, audit=do_audit)
+        _print_install(args[0], sync=do_sync, audit=do_audit, no_audit=no_audit)
     elif command == "remove":
         if len(sys.argv) < 3:
             print("Usage: askill remove <skill-name>")
@@ -261,11 +269,24 @@ def main():
         _print_audit(skill_name)
     elif command == "search":
         from ..services.registry import search_skills, RegistryError
-        if len(sys.argv) < 3:
-            print("Usage: askill search <query>")
-            print("  e.g. askill search pdf  ->  askill install anthropics/skills@pdf")
+        args = sys.argv[2:]
+        install_idx = None
+        if "--install" in args:
+            i = args.index("--install")
+            if i + 1 >= len(args):
+                print("Usage: askill search <query> [--install N]")
+                return
+            try:
+                install_idx = int(args[i + 1])
+            except ValueError:
+                print("Invalid --install value (need a result number, e.g. --install 1)")
+                return
+            args = args[:i] + args[i + 2:]
+        if not args:
+            print("Usage: askill search <query> [--install N]")
+            print("  e.g. askill search pdf --install 1")
             return
-        query = " ".join(sys.argv[2:])
+        query = " ".join(args)
         try:
             results = search_skills(query)
         except RegistryError as e:
@@ -276,18 +297,28 @@ def main():
             return
         print(f"\nskills.sh results for {query!r}:")
         print(f"{'-'*70}")
-        for r in results:
+        for n, r in enumerate(results, start=1):
             label = f"{r['source']}@{r['skill_id']}"
             if len(label) > 52:
                 label = label[:49] + "..."
             installs = f"{r['installs']:,}" if r["installs"] else "-"
-            print(f"  {label:<52} {installs:>10} installs")
+            print(f"  {n}. {label:<50} {installs:>10} installs")
             if r["name"] != r["skill_id"]:
-                print(f"    {r['name'][:70]}")
+                print(f"     {r['name'][:70]}")
         print()
         top = results[0]
-        print(f"Install the top match:  askill install {top['source']}@{top['skill_id']}")
+        print(f"Install one:  askill install {top['source']}@{top['skill_id']}")
+        print(f"         or:  askill search {query} --install 1")
         print()
+
+        if install_idx is not None:
+            if install_idx < 1 or install_idx > len(results):
+                print(f"Invalid --install index: pick 1-{len(results)}")
+                return
+            pick = results[install_idx - 1]
+            print(f"Installing result #{install_idx}: {pick['source']}@{pick['skill_id']}")
+            install_skill(f"{pick['source']}@{pick['skill_id']}", verbose=True)
+            print("\nRun 'askill sync' to distribute, or 'askill watch' to auto-sync.")
     elif command == "verify":
         from ..services.spec import check_spec, check_all_specs
         if len(sys.argv) > 2:

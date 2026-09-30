@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-161%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-169%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#支持的产品)
 
@@ -112,13 +112,16 @@ askill sync my-skill
 askill list
 
 # 安装 skill（本地路径 / GitHub URL / skills.sh 生态简写）
+# v0.12.0 起：安装后默认自动跑 spec 检查 + 安全评测，risky/dangerous 高亮告警
 askill install /path/to/skill-folder
 askill install --sync /path/to/skill-folder          # 安装后自动同步到所有产品
-askill install --audit /path/to/skill-folder         # 安装后自动运行安全评测
-askill install --sync --audit <github-url>           # 同步 + 安全评测一起
+askill install --audit /path/to/skill-folder         # 额外打印完整审计报告
+askill install --no-audit /path/to/skill-folder      # 跳过默认安全检查
+askill install --sync --audit <github-url>           # 同步 + 完整审计一起
 
 # skills.sh 生态简写（v0.11.0，与 npx skills 语法一致）
 askill search pdf                                    # 搜索 skills.sh 注册表
+askill search pdf --install 1                        # 搜索并直接安装第 1 条结果
 askill install anthropics/skills                     # owner/repo 简写
 askill install anthropics/skills@pdf                 # 指定仓库内的某个 skill
 askill install https://skills.sh/anthropics/skills/pdf   # skills.sh 页面 URL
@@ -181,7 +184,7 @@ agent-skill-manager/
 │   │                           #             / registry / spec）
 │   └── utils/                  # filesystem.py（跨平台文件操作）
 │                               # watcher.py（原生文件事件：inotify/kqueue/ReadDirectoryChangesW）
-└── tests/                      # 161 个测试
+└── tests/                      # 169 个测试
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
@@ -226,6 +229,7 @@ askill update my-skill     # 只更新指定 skill
 
 ```bash
 askill search pdf                        # 搜索注册表（名称/来源/装机量）
+askill search pdf --install 1            # 直接安装第 N 条结果
 askill install anthropics/skills@pdf     # 简写安装，与 npx skills add 语法一致
 askill install https://skills.sh/anthropics/skills/pdf   # 粘贴 skills.sh 页面链接也行
 ```
