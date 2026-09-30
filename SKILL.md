@@ -12,7 +12,7 @@ license: MIT
 
 # Agent Skill Manager
 
-Cross-platform (macOS / Windows) skill sync for 15 domestic AI agent products.
+Cross-platform (macOS / Windows / Linux) skill sync for 15 domestic AI agent products.
 
 ## Quick Start
 
@@ -45,7 +45,9 @@ askill sync
 | `askill status [name]` | Show installation status across all 15 products |
 | `askill sync [name]` | Sync skill(s) from central repo to all products |
 | `askill list` | List all skills in central repository |
-| `askill install <path\|url>` | Install a skill to central repository |
+| `askill install <path\|url\|owner/repo@skill>` | Install a skill (local path, GitHub URL, or skills.sh shorthand) |
+| `askill search <query>` | Search the skills.sh registry |
+| `askill verify [name]` | Check skills against the agentskills.io spec |
 | `askill remove <name>` | Remove a skill from central repo and all products |
 | `askill pack <name>` | Package a skill as .zip for DuMate upload |
 | `askill products` | List all supported products |

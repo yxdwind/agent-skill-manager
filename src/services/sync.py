@@ -91,8 +91,8 @@ def get_status(skill_name: str | None = None) -> list[StatusEntry]:
                         # ~/.openclaw-autoclaw/skills/) were never checked, so a skill
                         # synced only to an extra dir showed "missing". Check them too:
                         # if ANY extra dir has the skill linked/copied, report ok.
-                        from ..config.products import IS_WINDOWS
-                        extra_dirs = p.get("extra_dirs_windows", []) if IS_WINDOWS else p.get("extra_dirs_macos", [])
+                        from ..config.products import _platform_key
+                        extra_dirs = p.get(f"extra_dirs_{_platform_key()}", [])
                         extra_ok = False
                         extra_method = ""
                         for extra in extra_dirs:
@@ -188,12 +188,9 @@ def sync_skill(
             #
             # 修复：主路径同步成功后，遍历产品声明的额外目录，对每个额外目录
             # 也创建 junction/symlink（Windows 用 junction，无需管理员权限；
-            # macOS 用 symlink；失败时 create_link 内部自动降级为复制）。
-            from ..config.products import IS_WINDOWS
-            if IS_WINDOWS:
-                extra_dirs = p.get("extra_dirs_windows", [])
-            else:
-                extra_dirs = p.get("extra_dirs_macos", [])
+            # macOS/Linux 用 symlink；失败时 create_link 内部自动降级为复制）。
+            from ..config.products import _platform_key
+            extra_dirs = p.get(f"extra_dirs_{_platform_key()}", [])
             for extra in extra_dirs:
                 if extra is None:
                     continue
@@ -222,7 +219,8 @@ def install_skill(source: str, sync: bool = False, audit: bool = False, verbose:
     """Install a skill to the central repository.
 
     Args:
-        source: Local path or GitHub URL.
+        source: Local path, GitHub URL, or skills.sh-ecosystem shorthand
+            (``owner/repo``, ``owner/repo@skill``, ``https://skills.sh/...``).
         sync: If True, also sync the installed skill to all products.
         audit: If True, run the security audit after install.
         verbose: Print progress messages.
@@ -232,7 +230,17 @@ def install_skill(source: str, sync: bool = False, audit: bool = False, verbose:
     """
     CENTRAL_DIR.mkdir(parents=True, exist_ok=True)
 
-    if source.startswith("http"):
+    from .registry import resolve_source
+
+    resolved = resolve_source(source)
+    if resolved:
+        if verbose:
+            hint = f" (skill: {resolved['skill']})" if resolved["skill"] else ""
+            print(f"skills.sh shorthand detected{hint}: {resolved['original']}")
+        name, ok = _install_from_url(
+            resolved["repo_url"], verbose=verbose, skill_hint=resolved["skill"],
+        )
+    elif source.startswith("http"):
         name, ok = _install_from_url(source, verbose=verbose)
     else:
         name, ok = _install_from_local(source, verbose=verbose)
@@ -280,7 +288,11 @@ def _install_from_local(source: str, verbose: bool = True) -> tuple[str | None, 
     return src.name, True
 
 
-def _install_from_url(source: str, verbose: bool = True) -> tuple[str | None, bool]:
+def _install_from_url(
+    source: str,
+    verbose: bool = True,
+    skill_hint: str | None = None,
+) -> tuple[str | None, bool]:
     """Install skill from a GitHub URL.
 
     Supports these GitHub URL formats:
@@ -288,6 +300,10 @@ def _install_from_url(source: str, verbose: bool = True) -> tuple[str | None, bo
       - https://github.com/user/repo/tree/branch          (branch root)
       - https://github.com/user/repo/tree/branch/path/to/skill
       - https://github.com/user/repo/blob/branch/path/to/skill/SKILL.md
+
+    With ``skill_hint`` (from ``owner/repo@skill`` shorthand) the cloned repo
+    is searched for a directory named ``skill_hint`` containing SKILL.md and
+    that directory is installed instead of the repo root.
 
     Returns (skill_name, success).
     """
@@ -329,6 +345,11 @@ def _install_from_url(source: str, verbose: bool = True) -> tuple[str | None, bo
         sub_path = ""
         skill_name = parts[-1]
 
+    if skill_hint:
+        # find_skill_dir only ever returns a directory named skill_hint, so
+        # the final name (and thus the install destination) is knowable now
+        skill_name = skill_hint
+
     dest = CENTRAL_DIR / skill_name
     if dest.exists():
         if verbose:
@@ -355,6 +376,25 @@ def _install_from_url(source: str, verbose: bool = True) -> tuple[str | None, bo
                 src = Path(tmp) / sub_path
             else:
                 src = Path(tmp)
+
+            if skill_hint and src.exists():
+                from .registry import find_skill_dir
+                found = find_skill_dir(Path(tmp), skill_hint)
+                if found is None:
+                    if verbose:
+                        print(
+                            f"Skill '{skill_hint}' not found in this repo "
+                            "(no directory of that name containing SKILL.md)."
+                        )
+                        print(
+                            "Try the full path instead: "
+                            f"askill install {repo_url}/tree/main/<path>"
+                        )
+                    return None, False
+                src = found
+                skill_name = found.name
+                if verbose:
+                    print(f"  Resolved '{skill_hint}' -> {found.relative_to(tmp)}")
 
             if not src.exists() or not (src / "SKILL.md").exists():
                 if verbose:
@@ -591,8 +631,13 @@ def adopt_from_platform(
     repository, copies them in, then syncs to all OTHER products.
     Reverse of sync: pull from one product to everywhere else.
 
+    ``platform_short="all"`` scans every product directory at once - the
+    bridge for skills installed outside askill (e.g. via ``npx skills add``
+    from the skills.sh ecosystem, or a product's own UI).
+
     Args:
-        platform_short: Short name of source product (e.g. autoclaw, trae).
+        platform_short: Short name of source product (e.g. autoclaw, trae),
+            or "all".
         skill_name: If specified, only adopt this single skill.
         verbose: Print progress messages.
 
@@ -601,37 +646,63 @@ def adopt_from_platform(
     """
     from ..config.products import get_all_product_dirs, IS_WINDOWS
 
+    adopt_all = platform_short == "all"
     product: ProductSpec | None = None
-    for p in PRODUCTS:
-        if p["short"] == platform_short:
-            product = p
-            break
-    if product is None:
-        if verbose:
-            print(f"Unknown platform: {platform_short}")
-            shorts = [p["short"] for p in PRODUCTS]
-            print(f"Available: {', '.join(shorts)}")
-        return {"adopted": [], "synced": {}}
+    if not adopt_all:
+        for p in PRODUCTS:
+            if p["short"] == platform_short:
+                product = p
+                break
+        if product is None:
+            if verbose:
+                print(f"Unknown platform: {platform_short}")
+                shorts = [p["short"] for p in PRODUCTS]
+                print(f"Available: {', '.join(shorts)} (or 'all')")
+            return {"adopted": [], "synced": {}}
 
-    if product["sync_method"] in ("native", "pack"):
-        if verbose:
-            print(
-                f"Platform {platform_short!r} uses {product['sync_method']} mode, "
-                "no skill directory to adopt from."
-            )
-        return {"adopted": [], "synced": {}}
+        if product["sync_method"] in ("native", "pack"):
+            if verbose:
+                print(
+                    f"Platform {platform_short!r} uses {product['sync_method']} mode, "
+                    "no skill directory to adopt from."
+                )
+            return {"adopted": [], "synced": {}}
 
-    all_dirs = get_all_product_dirs(product)
+    source_products = PRODUCTS if adopt_all else [product]
     source_skills: dict[str, Path] = {}
 
-    for d in all_dirs:
-        if not d.exists():
+    for sp in source_products:
+        if sp["sync_method"] in ("native", "pack"):
             continue
-        for item in sorted(d.iterdir()):
-            if item.is_dir() and (item / "SKILL.md").exists():
-                real = item.resolve()
-                if item.name not in source_skills:
-                    source_skills[item.name] = real
+        for d in get_all_product_dirs(sp):
+            if d is None or not d.exists():
+                continue
+            for item in sorted(d.iterdir()):
+                if item.is_dir() and (item / "SKILL.md").exists():
+                    real = item.resolve()
+                    if item.name not in source_skills:
+                        source_skills[item.name] = real
+
+    if not source_skills:
+        if verbose:
+            scope = "any product directory" if adopt_all else product["name"]
+            print(f"No skills found in {scope}.")
+        return {"adopted": [], "synced": {}}
+
+    if skill_name:
+        if skill_name not in source_skills:
+            if verbose:
+                scope = "any product" if adopt_all else product["name"]
+                print(f"Skill {skill_name!r} not found in {scope}.")
+                print("Available: " + ", ".join(sorted(source_skills.keys())))
+            return {"adopted": [], "synced": {}}
+        source_skills = {skill_name: source_skills[skill_name]}
+
+    if verbose:
+        scope = "all products" if adopt_all else f"{product['name']} ({platform_short})"
+        print(f"\nAdopting from {scope}:")
+        print(f"  Found {len(source_skills)} skill(s)")
+        print(f"  Central repo: {CENTRAL_DIR}\n")
 
     if not source_skills:
         if verbose:

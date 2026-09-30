@@ -6,9 +6,10 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-94%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-161%20passed-22c55e)](tests/)
+[![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#supported-products)
 
@@ -39,32 +40,34 @@ Every Chinese AI agent product keeps its skills in its own directory. Developing
 
 ## Supported Products (15)
 
-| Product | Company | macOS Path | Windows Path | Sync Method |
-|---------|---------|-----------|--------------|-------------|
-| AutoClaw2 | Zhipu | `~/.openclaw-autoclaw/skills/` | `%USERPROFILE%\.openclaw-autoclaw\skills\` | symlink/junction |
-| Kimi | Moonshot AI | `~/.config/agents/skills/` | `%USERPROFILE%\.config\agents\skills\` | symlink/junction |
-| MiniMax Code | MiniMax | `~/.agents/skills/` | `%USERPROFILE%\.agents\skills\` | native |
-| WorkBuddy | Tencent | `~/.workbuddy/skills/` | `%USERPROFILE%\.workbuddy\skills\` | symlink + settings.json |
-| Trae | ByteDance | `~/.trae/skills/` | `%USERPROFILE%\.trae\skills\` | symlink/junction |
-| Trae CN | ByteDance | `~/.trae-cn/skills/` | `%USERPROFILE%\.trae-cn\skills\` | symlink/junction |
-| TRAE SOLO CN | ByteDance | `~/.trae-cn/skills/` (shared with Trae CN) | `%USERPROFILE%\.trae-cn\skills\` | symlink/junction |
-| DuMate | Baidu | App-managed | App-managed | pack .zip upload |
-| CodeBuddy | Tencent | `~/.codebuddy/skills/` | `%USERPROFILE%\.codebuddy\skills\` | symlink + settings.json |
-| Comate / Wenxin Kuaima | Baidu | `~/.comate/skills/` | `%USERPROFILE%\.comate\skills\` | symlink/junction |
-| Qoder CN | Alibaba | `~/.qoder-cn/skills/` | `%USERPROFILE%\.qoder-cn\skills\` | symlink/junction |
-| Qoder CN IDE | Alibaba | `~/.qoder-cn/skills/` (shared with Qoder CN) | `%USERPROFILE%\.qoder-cn\skills\` | symlink/junction |
-| QwenWork / Qianwen Office | Alibaba | `~/.qwenworkcn/skills/` | `%USERPROFILE%\.qwenworkcn\skills\` | symlink/junction |
-| DoubaoWork | ByteDance | `~/.super_doubao/super-doubao-runtime/workspace/.user_skills/` | `%LOCALAPPDATA%\DoubaoWork\User Data\Default\.doubaowork\agent_mode\workspace\.user_skills\` | symlink/junction |
-| ZCode | ZCode | `~/.zcode/skills/` | `%USERPROFILE%\.zcode\skills\` | symlink/junction |
+| Product | Company | macOS Path | Windows Path | Linux Path | Sync Method |
+|---------|---------|-----------|--------------|------------|-------------|
+| AutoClaw2 | Zhipu | `~/.openclaw-autoclaw/skills/` | `%USERPROFILE%\.openclaw-autoclaw\skills\` | same as macOS | symlink/junction |
+| Kimi | Moonshot AI | `~/.config/agents/skills/` | `%USERPROFILE%\.config\agents\skills\` | same as macOS | symlink/junction |
+| MiniMax Code | MiniMax | `~/.agents/skills/` | `%USERPROFILE%\.agents\skills\` | same as macOS | native |
+| WorkBuddy | Tencent | `~/.workbuddy/skills/` | `%USERPROFILE%\.workbuddy\skills\` | — | symlink + settings.json |
+| Trae | ByteDance | `~/.trae/skills/` | `%USERPROFILE%\.trae\skills\` | — | symlink/junction |
+| Trae CN | ByteDance | `~/.trae-cn/skills/` | `%USERPROFILE%\.trae-cn\skills\` | — | symlink/junction |
+| TRAE SOLO CN | ByteDance | `~/.trae-cn/skills/` (shared with Trae CN) | `%USERPROFILE%\.trae-cn\skills\` | — | symlink/junction |
+| DuMate | Baidu | App-managed | App-managed | App-managed (.zip pack works) | pack .zip upload |
+| CodeBuddy | Tencent | `~/.codebuddy/skills/` | `%USERPROFILE%\.codebuddy\skills\` | same as macOS | symlink + settings.json |
+| Comate / Wenxin Kuaima | Baidu | `~/.comate/skills/` | `%USERPROFILE%\.comate\skills\` | same as macOS | symlink/junction |
+| Qoder CN | Alibaba | `~/.qoder-cn/skills/` | `%USERPROFILE%\.qoder-cn\skills\` | — | symlink/junction |
+| Qoder CN IDE | Alibaba | `~/.qoder-cn/skills/` (shared with Qoder CN) | `%USERPROFILE%\.qoder-cn\skills\` | — | symlink/junction |
+| QwenWork / Qianwen Office | Alibaba | `~/.qwenworkcn/skills/` | `%USERPROFILE%\.qwenworkcn\skills\` | — | symlink/junction |
+| DoubaoWork | ByteDance | `~/.super_doubao/super-doubao-runtime/workspace/.user_skills/` | `%LOCALAPPDATA%\DoubaoWork\User Data\Default\.doubaowork\agent_mode\workspace\.user_skills\` | — | symlink/junction |
+| ZCode | ZCode | `~/.zcode/skills/` | `%USERPROFILE%\.zcode\skills\` | same as macOS | symlink/junction |
+
+> **Linux support (v0.10.0)**: CLI-based products (AutoClaw2, Kimi, MiniMax Code, CodeBuddy, Comate, ZCode) use the same dotdir convention + native symlinks on Linux; DuMate's .zip pack works everywhere. Desktop/IDE apps without a Linux build are skipped automatically (`askill products` shows N/A) - add a `linux_path` when a build ships.
 
 ## How It Works
 
 ![Architecture](docs/architecture.svg)
 
-**Core design**: the central repository `~/.agents/skills/` is the single source of truth. Skills are distributed to all products via symlinks (macOS) or junctions (Windows). For DuMate, which does not expose a filesystem, skills are packed as .zip for manual upload. QwenWork and DoubaoWork are synced the same way via junctions.
+**Core design**: the central repository `~/.agents/skills/` is the single source of truth. Skills are distributed to all products via symlinks (macOS/Linux) or junctions (Windows). For DuMate, which does not expose a filesystem, skills are packed as .zip for manual upload. QwenWork and DoubaoWork are synced the same way via junctions.
 
 - **Windows**: junction via `mklink /J`, no admin rights needed
-- **macOS**: symlink via `ln -s`
+- **macOS / Linux**: symlink via `ln -s`
 - **Automatic fallback**: falls back to copying if link creation fails
 - **Zero dependencies**: Python standard library only
 
@@ -114,6 +117,12 @@ askill install --sync /path/to/skill-folder          # auto-sync after install
 askill install --audit /path/to/skill-folder         # run security audit after install
 askill install --sync --audit <github-url>           # sync + audit together
 
+# skills.sh ecosystem shorthand (v0.11.0, same syntax as npx skills)
+askill search pdf                                    # search the skills.sh registry
+askill install anthropics/skills                     # owner/repo shorthand
+askill install anthropics/skills@pdf                 # one skill inside a repo
+askill install https://skills.sh/anthropics/skills/pdf   # skills.sh page URL
+
 # Multiple GitHub URL formats are supported (default branch auto-detected)
 askill install --sync https://github.com/user/repo                                # repo root SKILL.md
 askill install --sync https://github.com/user/repo/tree/main/my-skill             # subdirectory on a branch
@@ -127,9 +136,9 @@ askill adopt kimi                                    # adopt all skills from Kim
 askill audit                                         # audit all skills
 askill audit my-skill                                # audit one skill
 
-# Live watch: auto-sync on every skill change (new in v0.8.0)
-askill watch                                         # watch ~/.agents/skills/
-askill watch --interval 5                            # custom poll interval (s)
+# Live watch: auto-sync on every skill change (event-driven since v0.10.0)
+askill watch                                         # watch ~/.agents/skills/ (native fs events)
+askill watch --interval 5                            # fallback poll interval (s)
 
 # Skill upgrades: GitHub-origin tracking + one-command update (v0.8.0)
 askill update --check                                # list available updates
@@ -167,18 +176,50 @@ agent-skill-manager/
 │   └── product-paths.md        # per-product path reference
 ├── src/                        # package root (mapped as agent_skill_manager)
 │   ├── __init__.py / __main__.py
-│   ├── config/products.py      # 11 product definitions
-│   ├── controllers/cli.py      # CLI commands (10 commands)
+│   ├── config/products.py      # 15 product definitions (incl. linux_path)
+│   ├── controllers/cli.py      # CLI commands (12 commands)
 │   ├── models/                 # TypedDict data shapes
-│   ├── services/               # business logic (sync / audit)
-│   └── utils/filesystem.py     # cross-platform filesystem ops
-└── tests/                      # 100 tests
+│   ├── services/               # business logic (sync / audit / watch / sources
+│   │                           #             / registry / spec)
+│   └── utils/                  # filesystem.py (cross-platform file ops)
+│                               # watcher.py (native fs events: inotify/kqueue/ReadDirectoryChangesW)
+└── tests/                      # 161 tests
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
     ├── test_adopt.py
     ├── test_security.py
-    └── test_cli.py
+    ├── test_cli.py
+    ├── test_watch.py
+    ├── test_watcher.py
+    ├── test_registry.py
+    └── test_spec.py
+```
+
+## skills.sh Ecosystem (v0.11.0)
+
+[skills.sh](https://skills.sh) (by Vercel Labs) is the de-facto registry of the open Agent Skills ecosystem ([agentskills.io](https://agentskills.io) specification). askill integrates in three directions, all stdlib-only (urllib):
+
+**① Consume** - install any skill from the registry, no Node.js required:
+
+```bash
+askill search pdf                        # search the registry (name / source / installs)
+askill install anthropics/skills@pdf     # shorthand, same syntax as npx skills add
+askill install https://skills.sh/anthropics/skills/pdf   # pasted page URLs work too
+```
+
+**② Publish** - the central repo `~/.agents/skills/` already uses the canonical layout (one directory with a SKILL.md per skill). Push it to GitHub and it can be indexed by skills.sh and read by every spec-compliant agent:
+
+```bash
+askill verify            # check against the agentskills.io spec (name/description/limits/dir match)
+askill verify my-skill   # one skill; errors block indexing, warnings are advisory (e.g. body > 500 lines)
+```
+
+**③ Bridge** - skills installed via `npx skills add -g <repo>` into product directories can be pulled into the central repo and distributed to all domestic products:
+
+```bash
+npx skills add -g anthropics/skills      # install with the skills CLI first
+askill adopt all                          # scan every product dir, adopt + distribute to 15 products
 ```
 
 ## Security Audit
@@ -213,10 +254,12 @@ Edit `src/config/products.py` and append to the `PRODUCTS` list:
     "short": "short-name",
     "macos_path": HOME / ".newproduct" / "skills",
     "windows_path": HOME / ".newproduct" / "skills",
+    "linux_path": HOME / ".newproduct" / "skills",  # omit (or None) if no Linux build
     "sync_method": "symlink",  # symlink | native | pack
     "note": "description",
     "extra_dirs_macos": [],
     "extra_dirs_windows": [],
+    "extra_dirs_linux": [],
 }
 ```
 

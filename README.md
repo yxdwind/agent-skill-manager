@@ -7,9 +7,10 @@
 [English](README.en.md) | [简体中文](README.md)
 
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D4?logo=windows&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-94%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-161%20passed-22c55e)](tests/)
+[![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#支持的产品)
 
 **一次开发，十一端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
@@ -39,32 +40,34 @@
 
 ## 支持的产品（15 个）
 
-| 产品 | 公司 | macOS 目录 | Windows 目录 | 同步方式 |
-|------|------|-----------|-------------|----------|
-| AutoClaw2 | 智谱 | `~/.openclaw-autoclaw/skills/` | `%USERPROFILE%\.openclaw-autoclaw\skills\` | symlink/junction |
-| Kimi | 月之暗面 | `~/.config/agents/skills/` | `%USERPROFILE%\.config\agents\skills\` | symlink/junction |
-| MiniMax Code | MiniMax | `~/.agents/skills/` | `%USERPROFILE%\.agents\skills\` | 原生支持 |
-| WorkBuddy | 腾讯 | `~/.workbuddy/skills/` | `%USERPROFILE%\.workbuddy\skills\` | symlink + settings.json |
-| Trae | 字节跳动 | `~/.trae/skills/` | `%USERPROFILE%\.trae\skills\` | symlink/junction |
-| Trae CN | 字节跳动 | `~/.trae-cn/skills/` | `%USERPROFILE%\.trae-cn\skills\` | symlink/junction |
-| TRAE SOLO CN | 字节跳动 | `~/.trae-cn/skills/`（与 Trae CN 共用） | `%USERPROFILE%\.trae-cn\skills\` | symlink/junction |
-| DuMate | 百度 | App 内管理 | App 内管理 | 打包 .zip 上传 |
-| CodeBuddy | 腾讯 | `~/.codebuddy/skills/` | `%USERPROFILE%\.codebuddy\skills\` | symlink + settings.json |
-| Comate / 文心快码 | 百度 | `~/.comate/skills/` | `%USERPROFILE%\.comate\skills\` | symlink/junction |
-| Qoder CN | 阿里 | `~/.qoder-cn/skills/` | `%USERPROFILE%\.qoder-cn\skills\` | symlink/junction |
-| Qoder CN IDE | 阿里 | `~/.qoder-cn/skills/`（与 Qoder CN 共用） | `%USERPROFILE%\.qoder-cn\skills\` | symlink/junction |
-| QwenWork / 千问办公 | 阿里 | `~/.qwenworkcn/skills/` | `%USERPROFILE%\.qwenworkcn\skills\` | symlink/junction |
-| DoubaoWork / 豆包工作 | 字节跳动 | `~/.super_doubao/super-doubao-runtime/workspace/.user_skills/` | `%LOCALAPPDATA%\DoubaoWork\User Data\Default\.doubaowork\agent_mode\workspace\.user_skills\` | symlink/junction |
-| ZCode | ZCode | `~/.zcode/skills/` | `%USERPROFILE%\.zcode\skills\` | symlink/junction |
+| 产品 | 公司 | macOS 目录 | Windows 目录 | Linux 目录 | 同步方式 |
+|------|------|-----------|-------------|-----------|----------|
+| AutoClaw2 | 智谱 | `~/.openclaw-autoclaw/skills/` | `%USERPROFILE%\.openclaw-autoclaw\skills\` | 同 macOS | symlink/junction |
+| Kimi | 月之暗面 | `~/.config/agents/skills/` | `%USERPROFILE%\.config\agents\skills\` | 同 macOS | symlink/junction |
+| MiniMax Code | MiniMax | `~/.agents/skills/` | `%USERPROFILE%\.agents\skills\` | 同 macOS | 原生支持 |
+| WorkBuddy | 腾讯 | `~/.workbuddy/skills/` | `%USERPROFILE%\.workbuddy\skills\` | — | symlink + settings.json |
+| Trae | 字节跳动 | `~/.trae/skills/` | `%USERPROFILE%\.trae\skills\` | — | symlink/junction |
+| Trae CN | 字节跳动 | `~/.trae-cn/skills/` | `%USERPROFILE%\.trae-cn\skills\` | — | symlink/junction |
+| TRAE SOLO CN | 字节跳动 | `~/.trae-cn/skills/`（与 Trae CN 共用） | `%USERPROFILE%\.trae-cn\skills\` | — | symlink/junction |
+| DuMate | 百度 | App 内管理 | App 内管理 | App 内管理（zip 打包可用） | 打包 .zip 上传 |
+| CodeBuddy | 腾讯 | `~/.codebuddy/skills/` | `%USERPROFILE%\.codebuddy\skills\` | 同 macOS | symlink + settings.json |
+| Comate / 文心快码 | 百度 | `~/.comate/skills/` | `%USERPROFILE%\.comate\skills\` | 同 macOS | symlink/junction |
+| Qoder CN | 阿里 | `~/.qoder-cn/skills/` | `%USERPROFILE%\.qoder-cn\skills\` | — | symlink/junction |
+| Qoder CN IDE | 阿里 | `~/.qoder-cn/skills/`（与 Qoder CN 共用） | `%USERPROFILE%\.qoder-cn\skills\` | — | symlink/junction |
+| QwenWork / 千问办公 | 阿里 | `~/.qwenworkcn/skills/` | `%USERPROFILE%\.qwenworkcn\skills\` | — | symlink/junction |
+| DoubaoWork / 豆包工作 | 字节跳动 | `~/.super_doubao/super-doubao-runtime/workspace/.user_skills/` | `%LOCALAPPDATA%\DoubaoWork\User Data\Default\.doubaowork\agent_mode\workspace\.user_skills\` | — | symlink/junction |
+| ZCode | ZCode | `~/.zcode/skills/` | `%USERPROFILE%\.zcode\skills\` | 同 macOS | symlink/junction |
+
+> **Linux 支持（v0.10.0）**：CLI 类产品（AutoClaw2、Kimi、MiniMax Code、CodeBuddy、Comate、ZCode）在 Linux 上走相同的 dotdir 约定 + 原生 symlink；DuMate 的 zip 打包全平台可用。暂无 Linux 版本的桌面/IDE 产品自动跳过（`askill products` 显示 N/A），产品发布 Linux 版后补充 `linux_path` 即可。
 
 ## 架构原理
 
 ![Architecture](docs/architecture.svg)
 
-**核心设计**：中央仓库 `~/.agents/skills/` 作为唯一权威源，通过 symlink（macOS）或 junction（Windows）自动分发到各产品。对不支持文件系统的 DuMate，打包为 .zip 手动上传；QwenWork/豆包工作 同样支持 junction 同步。
+**核心设计**：中央仓库 `~/.agents/skills/` 作为唯一权威源，通过 symlink（macOS/Linux）或 junction（Windows）自动分发到各产品。对不支持文件系统的 DuMate，打包为 .zip 手动上传；QwenWork/豆包工作 同样支持 junction 同步。
 
 - **Windows**：使用 `mklink /J` 创建 junction，无需管理员权限
-- **macOS**：使用 `ln -s` 创建 symlink
+- **macOS / Linux**：使用 `ln -s` 创建 symlink
 - **自动降级**：链接创建失败时自动降级为复制模式
 - **零依赖**：仅使用 Python 标准库
 
@@ -109,11 +112,17 @@ askill sync my-skill
 # 列出中央仓库中的所有 skill（含安全评测评分）
 askill list
 
-# 安装 skill（本地路径或 GitHub URL）
+# 安装 skill（本地路径 / GitHub URL / skills.sh 生态简写）
 askill install /path/to/skill-folder
 askill install --sync /path/to/skill-folder          # 安装后自动同步到所有产品
 askill install --audit /path/to/skill-folder         # 安装后自动运行安全评测
 askill install --sync --audit <github-url>           # 同步 + 安全评测一起
+
+# skills.sh 生态简写（v0.11.0，与 npx skills 语法一致）
+askill search pdf                                    # 搜索 skills.sh 注册表
+askill install anthropics/skills                     # owner/repo 简写
+askill install anthropics/skills@pdf                 # 指定仓库内的某个 skill
+askill install https://skills.sh/anthropics/skills/pdf   # skills.sh 页面 URL
 
 # 支持多种 GitHub URL 格式（默认分支自动识别，无需手动指定 main/master）
 askill install --sync https://github.com/user/repo                                # 仓库根目录的 SKILL.md
@@ -127,9 +136,9 @@ askill adopt kimi                                    # 从 Kimi 采纳全部 ski
 askill audit                                         # 评测中央仓库全部 skill
 askill audit my-skill                                # 评测指定 skill
 
-# 实时监听：skill 一改动自动同步到全部产品（v0.8.0 新增）
-askill watch                                         # 常驻监听 ~/.agents/skills/
-askill watch --interval 5                            # 自定义轮询间隔（秒）
+# 实时监听：skill 一改动自动同步到全部产品（v0.10.0 事件驱动）
+askill watch                                         # 常驻监听 ~/.agents/skills/（原生文件事件）
+askill watch --interval 5                            # 自定义降级轮询间隔（秒）
 
 # skill 升级：GitHub 来源自动追踪，一键检测/应用更新（v0.8.0 新增）
 askill update --check                                # 只检查有哪些更新
@@ -166,30 +175,39 @@ agent-skill-manager/
 │   └── product-paths.md        # 各产品详细路径参考
 ├── src/                        # 包根（映射为 agent_skill_manager 包）
 │   ├── __init__.py / __main__.py
-│   ├── config/products.py      # 15 个产品定义
+│   ├── config/products.py      # 15 个产品定义（含 linux_path）
 │   ├── controllers/cli.py      # CLI 命令（12 commands）
 │   ├── models/                 # TypedDict 数据模型
-│   ├── services/               # 业务逻辑（sync / audit / watch / sources）
-│   └── utils/filesystem.py     # 跨平台文件操作
-└── tests/                      # 100 个测试
+│   ├── services/               # 业务逻辑（sync / audit / watch / sources
+│   │                           #             / registry / spec）
+│   └── utils/                  # filesystem.py（跨平台文件操作）
+│                               # watcher.py（原生文件事件：inotify/kqueue/ReadDirectoryChangesW）
+└── tests/                      # 161 个测试
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
     ├── test_adopt.py
     ├── test_security.py
     ├── test_cli.py
-    └── test_watch.py
+    ├── test_watch.py
+    ├── test_watcher.py
+    ├── test_registry.py
+    └── test_spec.py
 ```
 
-## 实时监听与升级（v0.8.0）
+## 实时监听与升级（v0.8.0 / v0.10.0）
 
-### askill watch — 改完即同步
+### askill watch — 改完即同步（v0.10.0 升级为事件驱动）
 
-`askill watch` 常驻监听中央仓库，每 3 秒（可调）做一次快照对比，零第三方依赖：
+`askill watch` 常驻监听中央仓库，默认挂起在**操作系统原生文件事件**上，零第三方依赖：
 
-- **新增/修改** skill → 数秒内自动同步到全部产品，实时打印每个产品结果
-- **删除** skill → 自动清理所有产品残留链接，杜绝死链
+- **事件驱动**：Linux 用 inotify、macOS 用 kqueue、Windows 用 ReadDirectoryChangesW（全部标准库 ctypes/select 实现）；文件一保存即刻感知，实测延迟约 0.4 秒（含去抖），不再是固定 3 秒轮询
+- **去抖合并**：编辑器一次保存的多个 syscall 事件合并为一次同步，只重同步真正变化的 skill
+- **全量对账**：事件模式下每 30 秒仍做一次快照兜底，防事件丢失（队列溢出、目录替换、根目录重建）
+- **新增/修改** skill → 自动同步到全部产品，实时打印每个产品结果
+- **删除** skill → 自动清理所有产品残留链接，杜绝死链（根目录被删也能感知）
 - **安全复检** → 每次同步后重跑 audit；安全评级从 safe 跌到 risky/dangerous 时高亮告警并列出主要问题
+- **自动降级** → 原生事件不可用（受限内核等）或运行中失效时，自动退回轮询模式（`--interval` 可调，默认 3 秒），监听永不中断
 
 ### askill update — 来源追踪与一键升级
 
@@ -199,6 +217,32 @@ agent-skill-manager/
 askill update --check      # 列出哪些 skill 远端有新版本
 askill update              # 检查并应用全部更新（更新后自动同步 + 复检）
 askill update my-skill     # 只更新指定 skill
+```
+
+## skills.sh 生态接入（v0.11.0）
+
+[skills.sh](https://skills.sh)（Vercel Labs）是开放 Agent Skills 生态（[agentskills.io](https://agentskills.io) 规范）的事实注册表。askill 三个方向接入，全程零依赖（标准库 urllib）：
+
+**① 消费生态**——装 skills.sh 上的任何技能，不再需要 Node：
+
+```bash
+askill search pdf                        # 搜索注册表（名称/来源/装机量）
+askill install anthropics/skills@pdf     # 简写安装，与 npx skills add 语法一致
+askill install https://skills.sh/anthropics/skills/pdf   # 粘贴 skills.sh 页面链接也行
+```
+
+**② 发布到生态**——中央仓库 `~/.agents/skills/` 本身就是规范布局（每个技能一个含 SKILL.md 的目录），推到 GitHub 即可被 skills.sh 收录、被所有兼容 agent 读取：
+
+```bash
+askill verify            # 按 agentskills.io 规范逐项检查（name/description/长度/目录匹配）
+askill verify my-skill   # 只查一个；errors 阻断收录，warnings 仅建议（如正文超 500 行）
+```
+
+**③ 双向桥接**——用 `npx skills add -g <repo>` 装到各产品目录的技能，一条命令收编进中央仓库并分发到其余产品：
+
+```bash
+npx skills add -g anthropics/skills      # 先用 skills CLI 装到它支持的产品
+askill adopt all                          # 扫描全部产品目录，收编 + 分发到 15 个国产产品
 ```
 
 ## 安全评测（audit）

@@ -206,3 +206,69 @@ class TestAdoptFromPlatform:
         assert len(result["adopted"]) == 1
         synced = result.get("synced", {})
         assert "my-skill" in synced
+
+
+class TestAdoptAll:
+    def _fake_product(self, short, skills_dir):
+        return {
+            "name": short.title(),
+            "short": short,
+            "macos_path": skills_dir,
+            "windows_path": skills_dir,
+            "linux_path": skills_dir,
+            "sync_method": "symlink",
+            "extra_dirs_macos": [],
+            "extra_dirs_windows": [],
+            "extra_dirs_linux": [],
+        }
+
+    def test_adopt_all_scans_every_product(self, tmp_path):
+        skill_dir = tmp_path / "skill-src"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: shared\n---\n")
+
+        dir_a = tmp_path / "a-skills"; dir_a.mkdir()
+        dir_b = tmp_path / "b-skills"; dir_b.mkdir()
+        shutil.copytree(skill_dir, dir_a / "from-a")
+        shutil.copytree(skill_dir, dir_b / "from-b")
+
+        product_a = self._fake_product("prod-a", dir_a)
+        product_b = self._fake_product("prod-b", dir_b)
+        central = tmp_path / "central"
+        central.mkdir()
+
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product_a, product_b]), \
+             patch("agent_skill_manager.services.sync.get_product_path",
+                   return_value=None), \
+             patch("agent_skill_manager.services.sync._is_junction",
+                   return_value=False):
+            result = adopt_from_platform("all", verbose=False)
+
+        adopted_names = {name for name, ok, _ in result["adopted"]}
+        assert adopted_names == {"from-a", "from-b"}
+        assert (central / "from-a" / "SKILL.md").exists()
+        assert (central / "from-b" / "SKILL.md").exists()
+
+    def test_adopt_all_skips_native_and_pack(self, tmp_path):
+        dir_native = tmp_path / "native-skills"; dir_native.mkdir()
+        (dir_native / "should-not-appear").mkdir()
+        (dir_native / "should-not-appear" / "SKILL.md").write_text("---\nname: x\n---\n")
+        native = self._fake_product("minimax", dir_native)
+        native["sync_method"] = "native"
+        central = tmp_path / "central"; central.mkdir()
+
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [native]):
+            result = adopt_from_platform("all", verbose=False)
+
+        assert result["adopted"] == []
+
+    def test_adopt_all_nothing_found(self, tmp_path):
+        empty = tmp_path / "empty-skills"; empty.mkdir()
+        central = tmp_path / "central"; central.mkdir()
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.services.sync.PRODUCTS",
+                   [self._fake_product("prod-a", empty)]):
+            result = adopt_from_platform("all", verbose=False)
+        assert result == {"adopted": [], "synced": {}}

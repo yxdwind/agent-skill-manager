@@ -41,6 +41,8 @@ def _print_products():
             if primary:
                 exists = "[ok]" if primary.exists() else "[--]"
                 print(f"    Path: {primary} {exists}")
+            else:
+                print("    Path: N/A on this platform (see note)")
         extra_dirs = get_all_product_dirs(p)
         for d in extra_dirs[1:]:
             exists = "[ok]" if d.exists() else "[--]"
@@ -177,12 +179,21 @@ Usage:
     askill status [skill-name]       Show installation status across products
     askill sync [skill-name]         Sync skill(s) to all products
     askill list                      List skills in central repository
-    askill install [--sync] <path-or-url>  Install a skill, optionally sync to all
+    askill install [--sync] <source> Install a skill, optionally sync to all
+        [--audit]                    Sources: local path, GitHub URL, or
+                                     skills.sh shorthand (owner/repo,
+                                     owner/repo@skill, skills.sh URL)
+    askill search <query>            Search the skills.sh registry
+    askill verify [skill-name]       Check skills against the agentskills.io spec
     askill remove <skill-name>       Remove a skill from all products
     askill pack <skill-name>         Package a skill as .zip for DuMate
-    askill adopt <platform> [skill]  Adopt skills from one platform to all others
+    askill adopt <platform|all> [skill]  Adopt skills from one platform (or
+                                     every product) into the central repo
     askill audit [skill-name]        Security audit of skill(s) in central repo
     askill watch                     Watch central repo; auto-sync changes
+        [--interval N]               Poll/fallback seconds (native inotify /
+                                     kqueue / ReadDirectoryChangesW events
+                                     wake syncs instantly when available)
     askill update [skill-name]       Check/apply updates for tracked skills
     askill products                  List all supported products
     askill version                   Show version
@@ -207,7 +218,11 @@ def main():
         _print_list()
     elif command == "install":
         if len(sys.argv) < 3 or "--help" in sys.argv or "-h" in sys.argv:
-            print("Usage: askill install [--sync] [--audit] <path-or-url>")
+            print("Usage: askill install [--sync] [--audit] <source>")
+            print("  Sources: local path, GitHub URL, or skills.sh shorthand:")
+            print("    owner/repo                     e.g. anthropics/skills")
+            print("    owner/repo@skill               e.g. anthropics/skills@pdf")
+            print("    https://skills.sh/owner/repo/skill")
             print("  --sync   Also sync to all products after install")
             print("  --audit  Run security audit after install")
             return
@@ -236,7 +251,7 @@ def main():
         _print_pack(skill_name=sys.argv[2])
     elif command == "adopt":
         if len(sys.argv) < 3:
-            print("Usage: askill adopt <platform> [skill-name]")
+            print("Usage: askill adopt <platform|all> [skill-name]")
             return
         platform = sys.argv[2].lower()
         skill = sys.argv[3] if len(sys.argv) > 3 else None
@@ -244,6 +259,63 @@ def main():
     elif command == "audit":
         skill_name = sys.argv[2] if len(sys.argv) > 2 else None
         _print_audit(skill_name)
+    elif command == "search":
+        from ..services.registry import search_skills, RegistryError
+        if len(sys.argv) < 3:
+            print("Usage: askill search <query>")
+            print("  e.g. askill search pdf  ->  askill install anthropics/skills@pdf")
+            return
+        query = " ".join(sys.argv[2:])
+        try:
+            results = search_skills(query)
+        except RegistryError as e:
+            print(f"skills.sh registry unavailable: {e}")
+            return
+        if not results:
+            print(f"No skills found for {query!r} on skills.sh.")
+            return
+        print(f"\nskills.sh results for {query!r}:")
+        print(f"{'-'*70}")
+        for r in results:
+            label = f"{r['source']}@{r['skill_id']}"
+            if len(label) > 52:
+                label = label[:49] + "..."
+            installs = f"{r['installs']:,}" if r["installs"] else "-"
+            print(f"  {label:<52} {installs:>10} installs")
+            if r["name"] != r["skill_id"]:
+                print(f"    {r['name'][:70]}")
+        print()
+        top = results[0]
+        print(f"Install the top match:  askill install {top['source']}@{top['skill_id']}")
+        print()
+    elif command == "verify":
+        from ..services.spec import check_spec, check_all_specs
+        if len(sys.argv) > 2:
+            from ..config.products import CENTRAL_DIR
+            skill_dir = CENTRAL_DIR / sys.argv[2]
+            if not skill_dir.exists():
+                print(f"Skill not found in central repo: {sys.argv[2]}")
+                return
+            reports = [check_spec(skill_dir)]
+        else:
+            reports = check_all_specs()
+        if not reports:
+            print("No skills found in central repository.")
+            return
+        passed = 0
+        print(f"\nAgent Skills spec check (agentskills.io) - {len(reports)} skill(s):\n")
+        for r in reports:
+            icon = "PASS" if r["ok"] else "FAIL"
+            print(f"  [{icon}] {r['skill']}")
+            for e in r["errors"]:
+                print(f"        error:   {e}")
+            for w in r["warnings"]:
+                print(f"        warning: {w}")
+            passed += 1 if r["ok"] else 0
+        print(f"\n{passed}/{len(reports)} skill(s) ready for the skills.sh ecosystem.")
+        if passed < len(reports):
+            print("Fix the errors above so agents and skills.sh can index the skill.")
+        print()
     elif command == "watch":
         from ..services.watch import watch_loop
         interval = 3
