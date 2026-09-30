@@ -33,6 +33,18 @@ class TestProducts:
     def test_get_product_by_short_not_found(self):
         assert get_product_by_short("nonexistent") is None
 
+    def _assert_platform_path(self, short: str, expect_fragment: str):
+        """On Linux desktop/IDE products without a build have linux_path=None."""
+        from agent_skill_manager.config import products as prod_mod
+        p = get_product_by_short(short)
+        assert p is not None
+        path = get_product_path(p)
+        if prod_mod.IS_LINUX:
+            assert path is None, f"{short} should have no Linux path"
+            return
+        assert path is not None
+        assert expect_fragment in str(path)
+
     def test_get_product_path_returns_path_or_none(self):
         """Non-pack products expose a path on every platform they ship for.
 
@@ -116,9 +128,7 @@ class TestProducts:
         qodercn = get_product_by_short("qodercn")
         assert qodercn is not None
         assert qodercn["sync_method"] == "symlink"
-        path = get_product_path(qodercn)
-        assert path is not None
-        assert ".qoder-cn" in str(path)
+        self._assert_platform_path("qodercn", ".qoder-cn")
         assert get_product_by_short("qoder") is None
 
     def test_new_products_count(self):
@@ -133,18 +143,13 @@ class TestProducts:
         qwenwork = get_product_by_short("qwenwork")
         assert qwenwork is not None
         assert qwenwork["sync_method"] == "symlink"
-        path = get_product_path(qwenwork)
-        assert path is not None
-        assert ".qwenworkcn" in str(path)
-        assert path.name == "skills"
+        self._assert_platform_path("qwenwork", ".qwenworkcn")
 
     def test_doubaowork_path(self):
         dbw = get_product_by_short("doubaowork")
         assert dbw is not None
         assert dbw["sync_method"] == "symlink"
-        path = get_product_path(dbw)
-        assert path is not None
-        assert ".user_skills" in str(path)
+        self._assert_platform_path("doubaowork", ".user_skills")
 
     def test_newest_products_count(self):
         """Verify qwenwork + doubaowork were added."""
@@ -157,11 +162,7 @@ class TestProducts:
         assert len(PRODUCTS) == 15
 
     def test_traecn_path(self):
-        traecn = get_product_by_short("traecn")
-        assert traecn is not None
-        path = get_product_path(traecn)
-        assert path is not None
-        assert ".trae-cn" in str(path)
+        self._assert_platform_path("traecn", ".trae-cn")
 
     def test_traesolo_shares_dir_with_traecn(self):
         traecn = get_product_path(get_product_by_short("traecn"))
