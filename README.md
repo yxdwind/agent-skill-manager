@@ -178,7 +178,7 @@ agent-skill-manager/
 ├── src/                        # 包根（映射为 agent_skill_manager 包）
 │   ├── __init__.py / __main__.py
 │   ├── config/products.py      # 15 个产品定义（含 linux_path）
-│   ├── controllers/cli.py      # CLI 命令（12 commands）
+│   ├── controllers/cli.py      # CLI 命令（14 commands）
 │   ├── models/                 # TypedDict 数据模型
 │   ├── services/               # 业务逻辑（sync / audit / watch / sources
 │   │                           #             / registry / spec）
@@ -262,10 +262,11 @@ askill adopt all                          # 扫描全部产品目录，收编 + 
 
 **评分与结论**：A ≥ 90（safe）· B ≥ 80（safe）· C ≥ 70（caution）· D ≥ 60（risky）· F < 60（dangerous）
 
-`askill list` 和 `askill status` 的输出中也会直接带上每个 skill 的评分（score/grade/结论）。安装时可直接附加 `--audit` 一步完成「安装 + 安全评测」：
+`askill list` 和 `askill status` 的输出中也会直接带上每个 skill 的评分（score/grade/结论）。**v0.12.0 起，每次 `askill install` 都默认运行 spec 检查 + 安全评测**：干净时只打印一行 `[check]` 摘要，risky/dangerous 在任何模式下高亮告警；`--audit` 打印完整报告，`--no-audit` 跳过：
 
 ```bash
-askill install --sync --audit https://github.com/user/repo/tree/main/my-skill
+askill install --sync --audit https://github.com/user/repo/tree/main/my-skill   # 同步 + 完整审计报告
+askill install --no-audit https://github.com/user/repo/tree/main/my-skill       # 跳过默认检查
 ```
 
 ## 二次开发

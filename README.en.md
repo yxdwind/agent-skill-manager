@@ -179,7 +179,7 @@ agent-skill-manager/
 ├── src/                        # package root (mapped as agent_skill_manager)
 │   ├── __init__.py / __main__.py
 │   ├── config/products.py      # 15 product definitions (incl. linux_path)
-│   ├── controllers/cli.py      # CLI commands (12 commands)
+│   ├── controllers/cli.py      # CLI commands (14 commands)
 │   ├── models/                 # TypedDict data shapes
 │   ├── services/               # business logic (sync / audit / watch / sources
 │   │                           #             / registry / spec)
@@ -239,10 +239,11 @@ askill adopt all                          # scan every product dir, adopt + dist
 
 **Scoring & verdict**: A >= 90 (safe) - B >= 80 (safe) - C >= 70 (caution) - D >= 60 (risky) - F < 60 (dangerous)
 
-Scores also appear in `askill list` and `askill status` output. Add `--audit` to install for a one-step "install + audit":
+Scores also appear in `askill list` and `askill status` output. **Since v0.12.0 every `askill install` runs the spec + security checks by default**: clean installs print a one-line `[check]` summary, risky/dangerous verdicts warn loudly in any mode; `--audit` prints the full report, `--no-audit` skips:
 
 ```bash
-askill install --sync --audit https://github.com/user/repo/tree/main/my-skill
+askill install --sync --audit https://github.com/user/repo/tree/main/my-skill   # sync + full audit report
+askill install --no-audit https://github.com/user/repo/tree/main/my-skill       # skip the default checks
 ```
 
 ## Extend It
