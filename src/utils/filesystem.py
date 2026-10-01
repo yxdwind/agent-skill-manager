@@ -33,18 +33,26 @@ def is_symlink_or_junction(path: Path) -> bool:
         return path.is_symlink()
 
 
-def create_link(src: Path, dst: Path) -> tuple:
+def create_link(src: Path, dst: Path, force: bool = False) -> tuple:
     """Create symlink (macOS) or junction (Windows) from src to dst.
 
     Automatically falls back to copy if link creation fails.
 
+    Conflict protection (v0.13.0): if ``dst`` already exists as a *real*
+    directory (not a link) whose content differs from ``src``, it is left
+    untouched and ``(False, "conflict", ...)`` is returned - a plain
+    ``rm + link`` here would silently destroy a user-maintained skill.
+    Identical content is safe to replace with a link and proceeds.  Pass
+    ``force=True`` to overwrite a differing directory anyway.
+
     Args:
         src: Source directory (must exist).
         dst: Destination path for the link.
+        force: Overwrite an existing real directory even when it differs.
 
     Returns:
         Tuple of (success, method, message) where method is one of:
-        'symlink', 'junction', 'copy', 'error'.
+        'symlink', 'junction', 'copy', 'conflict', 'error'.
     """
     src = Path(src).resolve()
     dst = Path(dst)
@@ -59,6 +67,13 @@ def create_link(src: Path, dst: Path) -> tuple:
         if is_symlink_or_junction(dst):
             dst.rmdir()
         elif dst.is_dir():
+            if not force and not _dirs_equivalent(src, dst):
+                return (
+                    False,
+                    "conflict",
+                    f"Real directory differs from central repo: {dst} "
+                    "(use --force to overwrite, or 'askill adopt' to keep a copy)",
+                )
             shutil.rmtree(dst)
         else:
             dst.unlink()
@@ -67,6 +82,32 @@ def create_link(src: Path, dst: Path) -> tuple:
         return _create_junction(src, dst)
     else:
         return _create_symlink(src, dst)
+
+
+def _dirs_equivalent(a: Path, b: Path) -> bool:
+    """Cheap recursive comparison: same relative file paths and sizes.
+
+    Content hashes would be exact but slow for big skills; path+size catches
+    the realistic "user edited something" case while keeping sync fast.
+    """
+    def listing(root: Path) -> dict[str, int] | None:
+        out: dict[str, int] = {}
+        try:
+            for p in root.rglob("*"):
+                if p.is_symlink():
+                    return None  # any link inside -> treat as different
+                if p.is_file():
+                    out[str(p.relative_to(root).as_posix())] = p.stat().st_size
+                elif p.is_dir():
+                    out[str(p.relative_to(root).as_posix()) + "/"] = -1
+        except OSError:
+            return None
+        return out
+
+    la, lb = listing(Path(a)), listing(Path(b))
+    if la is None or lb is None:
+        return False
+    return la == lb
 
 
 def _create_junction(src: Path, dst: Path) -> tuple:

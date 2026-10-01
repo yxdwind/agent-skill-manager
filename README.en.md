@@ -107,6 +107,11 @@ askill sync
 # Sync a specific skill
 askill sync my-skill
 
+# v0.13.0 conflict protection: a same-named real directory (not a link) in a
+# product's skills dir is never silently overwritten - sync skips it with a
+# hint. Pass --force once you have confirmed the overwrite.
+askill sync my-skill --force
+
 # List all skills in the central repository (with audit scores)
 askill list
 
@@ -217,6 +222,8 @@ askill install https://skills.sh/anthropics/skills/pdf   # pasted page URLs work
 askill verify            # check against the agentskills.io spec (name/description/limits/dir match)
 askill verify my-skill   # one skill; errors block indexing, warnings are advisory (e.g. body > 500 lines)
 ```
+
+Since v0.13.0 verify also appends **per-product frontmatter requirements** (e.g. QwenWork needs `name`+`version`+`description`+`description_zh`); missing fields are listed per product, and `askill install` warns too - no more "installed but the product won't load it" surprises.
 
 **③ Bridge** - skills installed via `npx skills add -g <repo>` into product directories can be pulled into the central repo and distributed to all domestic products:
 

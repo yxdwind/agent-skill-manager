@@ -31,7 +31,7 @@ from ..config.products import (
 from ..utils.filesystem import is_symlink_or_junction, remove_path
 from ..utils.watcher import PollingWatcher, create_watcher
 from .audit import analyze_skill_dir
-from .sync import sync_skill, list_skills
+from .sync import sync_skill, list_skills, _disable_in_settings
 
 # ---------------------------------------------------------------- constants
 
@@ -129,28 +129,10 @@ def clean_deleted_skill(skill_name: str, verbose: bool = True) -> list[str]:
             except OSError:
                 continue
         if p.get("settings_file"):
-            _remove_from_settings_quiet(p["settings_file"], skill_name)
+            _disable_in_settings(p["settings_file"], skill_name)
     if verbose and cleaned:
         print(f"  [watch] cleaned leftovers from: {', '.join(sorted(set(cleaned)))}")
     return cleaned
-
-
-def _remove_from_settings_quiet(settings_path: Path, skill_name: str) -> None:
-    """Best-effort removal of a skill entry from a product's settings.json."""
-    import json
-    try:
-        if not settings_path.exists():
-            return
-        data = json.loads(settings_path.read_text(encoding="utf-8"))
-        skills = data.get("skills")
-        if isinstance(skills, dict) and skill_name in skills:
-            del skills[skill_name]
-            settings_path.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-    except (OSError, ValueError):
-        pass
 
 
 # ---------------------------------------------------------------- audit hook
@@ -262,8 +244,20 @@ def watch_loop(
 
             for name in sorted(changed):
                 print(f"- changed skill: {name}")
-                sync_skill(name, verbose=False)
+                sync_results = sync_skill(name, verbose=False).get(name, [])
                 print(f"  [watch] synced '{name}' to all products")
+                pack_skipped = [s for s, ok, m in sync_results if m == "pack"]
+                if pack_skipped:
+                    print(
+                        f"  [watch] pack-mode product(s) not auto-updated - "
+                        f"run 'askill pack {name}' to refresh the zip"
+                    )
+                conflicts = [s for s, ok, m in sync_results if m == "conflict"]
+                if conflicts:
+                    print(
+                        f"  [watch] conflicts kept local: {', '.join(conflicts)} "
+                        f"(resolve them or run 'askill sync {name} --force')"
+                    )
                 new_verdict = audit_downgrade_check(
                     name, known_verdicts.get(name)
                 )

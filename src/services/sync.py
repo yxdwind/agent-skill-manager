@@ -14,6 +14,7 @@ from ..config.products import (
     CENTRAL_DIR,
     get_product_path,
     get_all_product_dirs,
+    _platform_key,
     ProductSpec,
 )
 from ..utils.filesystem import (
@@ -70,6 +71,10 @@ def get_status(skill_name: str | None = None) -> list[StatusEntry]:
 
     results = []
     for skill_dir in skills:
+        # v0.13.0: products sharing the same skill dir (traesolo/traecn,
+        # qodercnide/qodercn) reuse the first product's computed status
+        # instead of re-checking the identical path again.
+        computed: dict[Path, tuple[str, str]] = {}
         for p in PRODUCTS:
             entry = {
                 "skill_name": skill_dir.name,
@@ -81,11 +86,13 @@ def get_status(skill_name: str | None = None) -> list[StatusEntry]:
             if p["sync_method"] == "native":
                 entry["status"] = "ok" if skill_dir.exists() else "missing"
             elif p["sync_method"] == "pack":
-                entry["status"] = "manual"
+                entry["status"] = _pack_status(skill_dir)
             else:
                 target = get_product_path(p)
                 if target is None:
                     entry["status"] = "n/a"
+                elif target in computed:
+                    entry["status"], entry["method"] = computed[target]
                 else:
                     link_path = target / skill_dir.name
                     if link_path.exists() or link_path.is_symlink():
@@ -100,7 +107,6 @@ def get_status(skill_name: str | None = None) -> list[StatusEntry]:
                         # ~/.openclaw-autoclaw/skills/) were never checked, so a skill
                         # synced only to an extra dir showed "missing". Check them too:
                         # if ANY extra dir has the skill linked/copied, report ok.
-                        from ..config.products import _platform_key
                         extra_dirs = p.get(f"extra_dirs_{_platform_key()}", [])
                         extra_ok = False
                         extra_method = ""
@@ -117,19 +123,43 @@ def get_status(skill_name: str | None = None) -> list[StatusEntry]:
                             entry["method"] = extra_method
                         else:
                             entry["status"] = "missing"
+                    computed[target] = (entry["status"], entry["method"])
             results.append(entry)
     return results
+
+
+def _pack_status(skill_dir: Path) -> str:
+    """Status of a skill for pack-mode (DuMate) products.
+
+    ``manual`` - no zip exported yet; ``packed`` - zip exists and is not
+    older than SKILL.md; ``stale`` - zip exists but SKILL.md changed after
+    it was packed.
+    """
+    zip_path = CENTRAL_DIR / f"{skill_dir.name}.zip"
+    if not zip_path.exists():
+        return "manual"
+    skill_md = skill_dir / "SKILL.md"
+    try:
+        if not skill_md.exists() or zip_path.stat().st_mtime >= skill_md.stat().st_mtime:
+            return "packed"
+    except OSError:
+        return "packed"
+    return "stale"
 
 
 def sync_skill(
     skill_name: str | None = None,
     verbose: bool = True,
+    force: bool = False,
 ) -> dict[str, list[tuple[str, bool, str]]]:
     """Sync skills from central repo to all products.
 
     Args:
         skill_name: If specified, only sync this skill. None = sync all.
         verbose: Print progress messages.
+        force: Overwrite product directories that exist as real dirs and
+            differ from the central repo. Without it (v0.13.0 conflict
+            protection) such directories are skipped and reported.
 
     Returns:
         Dict mapping skill_name -> list of (product_short, success, method).
@@ -161,6 +191,10 @@ def sync_skill(
         if verbose:
             print(f"[{skill_dir.name}]")
         sync_results = []
+        # v0.13.0: products sharing the same skill dir (declared via equal
+        # paths) are synced once - the first product in PRODUCTS order does
+        # the work, later ones just report the sharing.
+        synced_dirs: dict[Path, str] = {}
         for p in PRODUCTS:
             if p["sync_method"] == "native":
                 if verbose:
@@ -170,53 +204,86 @@ def sync_skill(
 
             if p["sync_method"] == "pack":
                 if verbose:
-                    print(f"  {p['short']:>10}: skip (use 'pack' command)")
+                    print(f"  {p['short']:>10}: skip (pack mode - run 'askill pack {skill_dir.name}')")
                 sync_results.append((p["short"], False, "pack"))
                 continue
 
             target = get_product_path(p)
             if target is None:
                 if verbose:
-                    print(f"  {p['short']:>10}: n/a")
+                    print(f"  {p['short']:>10}: skip (no {_platform_key()} build)")
                 sync_results.append((p["short"], False, "n/a"))
                 continue
 
+            if target in synced_dirs:
+                primary_short = synced_dirs[target]
+                if verbose:
+                    print(f"  {p['short']:>10}: ok (shares dir with {primary_short})")
+                sync_results.append((p["short"], True, f"shared->{primary_short}"))
+                continue
+
+            # A9 guard: only touch extra dirs / settings.json of products
+            # that are actually set up on this machine, so syncing on a
+            # machine without e.g. Kimi doesn't litter empty config dirs.
+            product_set_up = target.exists()
+
             link_path = target / skill_dir.name
-            success, method, message = create_link(skill_dir, link_path)
+            success, method, message = create_link(skill_dir, link_path, force=force)
+            if method == "conflict":
+                # data-safety warning: print regardless of verbosity
+                print(
+                    f"  {p['short']:>10}: SKIP conflict - {message}"
+                )
+                sync_results.append((p["short"], False, "conflict"))
+                continue
             status_icon = "ok" if success else "FAIL"
             if verbose:
                 print(f"  {p['short']:>10}: {status_icon} {method}")
             sync_results.append((p["short"], success, method))
+            synced_dirs[target] = p["short"]
 
             # BUGFIX 2026-08-14: extra_dirs must be synced too.
             #
-            # 背景：部分产品会扫描多个技能目录。例如 AutoClaw 桌面版除了
-            # 主路径 ~/.openclaw/skills/ 外，还会扫描 ~/.openclaw-autoclaw/skills/；
-            # Kimi 除 ~/.config/agents/skills/ 外还扫描 ~/.kimi-code/skills/。
+            # 背景：部分产品会扫描多个技能目录。例如 Kimi 除
+            # ~/.config/agents/skills/ 外还扫描 ~/.kimi-code/skills/。
             # 旧代码只同步主路径，导致通过 askill 安装的技能在这些"额外目录"中
             # 缺失，产品内无法识别。
             #
             # 修复：主路径同步成功后，遍历产品声明的额外目录，对每个额外目录
             # 也创建 junction/symlink（Windows 用 junction，无需管理员权限；
             # macOS/Linux 用 symlink；失败时 create_link 内部自动降级为复制）。
-            from ..config.products import _platform_key
+            # v0.13.0: skipped entirely when the product has no skills dir
+            # on this machine yet (nothing to mirror into).
             extra_dirs = p.get(f"extra_dirs_{_platform_key()}", [])
-            for extra in extra_dirs:
-                if extra is None:
-                    continue
-                extra_link = Path(extra) / skill_dir.name
-                # 确保额外目录存在（mkdir -p 语义）
-                try:
-                    extra_link.parent.mkdir(parents=True, exist_ok=True)
-                except OSError:
-                    pass
-                ok2, method2, _ = create_link(skill_dir, extra_link)
+            if extra_dirs and not product_set_up:
                 if verbose:
-                    print(f"  {p['short']:>10}: extra -> {extra_link} ({method2 if ok2 else 'FAIL'})")
+                    print(f"  {p['short']:>10}: extra skip (product not set up on this machine)")
+            else:
+                for extra in extra_dirs:
+                    if extra is None:
+                        continue
+                    extra_link = Path(extra) / skill_dir.name
+                    # 确保额外目录存在（mkdir -p 语义）
+                    try:
+                        extra_link.parent.mkdir(parents=True, exist_ok=True)
+                    except OSError:
+                        pass
+                    ok2, method2, _ = create_link(skill_dir, extra_link, force=force)
+                    if ok2:
+                        if verbose:
+                            print(f"  {p['short']:>10}: extra -> {extra_link} ({method2})")
+                    elif method2 == "conflict":
+                        print(f"  {p['short']:>10}: extra SKIP conflict - {message}")
+                    elif verbose:
+                        print(f"  {p['short']:>10}: extra FAIL ({method2})")
 
-            # Handle WorkBuddy settings.json
-            if p.get("settings_file") and success:
-                _update_workbuddy_settings(p["settings_file"], skill_dir.name, verbose=verbose)
+            # Enable the skill in the product's settings.json (skills-switch
+            # schema, confirmed for WorkBuddy and CodeBuddy). Only when the
+            # product root already exists - never create config dirs for
+            # products that are not installed.
+            settings_path = p.get("settings_file")
+            if success and settings_path and settings_path.parent.exists():
+                _enable_in_settings(settings_path, skill_dir.name, verbose=verbose)
 
         if verbose:
             print()
@@ -284,7 +351,7 @@ def _post_install_checks(skill_name: str, full_report: bool = False, verbose: bo
     ``full_report=True`` additionally prints the complete audit report.
     """
     from .audit import analyze_skill_dir
-    from .spec import check_spec
+    from .spec import check_spec, product_frontmatter_issues
 
     skill_dir = CENTRAL_DIR / skill_name
     if not skill_dir.exists():
@@ -305,6 +372,15 @@ def _post_install_checks(skill_name: str, full_report: bool = False, verbose: bo
             print(f"      warning: {w}")
         for e in spec["errors"]:
             print(f"      spec error: {e}")
+
+    # v0.13.0: per-product frontmatter requirements (e.g. QwenWork's
+    # name/version/description/description_zh).  These always print - the
+    # affected product will silently refuse to load the skill otherwise.
+    product_issues = product_frontmatter_issues(skill_dir)
+    for issue in product_issues:
+        print(f"  [product] {issue}")
+    if product_issues:
+        print("      (add the fields to SKILL.md frontmatter; 'askill verify' re-checks)")
 
     if risky:
         print(f"  !! SECURITY WARNING: '{skill_name}' scored {score}/100 ({verdict})")
@@ -516,8 +592,9 @@ def remove_skill(skill_name: str, verbose: bool = True) -> list[str]:
                 remove_path(link_path)
                 removed.append(f"{p['short']}-alt")
 
-        if p.get("settings_file"):
-            _remove_from_workbuddy_settings(p["settings_file"], skill_name, removed, verbose=verbose)
+        if p.get("settings_file") and p.get("settings_mode") == "skills-switch":
+            if _disable_in_settings(p["settings_file"], skill_name):
+                removed.append(f"{p['short']}-settings")
 
     shutil.rmtree(skill_dir)
     removed.append("central")
@@ -569,8 +646,16 @@ def pack_skill(skill_name: str, verbose: bool = True) -> Path | None:
     return output_path
 
 
-def _update_workbuddy_settings(settings_path: Path, skill_name: str, verbose: bool = True) -> None:
-    """Enable a skill in WorkBuddy's settings.json."""
+def _enable_in_settings(settings_path: Path, skill_name: str, verbose: bool = True) -> None:
+    """Enable a skill in a product's settings.json.
+
+    Generic handler for the ``skills-switch`` settings mode (declared in
+    products.py): the file carries a top-level ``"skills": {name: bool}``
+    map - confirmed for WorkBuddy and CodeBuddy.  The caller is responsible
+    for only invoking this when the product is actually set up on the
+    machine (see the A9 guard in sync_skill); the file itself may be
+    missing and will be created inside its existing product directory.
+    """
     try:
         if settings_path.exists():
             settings = json.loads(settings_path.read_text(encoding="utf-8"))
@@ -580,7 +665,6 @@ def _update_workbuddy_settings(settings_path: Path, skill_name: str, verbose: bo
         skills_config = settings.setdefault("skills", {})
         skills_config[skill_name] = True
 
-        settings_path.parent.mkdir(parents=True, exist_ok=True)
         settings_path.write_text(
             json.dumps(settings, indent=2, ensure_ascii=False),
             encoding="utf-8"
@@ -592,10 +676,12 @@ def _update_workbuddy_settings(settings_path: Path, skill_name: str, verbose: bo
             print(f"  {'':>10}   Warning: could not update settings.json: {e}")
 
 
-def _remove_from_workbuddy_settings(
-    settings_path: Path, skill_name: str, removed: list, verbose: bool = True
-) -> None:
-    """Remove a skill from WorkBuddy's settings.json."""
+def _disable_in_settings(settings_path: Path, skill_name: str) -> bool:
+    """Remove a skill from a product's settings.json (``skills-switch`` mode).
+
+    Returns:
+        True if an entry was removed, False otherwise (quietly).
+    """
     try:
         if settings_path.exists():
             settings = json.loads(settings_path.read_text(encoding="utf-8"))
@@ -605,9 +691,10 @@ def _remove_from_workbuddy_settings(
                     json.dumps(settings, indent=2, ensure_ascii=False),
                     encoding="utf-8"
                 )
-                removed.append("workbuddy-settings")
+                return True
     except Exception:
         pass
+    return False
 
 
 
@@ -760,24 +847,6 @@ def adopt_from_platform(
     if verbose:
         scope = "all products" if adopt_all else f"{product['name']} ({platform_short})"
         print(f"\nAdopting from {scope}:")
-        print(f"  Found {len(source_skills)} skill(s)")
-        print(f"  Central repo: {CENTRAL_DIR}\n")
-
-    if not source_skills:
-        if verbose:
-            print(f"No skills found in {product['name']} directories.")
-        return {"adopted": [], "synced": {}}
-
-    if skill_name:
-        if skill_name not in source_skills:
-            if verbose:
-                print(f"Skill {skill_name!r} not found in {product['name']}.")
-                print("Available: " + ", ".join(sorted(source_skills.keys())))
-            return {"adopted": [], "synced": {}}
-        source_skills = {skill_name: source_skills[skill_name]}
-
-    if verbose:
-        print(f"\nAdopting from {product['name']} ({platform_short}):")
         print(f"  Found {len(source_skills)} skill(s)")
         print(f"  Central repo: {CENTRAL_DIR}\n")
 

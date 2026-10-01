@@ -132,3 +132,38 @@ def check_spec(skill_dir: Path) -> dict:
 def check_all_specs() -> list[dict]:
     """Validate every skill in the central repository."""
     return [check_spec(d) for d in list_skills()]
+
+
+def product_frontmatter_issues(skill_dir: Path) -> list[str]:
+    """Check a skill against products that mandate extra frontmatter fields.
+
+    v0.13.0: per-product requirements are declared in products.py
+    (``required_frontmatter``), e.g. QwenWork requires ``name``, ``version``,
+    ``description`` and ``description_zh``.  Without this check users only
+    find out when the product silently fails to load the skill.
+
+    Returns:
+        List of human-readable issues, e.g.
+        ``"qwenwork: missing frontmatter field(s): version, description_zh"``.
+        Empty list when every declaring product is satisfied.
+    """
+    from ..config.products import PRODUCTS
+
+    skill_md = Path(skill_dir) / "SKILL.md"
+    if not skill_md.is_file():
+        return []
+    text = skill_md.read_text(encoding="utf-8", errors="replace")
+    fields, _ = parse_frontmatter(text)
+
+    issues: list[str] = []
+    for p in PRODUCTS:
+        required = p.get("required_frontmatter")
+        if not required:
+            continue
+        missing = [f for f in required if not fields.get(f)]
+        if missing:
+            issues.append(
+                f"{p['short']}: missing frontmatter field(s) "
+                f"{', '.join(missing)} in SKILL.md"
+            )
+    return issues

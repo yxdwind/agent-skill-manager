@@ -72,6 +72,7 @@ PRODUCTS: list[ProductSpec] = [
         "extra_dirs_windows": [],
         "extra_dirs_linux": [],
         "settings_file": HOME / ".workbuddy" / "settings.json",
+        "settings_mode": "skills-switch",
     },
     {
         "name": "Trae",
@@ -108,6 +109,7 @@ PRODUCTS: list[ProductSpec] = [
         "extra_dirs_macos": [],
         "extra_dirs_windows": [],
         "extra_dirs_linux": [],
+        "shares_dir_with": "traecn",
     },
     {
         "name": "DuMate (Baidu)",
@@ -133,6 +135,7 @@ PRODUCTS: list[ProductSpec] = [
         "extra_dirs_windows": [],
         "extra_dirs_linux": [],
         "settings_file": HOME / ".codebuddy" / "settings.json",
+        "settings_mode": "skills-switch",
     },
     {
         "name": "Comate / Wenxin Kuaima (Baidu)",
@@ -169,6 +172,7 @@ PRODUCTS: list[ProductSpec] = [
         "extra_dirs_macos": [],
         "extra_dirs_windows": [],
         "extra_dirs_linux": [],
+        "shares_dir_with": "qodercn",
     },
     {
         "name": "QwenWork / Qianwen Office (Alibaba)",
@@ -181,6 +185,7 @@ PRODUCTS: list[ProductSpec] = [
         "extra_dirs_macos": [],
         "extra_dirs_windows": [],
         "extra_dirs_linux": [],
+        "required_frontmatter": ["name", "version", "description", "description_zh"],
     },
     {
         "name": "DoubaoWork (ByteDance)",

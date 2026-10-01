@@ -108,6 +108,10 @@ askill sync
 # 同步指定 skill
 askill sync my-skill
 
+# v0.13.0 冲突保护：产品目录里已有的同名"真实目录"（非链接）不会被静默覆盖，
+# sync 会跳过并提示；确认要覆盖时加 --force
+askill sync my-skill --force
+
 # 列出中央仓库中的所有 skill（含安全评测评分）
 askill list
 
@@ -240,6 +244,8 @@ askill install https://skills.sh/anthropics/skills/pdf   # 粘贴 skills.sh 页�
 askill verify            # 按 agentskills.io 规范逐项检查（name/description/长度/目录匹配）
 askill verify my-skill   # 只查一个；errors 阻断收录，warnings 仅建议（如正文超 500 行）
 ```
+
+v0.13.0 起还会追加**按产品 frontmatter 要求**检查（如 QwenWork 需要 `name`+`version`+`description`+`description_zh`），缺失字段会逐产品列出；`askill install` 后也会自动提示，避免"装完了产品却加载不出来"。
 
 **③ 双向桥接**——用 `npx skills add -g <repo>` 装到各产品目录的技能，一条命令收编进中央仓库并分发到其余产品：
 

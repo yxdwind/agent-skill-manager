@@ -169,7 +169,7 @@ class TestWatchLoop:
         calls = []
         monkeypatch.setattr(
             watch_mod, "sync_skill",
-            lambda name, verbose=False: calls.append(name),
+            lambda name, verbose=False: (calls.append(name) or {name: []}),
         )
         monkeypatch.setattr(
             watch_mod, "list_skills", lambda: [fake_central / "loop-skill"],

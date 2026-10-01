@@ -28,3 +28,4 @@ Thumbs.db
 # pytest
 .pytest_cache/
 dist/
+.pytest-tmp*/

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cn-skill-sync"
-version = "0.12.0"
+version = "0.13.0"
 description = "Cross-platform (macOS/Windows/Linux) skill management for 15 domestic AI agent products"
 readme = "README.md"
 license = {text = "MIT"}

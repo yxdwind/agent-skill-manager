@@ -138,9 +138,9 @@ def _print_status(skill_name=None):
     print()
 
 
-def _print_sync(skill_name=None):
+def _print_sync(skill_name=None, force=False):
     """Sync skills and print results."""
-    sync_skill(skill_name, verbose=True)
+    sync_skill(skill_name, verbose=True, force=force)
 
 
 def _print_install(source, sync=False, audit=False, no_audit=False):
@@ -172,14 +172,17 @@ def _print_audit(skill_name=None):
 
 
 
-USAGE = """\
+_SUPPORTED_NAMES = ", ".join(p["name"] for p in PRODUCTS)
+
+USAGE = f"""\
 Agent Skill Manager - Cross-platform skill management for domestic AI agent products.
 
-Supports: AutoClaw, Kimi, MiniMax Code, WorkBuddy, Trae, DuMate.
+Supports {len(PRODUCTS)} products: {_SUPPORTED_NAMES}
 
 Usage:
     askill status [skill-name]       Show installation status across products
     askill sync [skill-name]         Sync skill(s) to all products
+        [--force]                    Overwrite differing real dirs (conflicts)
     askill list                      List skills in central repository
     askill install [--sync] <source> Install a skill, optionally sync to all
         [--audit] [--no-audit]       Sources: local path, GitHub URL, or
@@ -188,6 +191,7 @@ Usage:
                                      Spec + security checks run by default
     askill search <query> [--install N]  Search skills.sh; N installs that result
     askill verify [skill-name]       Check skills against the agentskills.io spec
+                                     plus per-product frontmatter requirements
     askill remove <skill-name>       Remove a skill from all products
     askill pack <skill-name>         Package a skill as .zip for DuMate
     askill adopt <platform|all> [skill]  Adopt skills from one platform (or
@@ -215,8 +219,10 @@ def main():
         skill_name = sys.argv[2] if len(sys.argv) > 2 else None
         _print_status(skill_name)
     elif command == "sync":
-        skill_name = sys.argv[2] if len(sys.argv) > 2 else None
-        _print_sync(skill_name)
+        args = [a for a in sys.argv[2:] if a != "--force"]
+        force = "--force" in sys.argv[2:]
+        skill_name = args[0] if args else None
+        _print_sync(skill_name, force=force)
     elif command == "list":
         _print_list()
     elif command == "install":
@@ -320,13 +326,15 @@ def main():
             install_skill(f"{pick['source']}@{pick['skill_id']}", verbose=True)
             print("\nRun 'askill sync' to distribute, or 'askill watch' to auto-sync.")
     elif command == "verify":
-        from ..services.spec import check_spec, check_all_specs
+        from ..services.spec import check_spec, check_all_specs, product_frontmatter_issues
+        target_dir = None
         if len(sys.argv) > 2:
             from ..config.products import CENTRAL_DIR
             skill_dir = CENTRAL_DIR / sys.argv[2]
             if not skill_dir.exists():
                 print(f"Skill not found in central repo: {sys.argv[2]}")
                 return
+            target_dir = skill_dir
             reports = [check_spec(skill_dir)]
         else:
             reports = check_all_specs()
@@ -346,6 +354,24 @@ def main():
         print(f"\n{passed}/{len(reports)} skill(s) ready for the skills.sh ecosystem.")
         if passed < len(reports):
             print("Fix the errors above so agents and skills.sh can index the skill.")
+
+        # v0.13.0: per-product frontmatter requirements (e.g. QwenWork)
+        if target_dir is not None:
+            product_issues = [(target_dir.name, product_frontmatter_issues(target_dir))]
+        else:
+            product_issues = [
+                (d.name, product_frontmatter_issues(d)) for d in list_skills()
+            ]
+        flagged = [(sn, iss) for sn, iss in product_issues if iss]
+        if flagged:
+            print("\nProduct-specific frontmatter requirements:\n")
+            for sn, iss in flagged:
+                for issue in iss:
+                    print(f"  [{sn}] {issue}")
+            print("  Add the fields above to the skill's SKILL.md frontmatter;")
+            print("  affected products will not load the skill until then.")
+        else:
+            print("All per-product frontmatter requirements satisfied.")
         print()
     elif command == "watch":
         from ..services.watch import watch_loop

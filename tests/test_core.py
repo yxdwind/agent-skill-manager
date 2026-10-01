@@ -11,7 +11,8 @@ from agent_skill_manager.services.sync import (
     get_status,
     sync_skill,
     pack_skill,
-    _update_workbuddy_settings,
+    _enable_in_settings,
+    _disable_in_settings,
 )
 
 
@@ -94,10 +95,12 @@ class TestPackSkill:
             assert pack_skill("no-md", verbose=False) is None
 
 
-class TestWorkBuddySettings:
+class TestSettingsSwitch:
+    """v0.13.0: generic skills-switch settings handler (WorkBuddy, CodeBuddy)."""
+
     def test_creates_settings_file(self, tmp_path):
         settings_path = tmp_path / "settings.json"
-        _update_workbuddy_settings(settings_path, "my-skill", verbose=False)
+        _enable_in_settings(settings_path, "my-skill", verbose=False)
         assert settings_path.exists()
         data = json.loads(settings_path.read_text())
         assert data["skills"]["my-skill"] is True
@@ -105,10 +108,22 @@ class TestWorkBuddySettings:
     def test_updates_existing_settings(self, tmp_path):
         settings_path = tmp_path / "settings.json"
         settings_path.write_text(json.dumps({"skills": {"existing": True}}))
-        _update_workbuddy_settings(settings_path, "new-skill", verbose=False)
+        _enable_in_settings(settings_path, "new-skill", verbose=False)
         data = json.loads(settings_path.read_text())
         assert data["skills"]["existing"] is True
         assert data["skills"]["new-skill"] is True
+
+    def test_disable_removes_entry(self, tmp_path):
+        settings_path = tmp_path / "settings.json"
+        settings_path.write_text(json.dumps({"skills": {"gone": True}}))
+        assert _disable_in_settings(settings_path, "gone") is True
+        data = json.loads(settings_path.read_text())
+        assert "gone" not in data["skills"]
+
+    def test_disable_returns_false_when_absent(self, tmp_path):
+        settings_path = tmp_path / "settings.json"
+        settings_path.write_text(json.dumps({"skills": {}}))
+        assert _disable_in_settings(settings_path, "nope") is False
 
 
 class TestExtraDirsSync:
@@ -117,6 +132,39 @@ class TestExtraDirsSync:
     def test_sync_creates_links_in_extra_dirs(self, tmp_path):
         """sync_skill should create junction/symlink in each declared extra dir."""
         from unittest.mock import patch, MagicMock
+        from agent_skill_manager.services import sync as core
+
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: my-skill\n---\n")
+
+        # simulate an installed product: its skills dir already exists
+        primary = tmp_path / "primary"
+        primary.mkdir()
+        extra_dir = tmp_path / "extra-skills"
+        product = {
+            "name": "TestProduct",
+            "short": "testprod",
+            "macos_path": primary,
+            "windows_path": primary,
+            "linux_path": primary,
+            "sync_method": "symlink",
+            "extra_dirs_macos": [extra_dir],
+            "extra_dirs_windows": [extra_dir],
+            "extra_dirs_linux": [extra_dir],
+        }
+
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
+             patch("agent_skill_manager.services.sync.get_product_path", return_value=primary):
+            results = core.sync_skill("my-skill", verbose=False)
+
+        assert "my-skill" in results
+        assert (extra_dir / "my-skill").exists() or (extra_dir / "my-skill").is_symlink()
+
+    def test_extra_dirs_skipped_for_uninstalled_product(self, tmp_path):
+        """v0.13.0 A9: no extra-dir litter on machines without the product."""
+        from unittest.mock import patch
         from agent_skill_manager.services import sync as core
 
         skill_dir = tmp_path / "my-skill"
@@ -139,10 +187,9 @@ class TestExtraDirsSync:
         with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path), \
              patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
              patch("agent_skill_manager.services.sync.get_product_path", return_value=tmp_path / "primary"):
-            results = core.sync_skill("my-skill", verbose=False)
+            core.sync_skill("my-skill", verbose=False)
 
-        assert "my-skill" in results
-        assert (extra_dir / "my-skill").exists() or (extra_dir / "my-skill").is_symlink()
+        assert not extra_dir.exists()
 
     def test_get_status_reports_ok_when_extra_dir_has_link(self, tmp_path):
         """get_status should report ok if the skill exists only in an extra dir."""

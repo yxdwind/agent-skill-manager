@@ -41,7 +41,35 @@ class TestCreateLink:
         assert method in ("symlink", "junction", "copy")
         assert (dst / "SKILL.md").exists()
 
-    def test_replaces_existing(self, tmp_path):
+    def test_replaces_identical_existing(self, tmp_path):
+        """Same content as central -> safe to swap the real dir for a link."""
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "SKILL.md").write_text("new")
+        dst = tmp_path / "dst"
+        dst.mkdir()
+        (dst / "SKILL.md").write_text("new")
+
+        success, method, msg = create_link(src, dst)
+        assert success
+        assert (dst / "SKILL.md").exists()
+
+    def test_conflicting_real_dir_is_protected(self, tmp_path):
+        """v0.13.0: a differing real dir is never silently destroyed."""
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "SKILL.md").write_text("new")
+        dst = tmp_path / "dst"
+        dst.mkdir()
+        (dst / "old.txt").write_text("user edits")
+
+        success, method, msg = create_link(src, dst)
+        assert not success
+        assert method == "conflict"
+        assert (dst / "old.txt").exists()          # untouched
+        assert not (dst / "SKILL.md").exists()
+
+    def test_force_overwrites_conflicting_dir(self, tmp_path):
         src = tmp_path / "src"
         src.mkdir()
         (src / "SKILL.md").write_text("new")
@@ -49,8 +77,9 @@ class TestCreateLink:
         dst.mkdir()
         (dst / "old.txt").write_text("old")
 
-        success, method, msg = create_link(src, dst)
+        success, method, msg = create_link(src, dst, force=True)
         assert success
+        assert method in ("symlink", "junction", "copy")
         assert (dst / "SKILL.md").exists()
         assert not (dst / "old.txt").exists()
 
