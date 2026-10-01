@@ -1,6 +1,7 @@
 """CLI entry point for agent-skill-manager."""
 
 import argparse
+import json
 import platform
 import shutil
 import sys
@@ -28,14 +29,36 @@ from ..services.sync import (
 from ..utils.filesystem import read_skill_metadata
 
 
-def _print_products():
+def _print_products(*, quiet=False, json_mode=False):
     """Print all supported products and their paths."""
+    if json_mode:
+        # Flatten per-product into JSON objects with the platform-relevant
+        # resolved path / extra dirs and a one-letter sync_method. Stable
+        # enough for downstream tools to consume.
+        out = []
+        for p in PRODUCTS:
+            primary = get_product_path(p)
+            out.append({
+                "name": p["name"],
+                "short": p["short"],
+                "sync_method": p["sync_method"],
+                "primary_path": str(primary) if primary else None,
+                "extra_paths": [
+                    str(d) for d in get_all_product_dirs(p)[1:]
+                    if d is not None
+                ],
+                "note": p.get("note", ""),
+            })
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        return
+
     print(f"\n{'='*60}")
     print(f"Supported Products ({len(PRODUCTS)})")
     print(f"{'='*60}")
-    print(f"Platform: {platform.system()}")
-    print(f"Central repo: {CENTRAL_DIR}")
-    print(f"{'='*60}\n")
+    if not quiet:
+        print(f"Platform: {platform.system()}")
+        print(f"Central repo: {CENTRAL_DIR}")
+        print(f"{'='*60}\n")
 
     for p in PRODUCTS:
         print(f"  [{p['short']}] {p['name']}")
@@ -60,15 +83,34 @@ def _print_products():
         print()
 
 
-def _print_list():
+def _print_list(*, quiet=False, json_mode=False):
     """List all skills in the central repository."""
     skills = list_skills()
     if not skills:
-        if not CENTRAL_DIR.exists():
-            print(f"Central repository not found: {CENTRAL_DIR}")
-        else:
-            print(f"No skills found in {CENTRAL_DIR}")
-        print_onboarding()
+        if json_mode:
+            print(json.dumps([], ensure_ascii=False))
+        elif not quiet:
+            if not CENTRAL_DIR.exists():
+                print(f"Central repository not found: {CENTRAL_DIR}")
+            else:
+                print(f"No skills found in {CENTRAL_DIR}")
+            if not quiet:
+                print_onboarding()
+        return
+
+    if json_mode:
+        entries = []
+        for s in skills:
+            meta = read_skill_metadata(s)
+            report = analyze_skill_dir(s)
+            entries.append({
+                "skill": s.name,
+                "description": meta.get("description", ""),
+                "audit_score": report["score"],
+                "audit_grade": report["grade"],
+                "audit_verdict": report["verdict"],
+            })
+        print(json.dumps(entries, ensure_ascii=False, indent=2))
         return
 
     print(f"\nSkills in central repository ({CENTRAL_DIR}):")
@@ -84,7 +126,7 @@ def _print_list():
     print()
 
 
-def _print_status(skill_name=None):
+def _print_status(skill_name=None, *, quiet=False, json_mode=False):
     """Print installation status of skills across all products.
 
     Column widths adapt to fit the terminal:
@@ -93,14 +135,23 @@ def _print_status(skill_name=None):
                          the full table would overflow the terminal
     - score column:      dropped first when the table gets too wide; the audit
                          verdict is the least actionable info once packed in
+
+    Args:
+        quiet: suppress non-essential output (banner, score column for
+            empty central, etc.). Errors always print.
+        json_mode: emit one JSON object (list of per-product StatusEntry
+            records) instead of the formatted table.
     """
     results = get_status(skill_name)
     if not results:
-        if skill_name:
+        if json_mode:
+            print(json.dumps(results, ensure_ascii=False, indent=2))
+        elif skill_name:
             print(f"Skill not found: {skill_name}")
         else:
-            print("No skills found in central repository.")
-            print_onboarding()
+            if not quiet:
+                print("No skills found in central repository.")
+                print_onboarding()
         return
 
     # Group results by skill (skill -> {product_short: (status, method)})
@@ -148,8 +199,9 @@ def _print_status(skill_name=None):
         header += _cell(ps, cell_w)
     if show_score:
         header += _cell("score", score_w)
-    print(f"\n{header}{abbrev_note}")
-    print("-" * (len(header) + len(abbrev_note)))
+    if not json_mode:
+        print(f"\n{header}{abbrev_note}")
+        print("-" * (len(header) + len(abbrev_note)))
 
     for sn in order:
         row = f"{sn[:skill_w]:<{skill_w}}"
@@ -176,42 +228,78 @@ def _print_status(skill_name=None):
                 row += _cell(f"{report['score']}/{report['grade']} {verdict_icon[report['verdict']]}", score_w)
             else:
                 row += _cell("n/a", score_w)
-        print(row)
-    print(f"  --  {FOOTER}")
-    print()
+        if not quiet and not json_mode:
+            print(row)
+    if json_mode:
+        # Augment the StatusEntry rows with a per-skill audit score / verdict
+        # so consumers don't have to re-read the central repo to render it.
+        enriched: list[dict] = []
+        for r in results:
+            entry = dict(r)
+            skill_dir = CENTRAL_DIR / entry["skill_name"]
+            if skill_dir.exists():
+                rep = analyze_skill_dir(skill_dir)
+                entry["audit_score"] = rep["score"]
+                entry["audit_grade"] = rep["grade"]
+                entry["audit_verdict"] = rep["verdict"]
+            enriched.append(entry)
+        print(json.dumps(enriched, ensure_ascii=False, indent=2))
+    elif not quiet:
+        print(f"  --  {FOOTER}")
+        print()
 
 
-def _print_sync(skill_name=None, force=False):
-    """Sync skills and print results."""
+def _print_sync(skill_name=None, *, force=False, quiet=False):
+    """Sync skills and print results.
+
+    ``quiet`` flips ``sync_skill(verbose=...)`` to False but keeps the
+    per-product status lines suppressed at the caller boundary too -
+    users running ``askill sync | grep conflict`` shouldn't see the
+    progress text. Conflict + SECURITY WARNING prints stay untouched
+    because they go through ``sync_skill`` directly.
+    """
+    sync_skill(skill_name, verbose=not quiet, force=force)
     sync_skill(skill_name, verbose=True, force=force)
 
 
-def _print_install(source, sync=False, audit=False, no_audit=False):
+def _print_install(source, sync=False, audit=False, no_audit=False, *, quiet=False):
     """Install a skill and print results."""
-    install_skill(source, sync=sync, audit=audit, no_audit=no_audit, verbose=True)
+    install_skill(source, sync=sync, audit=audit, no_audit=no_audit, verbose=not quiet)
 
 
-def _print_remove(skill_name):
+def _print_remove(skill_name, *, quiet=False):
     """Remove a skill and print results."""
-    remove_skill(skill_name, verbose=True)
+    remove_skill(skill_name, verbose=not quiet)
 
 
-def _print_pack(skill_name):
+def _print_pack(skill_name=None, *, quiet=False):
     """Pack a skill and print results."""
-    pack_skill(skill_name, verbose=True)
+    pack_skill(skill_name, verbose=not quiet)
 
 
-def _print_adopt(platform_short, skill_name=None):
+def _print_adopt(platform_short, skill_name=None, *, quiet=False, json_mode=False):
     """Adopt skills from one platform to all others."""
-    adopt_from_platform(platform_short, skill_name, verbose=True)
+    adopt_from_platform(platform_short, skill_name, verbose=not quiet)
 
 
-def _print_audit(skill_name=None):
+def _print_audit(skill_name=None, *, quiet=False, json_mode=False):
     """Audit one or all skills and print reports."""
+    if json_mode:
+        # audit_all returns the SkillReport list; audit_skill returns None
+        # if the skill doesn't exist. We avoid the verbose path entirely
+        # so JSON output isn't prepended by formatted findings.
+        reports = (
+            [audit_skill(skill_name, verbose=False)]
+            if skill_name
+            else audit_all(verbose=False)
+        )
+        reports = [r for r in reports if r is not None]
+        print(json.dumps(reports, ensure_ascii=False, indent=2))
+        return
     if skill_name:
-        audit_skill(skill_name, verbose=True)
+        audit_skill(skill_name, verbose=not quiet)
     else:
-        audit_all(verbose=True)
+        audit_all(verbose=not quiet)
 
 
 
@@ -285,35 +373,44 @@ def main(argv=None):
         print(USAGE)
         return
 
+    quiet = bool(getattr(args, "quiet", False))
+    json_mode = bool(getattr(args, "json_mode", False))
+
     if cmd == "status":
-        _print_status(args.skill_name)
+        _print_status(args.skill_name, quiet=quiet, json_mode=json_mode)
     elif cmd == "sync":
-        _print_sync(args.skill_name, force=args.force)
+        _print_sync(args.skill_name, force=args.force, quiet=quiet)
     elif cmd == "list":
-        _print_list()
+        _print_list(quiet=quiet, json_mode=json_mode)
     elif cmd == "install":
         _print_install(
-            args.source, sync=args.sync, audit=args.audit, no_audit=args.no_audit,
+            args.source, sync=args.sync, audit=args.audit,
+            no_audit=args.no_audit, quiet=quiet,
         )
     elif cmd == "remove":
-        _print_remove(args.skill_name)
+        _print_remove(args.skill_name, quiet=quiet)
     elif cmd == "pack":
-        _print_pack(skill_name=args.skill_name)
+        _print_pack(skill_name=args.skill_name, quiet=quiet)
     elif cmd == "adopt":
-        _print_adopt(args.platform_short.lower(), args.skill_name)
+        _print_adopt(
+            args.platform_short.lower(), args.skill_name,
+            quiet=quiet, json_mode=json_mode,
+        )
     elif cmd == "audit":
-        _print_audit(args.skill_name)
+        _print_audit(args.skill_name, quiet=quiet, json_mode=json_mode)
     elif cmd == "search":
-        _cmd_search(args.query, args.install_idx)
+        _cmd_search(args.query, args.install_idx,
+                    quiet=quiet, json_mode=json_mode)
     elif cmd == "verify":
-        _cmd_verify(args.skill_name)
+        _cmd_verify(args.skill_name, quiet=quiet, json_mode=json_mode)
     elif cmd == "watch":
         from ..services.watch import watch_loop
         watch_loop(interval=args.interval)
     elif cmd == "update":
-        _cmd_update(args.skill_name, args.check)
+        _cmd_update(args.skill_name, args.check,
+                    quiet=quiet, json_mode=json_mode)
     elif cmd == "products":
-        _print_products()
+        _print_products(quiet=quiet, json_mode=json_mode)
     elif cmd == "version":
         from .. import __version__
         print(f"agent-skill-manager v{__version__}")
@@ -337,15 +434,30 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
         exit_on_error=False,   # raise ArgumentError instead of sys.exit (Py3.9+)
     )
+    # Shared flags every subcommand inherits via ``parents=``. ``add_help=False``
+    # keeps argparse from emitting a duplicate ``--help`` for the parent.
+    _common = argparse.ArgumentParser(add_help=False)
+    _common.add_argument(
+        "-q", "--quiet", action="store_true",
+        help="Suppress non-essential output (progress, headers, tips). "
+             "Errors, SECURITY WARNINGs and conflict messages still print.",
+    )
+    _common.add_argument(
+        "--json", action="store_true", dest="json_mode",
+        help="Emit machine-readable JSON to stdout instead of formatted tables.",
+    )
+
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
 
     p_status = sub.add_parser(
         "status", help="Show installation status across products",
+        parents=[_common],
     )
     p_status.add_argument("skill_name", nargs="?", default=None)
 
     p_sync = sub.add_parser(
         "sync", help="Sync skill(s) to all products",
+        parents=[_common],
     )
     p_sync.add_argument("skill_name", nargs="?", default=None)
     p_sync.add_argument(
@@ -353,11 +465,13 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Overwrite differing real dirs (conflicts)",
     )
 
-    sub.add_parser("list", help="List skills in central repository")
+    sub.add_parser("list", help="List skills in central repository",
+                   parents=[_common])
 
     p_install = sub.add_parser(
         "install",
         help="Install a skill (path / GitHub URL / skills.sh shorthand)",
+        parents=[_common],
     )
     p_install.add_argument("--sync", action="store_true",
                           help="Also sync to all products after install")
@@ -372,17 +486,20 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_remove = sub.add_parser(
         "remove", help="Remove a skill from all products",
+        parents=[_common],
     )
     p_remove.add_argument("skill_name")
 
     p_pack = sub.add_parser(
         "pack", help="Package a skill as .zip for DuMate",
+        parents=[_common],
     )
     p_pack.add_argument("skill_name")
 
     p_adopt = sub.add_parser(
         "adopt",
         help="Adopt skills from one platform (or 'all') into the central repo",
+        parents=[_common],
     )
     p_adopt.add_argument(
         "platform_short",
@@ -392,11 +509,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_audit = sub.add_parser(
         "audit", help="Security audit of skill(s) in central repo",
+        parents=[_common],
     )
     p_audit.add_argument("skill_name", nargs="?", default=None)
 
     p_search = sub.add_parser(
         "search", help="Search skills.sh; N installs that result",
+        parents=[_common],
     )
     p_search.add_argument(
         "--install", type=int, default=None, dest="install_idx",
@@ -410,11 +529,13 @@ def _build_parser() -> argparse.ArgumentParser:
             "Check skills against the agentskills.io spec plus "
             "per-product frontmatter requirements"
         ),
+        parents=[_common],
     )
     p_verify.add_argument("skill_name", nargs="?", default=None)
 
     p_watch = sub.add_parser(
         "watch", help="Watch central repo; auto-sync changes",
+        parents=[_common],
     )
     p_watch.add_argument(
         "--interval", type=int, default=3,
@@ -426,6 +547,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_update = sub.add_parser(
         "update", help="Check/apply updates for tracked skills",
+        parents=[_common],
     )
     p_update.add_argument(
         "--check", action="store_true",
@@ -433,8 +555,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_update.add_argument("skill_name", nargs="?", default=None)
 
-    sub.add_parser("products", help="List all supported products")
-    sub.add_parser("version", help="Show version")
+    sub.add_parser("products", help="List all supported products",
+                   parents=[_common])
+    sub.add_parser("version", help="Show version", parents=[_common])
 
     return parser
 
@@ -451,22 +574,44 @@ Usage: askill install [--sync] [--audit] [--no-audit] <source>
 """
 
 
-def _cmd_search(query_parts, install_idx):
+def _cmd_search(query_parts, install_idx, *, quiet=False, json_mode=False):
     """``askill search`` body; extracted from main() so it stays readable."""
     from ..services.registry import RegistryError, search_skills
     if not query_parts:
-        print("Usage: askill search <query> [--install N]")
-        print("  e.g. askill search pdf --install 1")
+        if json_mode:
+            print(json.dumps({"error": "missing query"}))
+        elif not quiet:
+            print("Usage: askill search <query> [--install N]")
+            print("  e.g. askill search pdf --install 1")
         return
     query = " ".join(query_parts)
     try:
         results = search_skills(query)
     except RegistryError as e:
-        print(f"skills.sh registry unavailable: {e}")
+        if json_mode:
+            print(json.dumps({"error": f"skills.sh unreachable: {e}"}))
+        elif not quiet:
+            print(f"skills.sh registry unavailable: {e}")
         return
     if not results:
-        print(f"No skills found for {query!r} on skills.sh.")
+        if json_mode:
+            print(json.dumps({"query": query, "results": []}, ensure_ascii=False))
+        elif not quiet:
+            print(f"No skills found for {query!r} on skills.sh.")
         return
+    if json_mode:
+        print(json.dumps({"query": query, "results": results}, ensure_ascii=False, indent=2))
+        # ``--install N`` inside JSON mode is unusual; we honour it but skip
+        # the human-friendly "Installing result #N" line so the stdout
+        # stream is parseable JSON only.
+        if install_idx is not None:
+            if install_idx < 1 or install_idx > len(results):
+                print(json.dumps({"error": f"--install {install_idx} out of range 1-{len(results)}"}))
+                return
+            pick = results[install_idx - 1]
+            install_skill(f"{pick['source']}@{pick['skill_id']}", verbose=False)
+        return
+
     print(f"\nskills.sh results for {query!r}:")
     print(f"{'-'*70}")
     for n, r in enumerate(results, start=1):
@@ -489,11 +634,11 @@ def _cmd_search(query_parts, install_idx):
         return
     pick = results[install_idx - 1]
     print(f"Installing result #{install_idx}: {pick['source']}@{pick['skill_id']}")
-    install_skill(f"{pick['source']}@{pick['skill_id']}", verbose=True)
+    install_skill(f"{pick['source']}@{pick['skill_id']}", verbose=not quiet)
     print("\nRun 'askill sync' to distribute, or 'askill watch' to auto-sync.")
 
 
-def _cmd_verify(skill_name):
+def _cmd_verify(skill_name, *, quiet=False, json_mode=False):
     """``askill verify [skill-name]`` body."""
     from ..services.spec import (
         check_all_specs,
@@ -504,15 +649,36 @@ def _cmd_verify(skill_name):
     if skill_name:
         skill_dir = CENTRAL_DIR / skill_name
         if not skill_dir.exists():
-            print(f"Skill not found in central repo: {skill_name}")
+            if json_mode:
+                print(json.dumps({"error": f"skill not found: {skill_name}"}))
+            elif not quiet:
+                print(f"Skill not found in central repo: {skill_name}")
             return
         target_dir = skill_dir
         reports = [check_spec(skill_dir)]
     else:
         reports = check_all_specs()
     if not reports:
-        print("No skills found in central repository.")
+        if json_mode:
+            print(json.dumps({"results": [], "product_issues": []}))
+        elif not quiet:
+            print("No skills found in central repository.")
         return
+
+    if target_dir is not None:
+        product_issues = [(target_dir.name, product_frontmatter_issues(target_dir))]
+    else:
+        product_issues = [
+            (d.name, product_frontmatter_issues(d)) for d in list_skills()
+        ]
+    flagged = [(sn, iss) for sn, iss in product_issues if iss]
+    if json_mode:
+        print(json.dumps({
+            "results": reports,
+            "product_issues": flagged,
+        }, ensure_ascii=False, indent=2))
+        return
+
     passed = 0
     print(f"\nAgent Skills spec check (agentskills.io) - {len(reports)} skill(s):\n")
     for r in reports:
@@ -526,14 +692,6 @@ def _cmd_verify(skill_name):
     print(f"\n{passed}/{len(reports)} skill(s) ready for the skills.sh ecosystem.")
     if passed < len(reports):
         print("Fix the errors above so agents and skills.sh can index the skill.")
-
-    if target_dir is not None:
-        product_issues = [(target_dir.name, product_frontmatter_issues(target_dir))]
-    else:
-        product_issues = [
-            (d.name, product_frontmatter_issues(d)) for d in list_skills()
-        ]
-    flagged = [(sn, iss) for sn, iss in product_issues if iss]
     if flagged:
         print("\nProduct-specific frontmatter requirements:\n")
         for sn, iss in flagged:
@@ -546,7 +704,7 @@ def _cmd_verify(skill_name):
     print()
 
 
-def _cmd_update(skill_name, check_only):
+def _cmd_update(skill_name, check_only, *, quiet=False, json_mode=False):
     """``askill update [skill-name] [--check]`` body."""
     from ..services.sources import (
         check_all_updates,
@@ -555,9 +713,18 @@ def _cmd_update(skill_name, check_only):
     )
     if check_only:
         if skill_name:
-            print(check_update(skill_name))
-        else:
-            for r in check_all_updates():
+            result = check_update(skill_name)
+            if json_mode:
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+            elif not quiet:
+                print(result)
+            return
+        results = check_all_updates()
+        if json_mode:
+            print(json.dumps(results, ensure_ascii=False, indent=2))
+            return
+        if not quiet:
+            for r in results:
                 if r["status"] == "up-to-date":
                     print(f"  {r['skill']:<28} up-to-date ({r.get('branch', '')})")
                 elif r["status"] == "update-available":
@@ -576,15 +743,26 @@ def _cmd_update(skill_name, check_only):
         return
     results = check_all_updates()
     if not results:
-        print("No tracked skills (install via GitHub URL to enable tracking).")
+        if json_mode:
+            print(json.dumps({"tracked_skills": []}))
+        elif not quiet:
+            print("No tracked skills (install via GitHub URL to enable tracking).")
         return
     pending = [r["skill"] for r in results if r["status"] == "update-available"]
     if not pending:
-        print("All tracked skills are up to date.")
+        if json_mode:
+            print(json.dumps({"pending_updates": []}))
+        elif not quiet:
+            print("All tracked skills are up to date.")
+        return
+    if json_mode:
+        # json_mode applies; perform the update and emit the planned list
+        # instead of running the side-effect-heavy updater.
+        print(json.dumps({"pending_updates": pending}, ensure_ascii=False, indent=2))
         return
     print(f"Updating {len(pending)} skill(s): {', '.join(pending)}")
     for name in pending:
-        update_skill(name, verbose=True)
+        update_skill(name, verbose=not quiet)
 
 
 if __name__ == "__main__":

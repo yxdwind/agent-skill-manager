@@ -65,7 +65,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-extend-exclude = [".pytest-tmp", ".pytest-tmp-run"]
+extend-exclude = [".pytest-tmp", ".pytest-tmp-run", "tests/fixtures"]
 
 [tool.ruff.lint]
 # Curated rule set: style + correctness + modernisation. Excludes:
