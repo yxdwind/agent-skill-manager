@@ -6,7 +6,7 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-169%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-194%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
@@ -60,6 +60,8 @@ Every Chinese AI agent product keeps its skills in its own directory. Developing
 
 > **Linux support (v0.10.0)**: CLI-based products (AutoClaw2, Kimi, MiniMax Code, CodeBuddy, Comate, ZCode) use the same dotdir convention + native symlinks on Linux; DuMate's .zip pack works everywhere. Desktop/IDE apps without a Linux build are skipped automatically (`askill products` shows N/A) - add a `linux_path` when a build ships.
 
+> **Full capability matrix (v0.13.0)**: the per-product audit of paths / sync methods / settings switches / frontmatter requirements / command support lives in [docs/product-matrix.md](docs/product-matrix.md).
+
 ## How It Works
 
 ![Architecture](docs/architecture.svg)
@@ -69,6 +71,7 @@ Every Chinese AI agent product keeps its skills in its own directory. Developing
 - **Windows**: junction via `mklink /J`, no admin rights needed
 - **macOS / Linux**: symlink via `ln -s`
 - **Automatic fallback**: falls back to copying if link creation fails
+- **Conflict protection (v0.13.0)**: if a product's skills dir already holds a same-named *real* directory that differs from the central repo, sync skips it with a warning (`--force` overrides) - your hand-maintained skills are never silently clobbered
 - **Zero dependencies**: Python standard library only
 
 ![Demo](docs/demo.svg)
@@ -117,6 +120,7 @@ askill list
 
 # Install a skill (local path / GitHub URL / skills.sh shorthand)
 # since v0.12.0: spec + security checks run by default, risky/dangerous warns loudly
+# since v0.13.0: also checks per-product frontmatter requirements (e.g. QwenWork needs description_zh)
 askill install /path/to/skill-folder
 askill install --sync /path/to/skill-folder          # auto-sync after install
 askill install --audit /path/to/skill-folder         # print the full audit report
@@ -180,17 +184,19 @@ agent-skill-manager/
 ├── docs/
 │   ├── architecture.svg        # architecture diagram
 │   ├── demo.svg                # terminal demo
-│   └── product-paths.md        # per-product path reference
+│   ├── product-paths.md        # per-product path reference
+│   └── product-matrix.md       # product capability matrix (v0.13.0 baseline)
 ├── src/                        # package root (mapped as agent_skill_manager)
 │   ├── __init__.py / __main__.py
-│   ├── config/products.py      # 15 product definitions (incl. linux_path)
+│   ├── config/products.py      # 15 product definitions (paths / sync method /
+│   │                           # settings / shared dirs / frontmatter needs, declarative)
 │   ├── controllers/cli.py      # CLI commands (14 commands)
 │   ├── models/                 # TypedDict data shapes
 │   ├── services/               # business logic (sync / audit / watch / sources
 │   │                           #             / registry / spec)
 │   └── utils/                  # filesystem.py (cross-platform file ops)
 │                               # watcher.py (native fs events: inotify/kqueue/ReadDirectoryChangesW)
-└── tests/                      # 169 tests
+└── tests/                      # 194 tests
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
@@ -200,7 +206,33 @@ agent-skill-manager/
     ├── test_watch.py
     ├── test_watcher.py
     ├── test_registry.py
-    └── test_spec.py
+    ├── test_spec.py
+    └── test_matrix.py          # cross-product consistency regression lock (v0.13.0)
+```
+
+## Watch & Update (v0.8.0 / v0.10.0)
+
+### askill watch — save and it's synced (event-driven since v0.10.0)
+
+`askill watch` keeps watching the central repository, idling on **native OS file events** with zero third-party dependencies:
+
+- **Event-driven**: inotify on Linux, kqueue on macOS, ReadDirectoryChangesW on Windows (all stdlib ctypes/select); saves are sensed instantly - ~0.4s observed latency including debounce, no more fixed 3s polling
+- **Debounced**: the multiple syscalls behind one editor save collapse into a single sync; only skills that truly changed are re-synced
+- **Full reconciliation**: even in event mode a snapshot rescan runs every 30s as a safety net against lost events (queue overflow, directory swaps, root recreation)
+- **New/changed skill** → synced to all products immediately, per-product results printed live
+- **Conflict/pack hints (v0.13.0)** → when a product dir holds a conflicting real directory the local copy is kept and a resolution hint is printed; pack-mode products (DuMate) get a hint to refresh the zip via `askill pack`
+- **Deleted skill** → leftover links are cleaned from every product, no dead links (root deletion is sensed too)
+- **Security re-check** → audit re-runs after every sync; a verdict drop from safe to risky/dangerous warns loudly with the top findings
+- **Automatic fallback** → if native events are unavailable (restricted kernel) or the backend dies mid-run, it degrades to polling (`--interval`, default 3s) without ever stopping the watch
+
+### askill update — origin tracking and one-command upgrades
+
+Skills installed from a GitHub URL record their origin (repo / path / branch / commit) in `~/.agents/skills/.askill-sources.json`:
+
+```bash
+askill update --check      # list skills with a newer version upstream
+askill update              # check and apply all updates (auto-sync + re-audit after)
+askill update my-skill     # only this skill
 ```
 
 ## skills.sh Ecosystem (v0.11.0)
@@ -246,7 +278,7 @@ askill adopt all                          # scan every product dir, adopt + dist
 
 **Scoring & verdict**: A >= 90 (safe) - B >= 80 (safe) - C >= 70 (caution) - D >= 60 (risky) - F < 60 (dangerous)
 
-Scores also appear in `askill list` and `askill status` output. **Since v0.12.0 every `askill install` runs the spec + security checks by default**: clean installs print a one-line `[check]` summary, risky/dangerous verdicts warn loudly in any mode; `--audit` prints the full report, `--no-audit` skips:
+Scores also appear in `askill list` and `askill status` output. **Since v0.12.0 every `askill install` runs the spec + security checks by default** (plus per-product frontmatter checks since v0.13.0): clean installs print a one-line `[check]` summary, risky/dangerous verdicts warn loudly in any mode; `--audit` prints the full report, `--no-audit` skips:
 
 ```bash
 askill install --sync --audit https://github.com/user/repo/tree/main/my-skill   # sync + full audit report
@@ -271,8 +303,15 @@ Edit `src/config/products.py` and append to the `PRODUCTS` list:
     "extra_dirs_macos": [],
     "extra_dirs_windows": [],
     "extra_dirs_linux": [],
+    # optional declarative fields since v0.13.0, fill in as applicable:
+    # "settings_file": HOME / ".newproduct" / "settings.json",
+    # "settings_mode": "skills-switch",           # settings.json has {"skills": {name: bool}}
+    # "shares_dir_with": "other-short",           # declared when sharing a skills dir
+    # "required_frontmatter": ["name", "version"],  # extra SKILL.md fields this product mandates
 }
 ```
+
+Once declared, sync/status/watch behavior, frontmatter validation and the consistency assertions in `tests/test_matrix.py` all cover the new product automatically - no other code changes needed.
 
 ### Run Tests
 

@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-169%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-194%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#支持的产品)
 
@@ -60,6 +60,8 @@
 
 > **Linux 支持（v0.10.0）**：CLI 类产品（AutoClaw2、Kimi、MiniMax Code、CodeBuddy、Comate、ZCode）在 Linux 上走相同的 dotdir 约定 + 原生 symlink；DuMate 的 zip 打包全平台可用。暂无 Linux 版本的桌面/IDE 产品自动跳过（`askill products` 显示 N/A），产品发布 Linux 版后补充 `linux_path` 即可。
 
+> **完整能力矩阵（v0.13.0）**：逐产品的路径 / 同步方式 / settings 开关 / frontmatter 要求 / 各命令支持状态盘点见 [docs/product-matrix.md](docs/product-matrix.md)。
+
 ## 架构原理
 
 ![Architecture](docs/architecture.svg)
@@ -69,6 +71,7 @@
 - **Windows**：使用 `mklink /J` 创建 junction，无需管理员权限
 - **macOS / Linux**：使用 `ln -s` 创建 symlink
 - **自动降级**：链接创建失败时自动降级为复制模式
+- **冲突保护（v0.13.0）**：产品目录中已存在与中央仓库内容不同的同名真实目录时，sync 跳过并警告（`--force` 才覆盖），绝不静默清掉你手动维护的技能
 - **零依赖**：仅使用 Python 标准库
 
 ![Demo](docs/demo.svg)
@@ -117,6 +120,7 @@ askill list
 
 # 安装 skill（本地路径 / GitHub URL / skills.sh 生态简写）
 # v0.12.0 起：安装后默认自动跑 spec 检查 + 安全评测，risky/dangerous 高亮告警
+# v0.13.0 起：还会检查各产品的 frontmatter 特殊要求（如 QwenWork 需要 description_zh）
 askill install /path/to/skill-folder
 askill install --sync /path/to/skill-folder          # 安装后自动同步到所有产品
 askill install --audit /path/to/skill-folder         # 额外打印完整审计报告
@@ -178,17 +182,19 @@ agent-skill-manager/
 ├── docs/
 │   ├── architecture.svg        # 架构图
 │   ├── demo.svg                # 终端演示图
-│   └── product-paths.md        # 各产品详细路径参考
+│   ├── product-paths.md        # 各产品详细路径参考
+│   └── product-matrix.md       # 产品能力矩阵盘点（v0.13.0 基线）
 ├── src/                        # 包根（映射为 agent_skill_manager 包）
 │   ├── __init__.py / __main__.py
-│   ├── config/products.py      # 15 个产品定义（含 linux_path）
+│   ├── config/products.py      # 15 个产品定义（路径/sync方式/settings/共享目录/
+│   │                           # 产品级 frontmatter 要求，全部声明式）
 │   ├── controllers/cli.py      # CLI 命令（14 commands）
 │   ├── models/                 # TypedDict 数据模型
 │   ├── services/               # 业务逻辑（sync / audit / watch / sources
 │   │                           #             / registry / spec）
 │   └── utils/                  # filesystem.py（跨平台文件操作）
 │                               # watcher.py（原生文件事件：inotify/kqueue/ReadDirectoryChangesW）
-└── tests/                      # 169 个测试
+└── tests/                      # 194 个测试
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
@@ -198,7 +204,8 @@ agent-skill-manager/
     ├── test_watch.py
     ├── test_watcher.py
     ├── test_registry.py
-    └── test_spec.py
+    ├── test_spec.py
+    └── test_matrix.py          # 跨产品一致性回归锁定（v0.13.0）
 ```
 
 ## 实时监听与升级（v0.8.0 / v0.10.0）
@@ -211,6 +218,7 @@ agent-skill-manager/
 - **去抖合并**：编辑器一次保存的多个 syscall 事件合并为一次同步，只重同步真正变化的 skill
 - **全量对账**：事件模式下每 30 秒仍做一次快照兜底，防事件丢失（队列溢出、目录替换、根目录重建）
 - **新增/修改** skill → 自动同步到全部产品，实时打印每个产品结果
+- **冲突/打包提示（v0.13.0）** → 产品目录有同名冲突时保留本地并提示处理方式；DuMate 等 pack 类产品会提示运行 `askill pack` 刷新压缩包
 - **删除** skill → 自动清理所有产品残留链接，杜绝死链（根目录被删也能感知）
 - **安全复检** → 每次同步后重跑 audit；安全评级从 safe 跌到 risky/dangerous 时高亮告警并列出主要问题
 - **自动降级** → 原生事件不可用（受限内核等）或运行中失效时，自动退回轮询模式（`--interval` 可调，默认 3 秒），监听永不中断
@@ -268,7 +276,7 @@ askill adopt all                          # 扫描全部产品目录，收编 + 
 
 **评分与结论**：A ≥ 90（safe）· B ≥ 80（safe）· C ≥ 70（caution）· D ≥ 60（risky）· F < 60（dangerous）
 
-`askill list` 和 `askill status` 的输出中也会直接带上每个 skill 的评分（score/grade/结论）。**v0.12.0 起，每次 `askill install` 都默认运行 spec 检查 + 安全评测**：干净时只打印一行 `[check]` 摘要，risky/dangerous 在任何模式下高亮告警；`--audit` 打印完整报告，`--no-audit` 跳过：
+`askill list` 和 `askill status` 的输出中也会直接带上每个 skill 的评分（score/grade/结论）。**v0.12.0 起，每次 `askill install` 都默认运行 spec 检查 + 安全评测**（v0.13.0 起还包含按产品 frontmatter 要求检查）：干净时只打印一行 `[check]` 摘要，risky/dangerous 在任何模式下高亮告警；`--audit` 打印完整报告，`--no-audit` 跳过：
 
 ```bash
 askill install --sync --audit https://github.com/user/repo/tree/main/my-skill   # 同步 + 完整审计报告
@@ -279,7 +287,7 @@ askill install --no-audit https://github.com/user/repo/tree/main/my-skill       
 
 ### 添加新产品
 
-编辑 `src/agent_skill_manager/products.py`，在 `PRODUCTS` 列表中添加：
+编辑 `src/config/products.py`，在 `PRODUCTS` 列表中添加：
 
 ```python
 {
@@ -293,8 +301,15 @@ askill install --no-audit https://github.com/user/repo/tree/main/my-skill       
     "extra_dirs_macos": [],
     "extra_dirs_windows": [],
     "extra_dirs_linux": [],
+    # v0.13.0 起的可选声明，按产品实际情况填写：
+    # "settings_file": HOME / ".newproduct" / "settings.json",
+    # "settings_mode": "skills-switch",           # settings.json 含 {"skills": {name: bool}}
+    # "shares_dir_with": "other-short",           # 与其他产品共用同一技能目录时声明
+    # "required_frontmatter": ["name", "version"],  # 产品额外要求的 SKILL.md 字段
 }
 ```
+
+声明到位后，sync/status/watch 的行为、frontmatter 校验和 `tests/test_matrix.py` 的一致性断言都会自动覆盖新产品，无需改其他代码。
 
 ### 运行测试
 
