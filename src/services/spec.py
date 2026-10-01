@@ -113,7 +113,7 @@ def check_spec(skill_dir: Path) -> dict:
             body_start = i
             break
     if body_start is not None:
-        body_lines = len([l for l in terminated[body_start:] if l.strip()])
+        body_lines = len([line for line in terminated[body_start:] if line.strip()])
         if body_lines > BODY_LINES_SOFT:
             warnings.append(
                 f"SKILL.md body has {body_lines} lines "

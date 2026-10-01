@@ -24,14 +24,14 @@ import time
 from pathlib import Path
 
 from ..config.products import (
-    PRODUCTS,
     CENTRAL_DIR,
+    PRODUCTS,
     get_all_product_dirs,
 )
 from ..utils.filesystem import is_symlink_or_junction, remove_path
 from ..utils.watcher import PollingWatcher, create_watcher
 from .audit import analyze_skill_dir
-from .sync import sync_skill, list_skills, _disable_in_settings
+from .sync import _disable_in_settings, list_skills, sync_skill
 
 # ---------------------------------------------------------------- constants
 

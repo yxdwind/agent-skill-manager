@@ -16,6 +16,7 @@ Verdict: safe / caution / risky / dangerous.
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from ..models.report import Finding, SkillReport
@@ -54,103 +55,103 @@ _CATEGORY_CAP = 40
 
 # (severity, regex, message) — matched against SKILL.md / markdown content.
 PROMPT_PATTERNS = [
-    ("critical", re.compile(r"ignore\s+(all\s+|any\s+)?(previous|prior|earlier|above)\s+(instructions?|rules?|guidelines?|directives?)", re.I),
+    ("critical", re.compile(r"ignore\s+(all\s+|any\s+)?(previous|prior|earlier|above)\s+(instructions?|rules?|guidelines?|directives?)", re.IGNORECASE),
      "prompt injection: instruction override detected"),
-    ("critical", re.compile(r"disregard\s+(all\s+|any\s+)?(previous|prior|earlier|above|safety)?\s*(instructions?|rules?|guidelines?|directives?)", re.I),
+    ("critical", re.compile(r"disregard\s+(all\s+|any\s+)?(previous|prior|earlier|above|safety)?\s*(instructions?|rules?|guidelines?|directives?)", re.IGNORECASE),
      "prompt injection: 'disregard instructions' pattern"),
-    ("critical", re.compile(r"bypass\s+(the\s+|all\s+)?(safety|security|sandbox|content\s*filter|moderation)", re.I),
+    ("critical", re.compile(r"bypass\s+(the\s+|all\s+)?(safety|security|sandbox|content\s*filter|moderation)", re.IGNORECASE),
      "prompt injection: bypass-safety language"),
-    ("critical", re.compile(r"(steal|exfiltrate|leak)\s+(the\s+|user'?s\s+|all\s+)?(data|files|credentials|secrets|conversation)", re.I),
+    ("critical", re.compile(r"(steal|exfiltrate|leak)\s+(the\s+|user'?s\s+|all\s+)?(data|files|credentials|secrets|conversation)", re.IGNORECASE),
      "exfiltration instruction in prompt text"),
-    ("critical", re.compile(r"never\s+(ask|request|seek)\s+(for\s+)?(permission|consent|confirmation|approval)", re.I),
+    ("critical", re.compile(r"never\s+(ask|request|seek)\s+(for\s+)?(permission|consent|confirmation|approval)", re.IGNORECASE),
      "instructed to act without user permission"),
-    ("critical", re.compile(r"do\s+not\s+(follow|obey|comply\s+with)\s+(any\s+|the\s+)?(safety|security|policy|policies|rules?|guardrails?)", re.I),
+    ("critical", re.compile(r"do\s+not\s+(follow|obey|comply\s+with)\s+(any\s+|the\s+)?(safety|security|policy|policies|rules?|guardrails?)", re.IGNORECASE),
      "instructed to ignore safety rules"),
-    ("critical", re.compile(r"(turn|switch)\s+off\s+(safety|security|guardrails?)", re.I),
+    ("critical", re.compile(r"(turn|switch)\s+off\s+(safety|security|guardrails?)", re.IGNORECASE),
      "instructed to disable safety features"),
-    ("critical", re.compile(r"(disable|deactivate)\s+(all\s+)?(safety|security|guardrails?|sandbox)", re.I),
+    ("critical", re.compile(r"(disable|deactivate)\s+(all\s+)?(safety|security|guardrails?|sandbox)", re.IGNORECASE),
      "instructed to deactivate safeguards"),
-    ("high", re.compile(r"(hide|conceal)\s+(your|this|the)\s+(activity|actions?|behavior|tracks?)", re.I),
+    ("high", re.compile(r"(hide|conceal)\s+(your|this|the)\s+(activity|actions?|behavior|tracks?)", re.IGNORECASE),
      "instructed to hide its activity"),
-    ("high", re.compile(r"do\s+not\s+(tell|inform|disclose|reveal|mention)\s+(the\s+)?user", re.I),
+    ("high", re.compile(r"do\s+not\s+(tell|inform|disclose|reveal|mention)\s+(the\s+)?user", re.IGNORECASE),
      "instructed to withhold information from the user"),
-    ("high", re.compile(r"(silently|secretly)\s+(send|upload|copy|exfiltrate)", re.I),
+    ("high", re.compile(r"(silently|secretly)\s+(send|upload|copy|exfiltrate)", re.IGNORECASE),
      "covert data transfer instruction"),
-    ("high", re.compile(r"without\s+(the\s+)?user'?s\s+(knowledge|awareness|consent|permission)", re.I),
+    ("high", re.compile(r"without\s+(the\s+)?user'?s\s+(knowledge|awareness|consent|permission)", re.IGNORECASE),
      "acting without user awareness"),
-    ("high", re.compile(r"(send|upload|post|transmit)\s+(this|all|the|collected)\s+(data|files|conversation|content)\s+to", re.I),
+    ("high", re.compile(r"(send|upload|post|transmit)\s+(this|all|the|collected)\s+(data|files|conversation|content)\s+to", re.IGNORECASE),
      "instructed to send data to an external party"),
-    ("medium", re.compile(r"(discord(app)?\.com/api/webhooks|hooks\.slack\.com/services|open\.feishu\.cn/open-apis|qyapi\.weixin\.qq\.com/cgi-bin/webhook|api\.telegram\.org/bot)", re.I),
+    ("medium", re.compile(r"(discord(app)?\.com/api/webhooks|hooks\.slack\.com/services|open\.feishu\.cn/open-apis|qyapi\.weixin\.qq\.com/cgi-bin/webhook|api\.telegram\.org/bot)", re.IGNORECASE),
      "webhook URL in instructions"),
-    ("medium", re.compile(r"(phishing|keylog\w*|record\s+keystrokes|screen\s*capture)", re.I),
+    ("medium", re.compile(r"(phishing|keylog\w*|record\s+keystrokes|screen\s*capture)", re.IGNORECASE),
      "credential-harvesting language"),
-    ("low", re.compile(r"https?://[^\s\)\]\">]+", re.I),
+    ("low", re.compile(r"https?://[^\s\)\]\">]+", re.IGNORECASE),
      "network endpoint referenced in instructions"),
 ]
 
 # (severity, regex, message) — matched against script files.
 CODE_PATTERNS = [
-    ("critical", re.compile(r"(curl|wget)\b[^\n|]{0,200}\|\s*(ba)?sh\b", re.I),
+    ("critical", re.compile(r"(curl|wget)\b[^\n|]{0,200}\|\s*(ba)?sh\b", re.IGNORECASE),
      "remote content piped to shell (curl|sh)"),
-    ("critical", re.compile(r"(curl|wget)\b[^\n|]{0,200}\|\s*zsh\b", re.I),
+    ("critical", re.compile(r"(curl|wget)\b[^\n|]{0,200}\|\s*zsh\b", re.IGNORECASE),
      "remote content piped to zsh"),
-    ("critical", re.compile(r"irm\s+\S+\s*\|\s*iex", re.I),
+    ("critical", re.compile(r"irm\s+\S+\s*\|\s*iex", re.IGNORECASE),
      "PowerShell download-and-execute (irm | iex)"),
-    ("critical", re.compile(r"\bnc\s+-e\b", re.I),
+    ("critical", re.compile(r"\bnc\s+-e\b", re.IGNORECASE),
      "netcat reverse shell"),
-    ("critical", re.compile(r"\bbash\s+-i\s*>&", re.I),
+    ("critical", re.compile(r"\bbash\s+-i\s*>&", re.IGNORECASE),
      "interactive reverse shell"),
-    ("critical", re.compile(r"\brm\s+-rf\s+(/|/tmp|/var|/usr|/etc|~)", re.I),
+    ("critical", re.compile(r"\brm\s+-rf\s+(/|/tmp|/var|/usr|/etc|~)", re.IGNORECASE),
      "destructive recursive delete of system paths"),
-    ("critical", re.compile(r"\bmkfs\b", re.I),
+    ("critical", re.compile(r"\bmkfs\b", re.IGNORECASE),
      "filesystem format command"),
-    ("critical", re.compile(r"\bformat\s+[c-zC-Z]:", re.I),
+    ("critical", re.compile(r"\bformat\s+[c-zC-Z]:", re.IGNORECASE),
      "Windows drive format command"),
-    ("high", re.compile(r"\bexec\s*\(", re.I),
+    ("high", re.compile(r"\bexec\s*\(", re.IGNORECASE),
      "dynamic code execution (exec)"),
-    ("high", re.compile(r"subprocess\b[\s\S]{0,120}?shell\s*=\s*True", re.I),
+    ("high", re.compile(r"subprocess\b[\s\S]{0,120}?shell\s*=\s*True", re.IGNORECASE),
      "shell=True subprocess call"),
-    ("high", re.compile(r"Invoke-Expression", re.I),
+    ("high", re.compile(r"Invoke-Expression", re.IGNORECASE),
      "PowerShell Invoke-Expression"),
-    ("high", re.compile(r"\biex\s*\(", re.I),
+    ("high", re.compile(r"\biex\s*\(", re.IGNORECASE),
      "PowerShell iex call"),
-    ("high", re.compile(r"-EncodedCommand", re.I),
+    ("high", re.compile(r"-EncodedCommand", re.IGNORECASE),
      "PowerShell encoded command"),
-    ("high", re.compile(r"new\s+Function\s*\(", re.I),
+    ("high", re.compile(r"new\s+Function\s*\(", re.IGNORECASE),
      "JavaScript dynamic function constructor"),
-    ("high", re.compile(r"\brm\s+-rf\b", re.I),
+    ("high", re.compile(r"\brm\s+-rf\b", re.IGNORECASE),
      "recursive delete (rm -rf)"),
-    ("high", re.compile(r"\bdd\s+if=", re.I),
+    ("high", re.compile(r"\bdd\s+if=", re.IGNORECASE),
      "raw disk write (dd)"),
-    ("high", re.compile(r"\bshutdown\b", re.I),
+    ("high", re.compile(r"\bshutdown\b", re.IGNORECASE),
      "system shutdown command"),
-    ("high", re.compile(r"(\.ssh|\.aws|\.gnupg|id_rsa|id_ed25519|\.netrc|credentials)", re.I),
+    ("high", re.compile(r"(\.ssh|\.aws|\.gnupg|id_rsa|id_ed25519|\.netrc|credentials)", re.IGNORECASE),
      "reads sensitive credential files"),
-    ("medium", re.compile(r"\beval\s*\(", re.I),
+    ("medium", re.compile(r"\beval\s*\(", re.IGNORECASE),
      "dynamic code evaluation (eval)"),
-    ("medium", re.compile(r"os\.system\s*\(", re.I),
+    ("medium", re.compile(r"os\.system\s*\(", re.IGNORECASE),
      "shell command via os.system"),
-    ("medium", re.compile(r"__import__\s*\(", re.I),
+    ("medium", re.compile(r"__import__\s*\(", re.IGNORECASE),
      "dynamic module import"),
-    ("medium", re.compile(r"base64\.b64decode\s*\(", re.I),
+    ("medium", re.compile(r"base64\.b64decode\s*\(", re.IGNORECASE),
      "base64 payload decoding"),
-    ("medium", re.compile(r"\bDownloadString\b", re.I),
+    ("medium", re.compile(r"\bDownloadString\b", re.IGNORECASE),
      "PowerShell DownloadString"),
-    ("medium", re.compile(r"\bDownloadFile\b", re.I),
+    ("medium", re.compile(r"\bDownloadFile\b", re.IGNORECASE),
      "PowerShell DownloadFile"),
-    ("medium", re.compile(r"child_process", re.I),
+    ("medium", re.compile(r"child_process", re.IGNORECASE),
      "JavaScript child_process usage"),
-    ("medium", re.compile(r"curl\s+\S+\s+(-d\b|--data\b|-X\s+POST)", re.I),
+    ("medium", re.compile(r"curl\s+\S+\s+(-d\b|--data\b|-X\s+POST)", re.IGNORECASE),
      "outbound POST via curl"),
-    ("medium", re.compile(r"requests\.(post|put)\s*\(", re.I),
+    ("medium", re.compile(r"requests\.(post|put)\s*\(", re.IGNORECASE),
      "outbound data upload via requests"),
-    ("low", re.compile(r"\.env", re.I),
+    ("low", re.compile(r"\.env", re.IGNORECASE),
      "references .env (possible secrets file)"),
-    ("low", re.compile(r"(api[_-]?key|access[_-]?token|secret[_-]?key|client[_-]?secret)\s*[:=]", re.I),
+    ("low", re.compile(r"(api[_-]?key|access[_-]?token|secret[_-]?key|client[_-]?secret)\s*[:=]", re.IGNORECASE),
      "hardcoded secret in code"),
-    ("low", re.compile(r"fetch\s*\(\s*['\"]https?://", re.I),
+    ("low", re.compile(r"fetch\s*\(\s*['\"]https?://", re.IGNORECASE),
      "network fetch to remote URL"),
-    ("low", re.compile(r"https?://", re.I),
+    ("low", re.compile(r"https?://", re.IGNORECASE),
      "network access in script"),
 ]
 
@@ -330,8 +331,10 @@ def analyze_skill_dir(skill_dir: Path) -> SkillReport:
 
     # --- score -----------------------------------------------------------
     summary = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
-    for f in findings:
-        summary[f["severity"]] = summary.get(f["severity"], 0) + 1
+    # Renamed from ``f`` -> ``finding`` so mypy doesn't reuse the outer
+    # loop's ``f: Path`` type from the per-file scan above.
+    for finding in findings:
+        summary[finding["severity"]] = summary.get(finding["severity"], 0) + 1
 
     score = _score(findings)
     grade, verdict = _grade(score)
@@ -349,13 +352,25 @@ def analyze_skill_dir(skill_dir: Path) -> SkillReport:
     }
 
 
-def analyze_all(central_dir: Path) -> list[SkillReport]:
-    """Audit every skill directory under the central repository."""
+def analyze_all(central_dir: Path, max_workers: int = 8) -> list[SkillReport]:
+    """Audit every skill directory under the central repository.
+
+    Each ``analyze_skill_dir`` call is I/O bound (reads SKILL.md and any
+    bundled scripts), so we run them concurrently via a small thread
+    pool. ``pool.map`` preserves the sorted input order in the output,
+    matching the previous serial behaviour so existing callers (and the
+    tests that check report order) keep working.
+    """
     central_dir = Path(central_dir)
     if not central_dir.exists():
         return []
-    reports = []
-    for d in sorted(central_dir.iterdir()):
-        if d.is_dir() and not d.is_symlink():
-            reports.append(analyze_skill_dir(d))
-    return reports
+    skill_dirs = sorted(
+        d for d in central_dir.iterdir()
+        if d.is_dir() and not d.is_symlink()
+    )
+    if not skill_dirs:
+        return []
+    with ThreadPoolExecutor(
+        max_workers=min(len(skill_dirs), max_workers),
+    ) as pool:
+        return list(pool.map(analyze_skill_dir, skill_dirs))

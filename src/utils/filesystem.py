@@ -1,9 +1,9 @@
 """Utility functions for cross-platform file system operations."""
 
 import os
+import platform
 import shutil
 import subprocess
-import platform
 from pathlib import Path
 
 IS_WINDOWS = platform.system() == "Windows"
@@ -71,8 +71,8 @@ def create_link(src: Path, dst: Path, force: bool = False) -> tuple:
                 return (
                     False,
                     "conflict",
-                    f"Real directory differs from central repo: {dst} "
-                    "(use --force to overwrite, or 'askill adopt' to keep a copy)",
+                    (f"Real directory differs from central repo: {dst} "
+                    "(use --force to overwrite, or 'askill adopt' to keep a copy)"),
                 )
             shutil.rmtree(dst)
         else:

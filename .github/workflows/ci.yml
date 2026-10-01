@@ -8,6 +8,45 @@ on:
   workflow_dispatch:
 
 jobs:
+  lint:
+    name: Lint (ruff)
+    # Single runner: lint is CPU-bound, doesn't need the OS matrix.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install ruff
+        run: pip install "ruff>=0.5"
+
+      - name: Run ruff
+        run: ruff check src tests
+
+  typecheck:
+    name: Type check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install package + mypy
+        # `pip install -e .` exposes ``agent_skill_manager`` so mypy can
+        # follow the src-layout imports without an explicit mypy_path.
+        run: |
+          pip install -e .
+          pip install "mypy>=1.10"
+
+      - name: Run mypy
+        run: mypy src
+
   test:
     name: Tests (${{ matrix.os }}, Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}

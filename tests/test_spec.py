@@ -4,7 +4,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from agent_skill_manager.services.spec import (
-    check_spec, check_all_specs, parse_frontmatter,
+    check_all_specs,
+    check_spec,
+    parse_frontmatter,
 )
 
 

@@ -1,11 +1,14 @@
 """Tests for agent_skill_manager.products module."""
 
-import pytest
 from pathlib import Path
+
 from agent_skill_manager.config import products as prod_mod
 from agent_skill_manager.config.products import (
-    PRODUCTS, CENTRAL_DIR,
-    get_product_path, get_all_product_dirs, get_product_by_short,
+    CENTRAL_DIR,
+    PRODUCTS,
+    get_all_product_dirs,
+    get_product_by_short,
+    get_product_path,
 )
 
 

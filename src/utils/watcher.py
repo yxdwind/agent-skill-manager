@@ -28,6 +28,7 @@ which simply ticks every ``poll_interval`` seconds - the pre-v0.10 behavior.
 """
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import os
 import platform
@@ -125,10 +126,8 @@ class _InotifyWatcher:
 
     def _teardown(self) -> None:
         if self._fd is not None:
-            try:
+            with contextlib.suppress(OSError):
                 os.close(self._fd)
-            except OSError:
-                pass
             self._fd = None
         self._wd_path.clear()
 
@@ -190,10 +189,9 @@ class _InotifyWatcher:
             if mask & _IN_ISDIR and mask & _IN_CREATE and name:
                 child = path / os.fsdecode(name)
                 if child.is_dir() and not child.is_symlink():
-                    try:
+                    # parent watch still reports dir-level changes if this fails
+                    with contextlib.suppress(OSError):
                         self._add_tree(child)
-                    except OSError:
-                        pass    # parent watch still reports dir-level changes
 
     # -- interface -------------------------------------------------------
 
@@ -305,17 +303,13 @@ class _KqueueWatcher:
             for d in dirnames:
                 p = Path(dirpath) / d
                 if p not in watched:
-                    try:
+                    with contextlib.suppress(OSError):
                         self._register(p)
-                    except OSError:
-                        pass
 
     def _drop_fd(self, fd: int) -> None:
         self._fds.pop(fd, None)
-        try:
+        with contextlib.suppress(OSError):
             os.close(fd)
-        except OSError:
-            pass
 
     # -- event handling --------------------------------------------------
 
@@ -373,10 +367,8 @@ class _KqueueWatcher:
     def close(self) -> None:
         for fd in list(self._fds):
             self._drop_fd(fd)
-        try:
+        with contextlib.suppress(OSError):
             self._kq.close()
-        except OSError:
-            pass
 
 
 # ---------------------------------------------------------------- Windows

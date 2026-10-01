@@ -224,17 +224,20 @@ def _platform_key() -> str:
 
 def get_product_path(product: ProductSpec) -> Path | None:
     """Get the primary skill directory for a product on the current platform."""
-    return product.get(f"{_platform_key()}_path")
+    # TypedDict is total=False; ``product.get(...)`` widens to ``object``
+    # even though the runtime value is always ``Path | None``. Cast keeps
+    # the type contract without needing to widen the TypedDict schema.
+    return product.get(f"{_platform_key()}_path")  # type: ignore[return-value]
 
 
 def get_all_product_dirs(product: ProductSpec) -> list[Path]:
     """Get all skill directories for a product on the current platform."""
     key = _platform_key()
     primary = product.get(f"{key}_path")
-    dirs = []
+    dirs: list[Path] = []
     if primary:
-        dirs.append(primary)
-    dirs.extend(product.get(f"extra_dirs_{key}", []))
+        dirs.append(primary)  # type: ignore[arg-type]
+    dirs.extend(product.get(f"extra_dirs_{key}", []))  # type: ignore[arg-type]
     return dirs
 
 

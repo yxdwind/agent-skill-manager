@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 from ..config.products import CENTRAL_DIR
 
@@ -42,8 +41,8 @@ def record_source(
     skill_name: str,
     repo_url: str,
     sub_path: str = "",
-    branch: Optional[str] = None,
-    commit: Optional[str] = None,
+    branch: str | None = None,
+    commit: str | None = None,
 ) -> None:
     """Record (or overwrite) the origin of one skill."""
     data = load_sources()
@@ -67,7 +66,7 @@ def remove_source(skill_name: str) -> None:
 
 # ---------------------------------------------------------------- update
 
-def _latest_commit(repo_url: str, branch: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+def _latest_commit(repo_url: str, branch: str | None) -> tuple[str | None, str | None]:
     """Fetch the remote HEAD commit sha (and resolved branch) via ls-remote.
 
     Returns (sha, branch) - (None, None) on network/git failure.
@@ -118,10 +117,7 @@ def check_update(skill_name: str) -> dict:
     # ``_latest_commit``) but the mixed-priority chain is easy to break in
     # future edits. Spell the predicate out so the intent is unambiguous
     # and the unrecorded (``local is None``) boundary is explicit.
-    if local:
-        is_up_to_date = sha.startswith(local) or local == sha
-    else:
-        is_up_to_date = False
+    is_up_to_date = sha.startswith(local) or local == sha if local else False
     if is_up_to_date:
         return {
             "skill": skill_name, "status": "up-to-date",

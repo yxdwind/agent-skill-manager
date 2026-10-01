@@ -1,15 +1,10 @@
 """Tests for agent_skill_manager.utils module."""
 
-import os
-import shutil
-import tempfile
-from pathlib import Path
 
-import pytest
 from agent_skill_manager.utils.filesystem import (
-    is_symlink_or_junction,
-    create_link,
     copy_skill,
+    create_link,
+    is_symlink_or_junction,
     read_skill_metadata,
 )
 

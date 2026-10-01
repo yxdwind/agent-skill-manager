@@ -1,19 +1,16 @@
 """Tests for agent_skill_manager.core module."""
 
 import json
-import shutil
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from agent_skill_manager.services.sync import (
-    list_skills,
-    get_status,
-    sync_skill,
-    pack_skill,
-    _enable_in_settings,
     _disable_in_settings,
+    _enable_in_settings,
     _write_json_atomic,
+    get_status,
+    list_skills,
+    pack_skill,
 )
 
 
@@ -160,7 +157,8 @@ class TestExtraDirsSync:
 
     def test_sync_creates_links_in_extra_dirs(self, tmp_path):
         """sync_skill should create junction/symlink in each declared extra dir."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
+
         from agent_skill_manager.services import sync as core
 
         skill_dir = tmp_path / "my-skill"
@@ -194,6 +192,7 @@ class TestExtraDirsSync:
     def test_extra_dirs_skipped_for_uninstalled_product(self, tmp_path):
         """v0.13.0 A9: no extra-dir litter on machines without the product."""
         from unittest.mock import patch
+
         from agent_skill_manager.services import sync as core
 
         skill_dir = tmp_path / "my-skill"
@@ -223,6 +222,7 @@ class TestExtraDirsSync:
     def test_get_status_reports_ok_when_extra_dir_has_link(self, tmp_path):
         """get_status should report ok if the skill exists only in an extra dir."""
         from unittest.mock import patch
+
         from agent_skill_manager.services import sync as core
 
         skill_dir = tmp_path / "my-skill"
@@ -264,6 +264,7 @@ class TestExtraDirsSync:
         dir differed from the central repo.
         """
         from unittest.mock import patch
+
         from agent_skill_manager.services import sync as core
 
         # central skill
@@ -328,7 +329,8 @@ class TestInstallSync:
 
     def test_install_local_with_sync(self, tmp_path):
         """install --sync from local path should install + sync."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
+
         from agent_skill_manager.services import sync as core
 
         skill_dir = tmp_path / "my-skill"
@@ -359,7 +361,8 @@ class TestInstallSync:
 
     def test_install_url_returns_name(self, tmp_path):
         """_install_from_url returns skill name on success."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
+
         from agent_skill_manager.services import sync as core
 
         # tmp is the clone root; code appends sub_path "my-skill"
@@ -382,7 +385,8 @@ class TestInstallSync:
 
     def test_install_blob_url(self, tmp_path):
         """_install_from_url handles /blob/ URLs (strips SKILL.md)."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
+
         from agent_skill_manager.services import sync as core
 
         skill_dir = tmp_path / "my-skill"
@@ -405,7 +409,8 @@ class TestInstallSync:
 
     def test_install_repo_root_url(self, tmp_path):
         """_install_from_url handles repo root URL (no /tree/ or /blob/)."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
+
         from agent_skill_manager.services import sync as core
 
         # repo root: sub_path="", so src = tmp (clone root) itself
@@ -430,6 +435,7 @@ class TestInstallSync:
     def test_install_rejects_non_github_url(self, tmp_path):
         """_install_from_url rejects non-GitHub URLs."""
         from unittest.mock import patch
+
         from agent_skill_manager.services import sync as core
 
         with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path / "central"):

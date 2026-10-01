@@ -6,11 +6,8 @@ import time
 from pathlib import Path
 
 import pytest
-
-from agent_skill_manager.config.products import CENTRAL_DIR
-from agent_skill_manager.services import watch as watch_mod
 from agent_skill_manager.services import sources as src_mod
-
+from agent_skill_manager.services import watch as watch_mod
 
 # ---------------------------------------------------------------- helpers
 
@@ -95,7 +92,6 @@ class TestDiff:
 
 class TestClean:
     def test_clean_removes_links(self, fake_central, tmp_path, monkeypatch):
-        from agent_skill_manager.config import products as prod_mod
         # fake one product dir
         prod_dir = tmp_path / "prod-skills"
         prod_dir.mkdir()
@@ -207,7 +203,7 @@ class TestWatchLoop:
 
     def test_backend_failure_falls_back_to_polling(self, fake_central, monkeypatch, capsys):
         """A native backend dying mid-run degrades to polling, keeps watching."""
-        monkeypatch.setattr(watch_mod, "list_skills", lambda: [])
+        monkeypatch.setattr(watch_mod, "list_skills", list)
 
         class DeadBackend:
             def describe(self):
@@ -247,7 +243,6 @@ class TestWatchLoop:
         assert "Watch stopped." in out
 
     def test_missing_central_returns_before_backend(self, fake_central, monkeypatch, capsys):
-        import shutil
         target = watch_mod.CENTRAL_DIR
         monkeypatch.setattr(watch_mod, "CENTRAL_DIR", target.parent / "absent")
         called = []

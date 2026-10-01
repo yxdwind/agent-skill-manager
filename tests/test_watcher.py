@@ -13,10 +13,8 @@ import threading
 import time
 
 import pytest
-
 from agent_skill_manager.utils import watcher as wmod
 from agent_skill_manager.utils.watcher import PollingWatcher, create_watcher
-
 
 # ---------------------------------------------------------------- factory
 

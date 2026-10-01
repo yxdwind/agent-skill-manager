@@ -151,8 +151,8 @@ class TestStatusTableLayout:
         """With the real 15-product PRODUCTS list and a terminal wide enough
         for skill + products but not score, the score column is dropped and
         the products are NOT abbreviated."""
-        from agent_skill_manager.controllers import cli
         from agent_skill_manager.config.products import PRODUCTS
+        from agent_skill_manager.controllers import cli
         central = tmp_path / "central"
         _make_skill(central, "my-skill")
         n = len(PRODUCTS)
@@ -184,8 +184,8 @@ class TestStatusTableLayout:
     def test_abbreviates_product_names_when_very_narrow(self, tmp_path, capsys, monkeypatch):
         """When even dropping the score isn't enough, product names shrink to
         5 chars + ellipsis and an "abbreviated" note appears in the header."""
-        from agent_skill_manager.controllers import cli
         from agent_skill_manager.config.products import PRODUCTS
+        from agent_skill_manager.controllers import cli
         central = tmp_path / "central"
         _make_skill(central, "s")
         # term_w=100 with n=15 forces both drop AND abbreviate:

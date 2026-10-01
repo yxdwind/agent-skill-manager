@@ -8,9 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from agent_skill_manager.services import registry as reg
-
 
 # ---------------------------------------------------------------- resolve
 

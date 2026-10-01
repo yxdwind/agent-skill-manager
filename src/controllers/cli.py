@@ -1,26 +1,31 @@
 """CLI entry point for agent-skill-manager."""
 
 import argparse
+import platform
 import shutil
 import sys
-import platform
 
-from ..config.products import PRODUCTS, CENTRAL_DIR, get_product_path, get_all_product_dirs
-from ..utils.filesystem import is_symlink_or_junction, read_skill_metadata
-from ..services.audit import analyze_skill_dir
-from ..services.sync import FOOTER
-from ..services.sync import (
-    list_skills,
-    get_status,
-    sync_skill,
-    install_skill,
-    remove_skill,
-    pack_skill,
-    adopt_from_platform,
-    audit_skill,
-    audit_all,
-    print_onboarding,
+from ..config.products import (
+    CENTRAL_DIR,
+    PRODUCTS,
+    get_all_product_dirs,
+    get_product_path,
 )
+from ..services.audit import analyze_skill_dir
+from ..services.sync import (
+    FOOTER,
+    adopt_from_platform,
+    audit_all,
+    audit_skill,
+    get_status,
+    install_skill,
+    list_skills,
+    pack_skill,
+    print_onboarding,
+    remove_skill,
+    sync_skill,
+)
+from ..utils.filesystem import read_skill_metadata
 
 
 def _print_products():
@@ -38,7 +43,7 @@ def _print_products():
             path = get_product_path(p)
             print(f"    Path: {path} (native, no sync needed)")
         elif p["sync_method"] == "pack":
-            print(f"    Path: App-managed (use 'pack' command)")
+            print("    Path: App-managed (use 'pack' command)")
         else:
             primary = get_product_path(p)
             if primary:
@@ -448,7 +453,7 @@ Usage: askill install [--sync] [--audit] [--no-audit] <source>
 
 def _cmd_search(query_parts, install_idx):
     """``askill search`` body; extracted from main() so it stays readable."""
-    from ..services.registry import search_skills, RegistryError
+    from ..services.registry import RegistryError, search_skills
     if not query_parts:
         print("Usage: askill search <query> [--install N]")
         print("  e.g. askill search pdf --install 1")
@@ -491,7 +496,9 @@ def _cmd_search(query_parts, install_idx):
 def _cmd_verify(skill_name):
     """``askill verify [skill-name]`` body."""
     from ..services.spec import (
-        check_spec, check_all_specs, product_frontmatter_issues,
+        check_all_specs,
+        check_spec,
+        product_frontmatter_issues,
     )
     target_dir = None
     if skill_name:
@@ -542,7 +549,9 @@ def _cmd_verify(skill_name):
 def _cmd_update(skill_name, check_only):
     """``askill update [skill-name] [--check]`` body."""
     from ..services.sources import (
-        check_update, check_all_updates, update_skill,
+        check_all_updates,
+        check_update,
+        update_skill,
     )
     if check_only:
         if skill_name:

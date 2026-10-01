@@ -12,12 +12,9 @@ Locks the guarantees the capability matrix audit promised:
 from __future__ import annotations
 
 import json
-import shutil
 import time
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from agent_skill_manager.config.products import PRODUCTS
 from agent_skill_manager.services import sync as core
@@ -149,7 +146,7 @@ class TestSyncCoversEveryProduct:
             _fake("linked-prod", tmp_path / "l1"),
             _fake("nopath-prod", None),
         ]
-        results = dict((s, (ok, m)) for s, ok, m in self._run(tmp_path, products)["demo-skill"])
+        results = {s: (ok, m) for s, ok, m in self._run(tmp_path, products)["demo-skill"]}
         assert results["native-prod"][1] == "native"
         assert results["pack-prod"][1] == "pack"
         assert results["linked-prod"][1] in ("junction", "symlink", "copy")
@@ -208,6 +205,63 @@ class TestSyncCoversEveryProduct:
         self._run(tmp_path, products)
         data = json.loads(settings.read_text(encoding="utf-8"))
         assert data["skills"]["demo-skill"] is True
+
+
+class TestConcurrentSync:
+    """6.1: sync_skill dispatches per-product sync through a thread pool.
+    These lock the safety invariants the threading introduces - result order,
+    shared-dir dedup, settings.json atomicity - so a future refactor can't
+    silently regress them.
+    """
+
+    def test_result_sequence_follows_products_order(self, tmp_path):
+        """Even though workers finish in arbitrary order, sync_results must
+        be returned in the original PRODUCTS order (tests assert by index)."""
+        products = [_fake(f"p{i:02d}", tmp_path / f"dir{i}") for i in range(15)]
+        # Make a few dirs already exist so some products take the 'installed'
+        # path and some do "no target" work - mixed timings.
+        for i in (0, 4, 8, 12):
+            (tmp_path / f"dir{i}").mkdir()
+        central = tmp_path / "central"; central.mkdir()
+        _mk_skill(central)
+        with patch.object(core, "CENTRAL_DIR", central), \
+             patch.object(core, "PRODUCTS", products):
+            results = core.sync_skill("demo-skill", verbose=False)
+        shorts = [s for s, _, _ in results["demo-skill"]]
+        assert shorts == [f"p{i:02d}" for i in range(15)]
+
+    def test_shared_dir_dedup_under_concurrent_execution(self, tmp_path):
+        """Concurrent threads racing on the same target path must still yield
+        exactly one primary sync + N-1 ``shared->primary`` reports."""
+        shared = tmp_path / "shared"; shared.mkdir()
+        # 5 products sharing the same target - any of them could "win"
+        # the dedup race; the rest must report shared->winner.
+        products = [_fake(f"p{i}", shared) for i in range(5)]
+        central = tmp_path / "central"; central.mkdir()
+        _mk_skill(central)
+        with patch.object(core, "CENTRAL_DIR", central), \
+             patch.object(core, "PRODUCTS", products):
+            results = core.sync_skill("demo-skill", verbose=False)
+        outcomes = [(s, ok, m) for s, ok, m in results["demo-skill"]]
+        primaries = [(s, m) for s, ok, m in outcomes if ok and m != "shared->p0"]
+        shadowed = [(s, m) for s, ok, m in outcomes if m.startswith("shared->")]
+        assert len(primaries) == 1, f"expected exactly 1 primary, got {primaries}"
+        assert len(shadowed) == 4, f"expected 4 shadowed, got {shadowed}"
+        # And the link was created exactly once.
+        assert (shared / "demo-skill").exists()
+
+    def test_audit_all_preserves_sorted_order_under_concurrency(self, tmp_path):
+        """6.2: analyze_all runs per-skill audits concurrently but must
+        return reports in the same sorted() order the serial version did."""
+        from agent_skill_manager.services.audit import analyze_all
+        central = tmp_path / "central"; central.mkdir()
+        names = ["zebra-skill", "beta-skill", "alpha-skill", "mu-skill", "gamma-skill"]
+        for n in names:
+            d = central / n; d.mkdir()
+            (d / "SKILL.md").write_text(f"---\nname: {n}\n---\n# body\n",
+                              encoding="utf-8")
+        reports = analyze_all(central)
+        assert [r["skill"] for r in reports] == sorted(names)
 
 
 # ------------------------------------------------------- status contract

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 
 class ProductSpec(TypedDict, total=False):
@@ -17,9 +17,9 @@ class ProductSpec(TypedDict, total=False):
 
     name: str
     short: str
-    macos_path: Optional[Path]
-    windows_path: Optional[Path]
-    linux_path: Optional[Path]
+    macos_path: Path | None
+    windows_path: Path | None
+    linux_path: Path | None
     sync_method: str  # "symlink" | "native" | "pack"
     note: str
     extra_dirs_macos: list[Path]

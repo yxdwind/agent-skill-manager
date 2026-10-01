@@ -3,9 +3,9 @@
 from pathlib import Path
 
 from agent_skill_manager.services.audit import (
-    analyze_skill_dir,
-    analyze_all,
     _grade,
+    analyze_all,
+    analyze_skill_dir,
 )
 
 
