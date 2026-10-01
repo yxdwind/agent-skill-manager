@@ -109,7 +109,6 @@ PRODUCTS: list[ProductSpec] = [
         "extra_dirs_macos": [],
         "extra_dirs_windows": [],
         "extra_dirs_linux": [],
-        "shares_dir_with": "traecn",
     },
     {
         "name": "DuMate (Baidu)",
@@ -172,7 +171,6 @@ PRODUCTS: list[ProductSpec] = [
         "extra_dirs_macos": [],
         "extra_dirs_windows": [],
         "extra_dirs_linux": [],
-        "shares_dir_with": "qodercn",
     },
     {
         "name": "QwenWork / Qianwen Office (Alibaba)",

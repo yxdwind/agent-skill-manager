@@ -92,7 +92,7 @@ settings 写入：`_update_workbuddy_settings` 对所有带 `settings_file` 的�
 | A2 | sync/status 对「平台无路径」输出 `n/a`，不说明原因 | sync.py:178-181 | Linux 用户困惑为何 8 个产品无输出语义 | 统一输出模板：`skip (no linux build)` / `ok native` / `skip (use 'pack')`，status 表同步 |
 | A3 | settings 适配按 WorkBuddy 硬编码：函数名 `_update_workbuddy_settings`、removed 列表误标 `workbuddy-settings`，CodeBuddy 靠 schema 巧合工作 | sync.py:218-219, 572-610 | 新增带 settings 的产品时会复制错误模式；remove 报告误导 | 抽象为按产品声明的 `settings_adapter`（`skills` 开关字典作为一种可复用类型），命名与产品解耦 |
 | A4 | 无按产品 frontmatter 校验：QwenWork 需要 `name`+`version`+`description`+`description_zh`，但 spec.py 只查 agentskills.io 通用规范，需求只存在于 note 字符串 | spec.py 全文; products.py:180 | QwenWork 用户装完技能加载失败才发现问题，且提示不指向原因 | 在 ProductSpec 增加声明式 `required_frontmatter`，install 后检查、sync/verify 时按产品警告，并提示修复命令 |
-| A5 | 共享目录产品对重复同步：traecn+traesolo、qodercn+qodercnide 各建/删同一链接两次，输出重复两行 | products.py:102-111, 150-172 | 输出冗余；remove 报告重复项；未来 settings/extra 逻辑可能双写 | ProductSpec 增加 `shares_dir_with` 声明，sync/status/remove 按组去重，输出标注 `（与 traecn 共享目录）` |
+| A5 | 共享目录产品对重复同步：traecn+traesolo、qodercn+qodercnide 各建/删同一链接两次，输出重复两行 | products.py:102-111, 150-172 | 输出冗余；remove 报告重复项；未来 settings/extra 逻辑可能双写 | `sync_skill` 靠 `synced_dirs` 字典按目标路径隐式去重；traesolo/qodercnide 通过 print `sharing 中 x` 报路径复用。无须 ProductSpec 字段 |
 | A6 | sync 无冲突检测：create_link 会 rmtree 产品目录中已存在的**真实目录**再建链接 | filesystem.py:57-64; 对比 adopt 有冲突检测 sync.py:792-804 | **数据丢失风险**：用户手动维护的同名技能被无警告覆盖 | create_link 前检测 dst 为真实目录且与 central 内容不同时：跳过 + 警告 + 建议 adopt/diff，除非 `--force` |
 | A7 | adopt_from_platform 存在死代码：745-764 与 766-782 重复块（后者不可达） | sync.py:745-782 | 维护噪音 | 删除重复块 |
 | A8 | pack 产品 status 恒为 `manual`，不反映 zip 状态 | sync.py:83-84 | DuMate 用户无法从 status 知道是否已打包/过期 | 检查 central 下 `{skill}.zip`：存在且新于 SKILL.md → `packed`，否则 `stale` |

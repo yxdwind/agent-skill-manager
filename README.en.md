@@ -306,7 +306,6 @@ Edit `src/config/products.py` and append to the `PRODUCTS` list:
     # optional declarative fields since v0.13.0, fill in as applicable:
     # "settings_file": HOME / ".newproduct" / "settings.json",
     # "settings_mode": "skills-switch",           # settings.json has {"skills": {name: bool}}
-    # "shares_dir_with": "other-short",           # declared when sharing a skills dir
     # "required_frontmatter": ["name", "version"],  # extra SKILL.md fields this product mandates
 }
 ```

@@ -27,5 +27,4 @@ class ProductSpec(TypedDict, total=False):
     extra_dirs_linux: list[Path]
     settings_file: Path
     settings_mode: str  # "skills-switch": settings.json {"skills": {name: bool}}
-    shares_dir_with: str  # short name of a product with the identical skill dir
     required_frontmatter: list[str]  # extra SKILL.md fields this product mandates

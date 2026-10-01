@@ -68,13 +68,16 @@ class TestDeclarations:
         assert symlink_no_linux == NO_LINUX
         assert "dumate" in none_linux  # pack mode: no paths anywhere
 
-    def test_shared_dir_declarations(self):
-        for secondary, primary in SHARED_PAIRS:
-            sec, pri = _by_short(secondary), _by_short(primary)
-            assert sec.get("shares_dir_with") == primary
+    def test_shared_dir_pairs_declare_same_path(self):
+        """A "shared dir" pair is purely a documentation convention; sync_skill
+        dedupes via path equality (see synced_dirs in services/sync.py). The
+        declaration here is an invariant on paths, not a runtime contract."""
+        for primary_short, secondary_short in SHARED_PAIRS:
+            pri = _by_short(primary_short)
+            sec = _by_short(secondary_short)
             for platform in ("macos", "windows", "linux"):
                 assert sec.get(f"{platform}_path") == pri.get(f"{platform}_path"), (
-                    f"{secondary} and {primary} must share {platform}_path"
+                    f"{secondary_short} and {primary_short} must share {platform}_path"
                 )
 
     def test_settings_mode_on_settings_products(self):
@@ -102,7 +105,7 @@ def _mk_skill(central: Path, name: str = "demo-skill") -> Path:
     return d
 
 
-def _fake(short, primary, method="symlink", extra=None, settings=None, shared=None):
+def _fake(short, primary, method="symlink", extra=None, settings=None):
     p = {
         "name": short.title(), "short": short,
         "macos_path": primary, "windows_path": primary, "linux_path": primary,
@@ -113,8 +116,6 @@ def _fake(short, primary, method="symlink", extra=None, settings=None, shared=No
     if settings:
         p["settings_file"] = settings
         p["settings_mode"] = "skills-switch"
-    if shared:
-        p["shares_dir_with"] = shared
     return p
 
 
@@ -158,7 +159,7 @@ class TestSyncCoversEveryProduct:
         shared_target = tmp_path / "shared"
         products = [
             _fake("primary-prod", shared_target),
-            _fake("shadow-prod", shared_target, shared="primary-prod"),
+            _fake("shadow-prod", shared_target),
         ]
         results = self._run(tmp_path, products)["demo-skill"]
         by_short = {s: (ok, m) for s, ok, m in results}
@@ -221,7 +222,7 @@ class TestStatusContract:
             _fake("native-prod", d, method="native"),
             _fake("pack-prod", None, method="pack"),
             _fake("linked-prod", d),
-            _fake("shadow-prod", d, shared="linked-prod"),
+            _fake("shadow-prod", d),
             _fake("nopath-prod", None),
         ]
         with patch.object(core, "CENTRAL_DIR", central), \

@@ -304,7 +304,6 @@ askill install --no-audit https://github.com/user/repo/tree/main/my-skill       
     # v0.13.0 起的可选声明，按产品实际情况填写：
     # "settings_file": HOME / ".newproduct" / "settings.json",
     # "settings_mode": "skills-switch",           # settings.json 含 {"skills": {name: bool}}
-    # "shares_dir_with": "other-short",           # 与其他产品共用同一技能目录时声明
     # "required_frontmatter": ["name", "version"],  # 产品额外要求的 SKILL.md 字段
 }
 ```
