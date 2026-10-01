@@ -270,9 +270,12 @@ class TestProductFrontmatter:
     def test_complete_skill_passes(self, tmp_path):
         d = tmp_path / "demo-skill"
         d.mkdir()
+        # encoding="utf-8" is mandatory on Windows (default cp1252 can't
+        # encode 演示); harmless everywhere else.
         (d / "SKILL.md").write_text(
             "---\nname: demo-skill\nversion: 1.0.0\n"
-            "description: demo\ndescription_zh: 演示\n---\n"
+            "description: demo\ndescription_zh: 演示\n---\n",
+            encoding="utf-8",
         )
         assert product_frontmatter_issues(d) == []
 
