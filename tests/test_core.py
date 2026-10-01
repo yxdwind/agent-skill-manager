@@ -13,6 +13,7 @@ from agent_skill_manager.services.sync import (
     pack_skill,
     _enable_in_settings,
     _disable_in_settings,
+    _write_json_atomic,
 )
 
 
@@ -125,6 +126,34 @@ class TestSettingsSwitch:
         settings_path.write_text(json.dumps({"skills": {}}))
         assert _disable_in_settings(settings_path, "nope") is False
 
+    def test_atomic_write_leaves_no_temp_files(self, tmp_path):
+        """Regression for 4.2: atomic write must clean up its temp file."""
+        settings_path = tmp_path / "settings.json"
+        _write_json_atomic(settings_path, {"hello": "world"})
+        assert settings_path.exists()
+        # no leftover .tmp files in the parent
+        leftovers = [p for p in tmp_path.iterdir() if p.name.endswith(".tmp")]
+        assert leftovers == [], f"unexpected temp leftovers: {leftovers}"
+
+    def test_atomic_write_round_trip(self, tmp_path):
+        """Atomic write produces valid JSON identical to the input dict."""
+        settings_path = tmp_path / "nested" / "settings.json"
+        payload = {"skills": {"a": True, "b": False}, "extra": {"k": "v"}}
+        _write_json_atomic(settings_path, payload)
+        assert json.loads(settings_path.read_text(encoding="utf-8")) == payload
+        # parent dir was created on demand
+        assert settings_path.parent.exists()
+
+    def test_atomic_write_failure_cleans_up(self, tmp_path):
+        """If the JSON dump fails, the temp file must not leak."""
+        settings_path = tmp_path / "settings.json"
+        # ``set`` is not JSON-serialisable; this raises inside json.dump
+        with pytest.raises(TypeError):
+            _write_json_atomic(settings_path, {"oops": set()})
+        leftovers = [p for p in tmp_path.iterdir() if p.name.endswith(".tmp")]
+        assert leftovers == [], f"temp leaked on failure: {leftovers}"
+        assert not settings_path.exists()
+
 
 class TestExtraDirsSync:
     """2026-08-14: extra_dirs (e.g. AutoClaw's ~/.openclaw-autoclaw/skills/) must be synced too."""
@@ -224,6 +253,73 @@ class TestExtraDirsSync:
 
         assert len(results) == 1
         assert results[0]["status"] == "ok"
+
+    def test_extra_dir_conflict_reports_extra_dir_path(self, tmp_path, capsys):
+        """Regression for 2.1: extra-dir conflict must print the extra-dir
+        path in the message, not the primary link's path.
+
+        Previously the ``message`` variable from the outer scope (primary
+        link's create_link) was reused for the extra-dir's conflict
+        report, so the user saw a misleading cause when only the extra
+        dir differed from the central repo.
+        """
+        from unittest.mock import patch
+        from agent_skill_manager.services import sync as core
+
+        # central skill
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: my-skill\n---\n")
+
+        # primary: clean, link will be created
+        primary = tmp_path / "primary"
+        primary.mkdir()
+
+        # extra dir: a *real* dir with content that conflicts with central
+        extra_dir = tmp_path / "extra-skills"
+        extra_dir.mkdir()
+        conflict_dir = extra_dir / "my-skill"
+        conflict_dir.mkdir()
+        (conflict_dir / "SKILL.md").write_text(
+            "---\nname: my-skill\n---\n# DIFFERENT body\n"
+        )
+        (conflict_dir / "rogue-file.txt").write_text("user keeps this")
+
+        product = {
+            "name": "TestProduct",
+            "short": "testprod",
+            "macos_path": primary,
+            "windows_path": primary,
+            "linux_path": primary,
+            "sync_method": "symlink",
+            "extra_dirs_macos": [extra_dir],
+            "extra_dirs_windows": [extra_dir],
+            "extra_dirs_linux": [extra_dir],
+        }
+
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
+             patch("agent_skill_manager.services.sync.get_product_path", return_value=primary):
+            core.sync_skill("my-skill", verbose=True)
+
+        out = capsys.readouterr().out
+        # The extra-dir conflict message must reference the extra-dir path,
+        # not the primary path. We check for the suffix that uniquely
+        # identifies the extra-dir location in the create_link conflict
+        # message ("Real directory differs from central repo: <dst>").
+        assert "extra-skills" in out and "my-skill" in out, (
+            f"extra-dir path missing from conflict output:\n{out}"
+        )
+        # The primary link message ("Junction created" / "Symlink created")
+        # should NOT appear as the conflict cause - the extra-dir's
+        # 'Real directory differs' must be the one printed.
+        assert "Real directory differs" in out
+        # Make sure the conflict context line explicitly mentions the extra
+        # dir, not the primary. Primary path is "primary/my-skill"; the
+        # extra path is "extra-skills/my-skill". The printed line is
+        # 'extra SKIP conflict - Real directory differs from central repo:
+        # <path>'.
+        assert "extra-skills" in out.split("extra SKIP")[1].split("\n")[0]
 
 
 

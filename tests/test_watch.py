@@ -296,3 +296,30 @@ class TestSources:
         src_mod.record_source("ghost", "https://github.com/u/r")
         r = src_mod.check_update("ghost")
         assert r["status"] == "missing"
+
+    def test_check_update_up_to_date_when_local_matches(self, fake_central, monkeypatch):
+        """Regression for 2.2: a recorded skill whose local commit sha
+        matches the remote HEAD must report 'up-to-date'."""
+        _mk_skill(fake_central, "matched")
+        src_mod.record_source(
+            "matched", "https://github.com/u/r", commit="abcdef1234"
+        )
+        # remote HEAD == recorded local commit -> up-to-date
+        monkeypatch.setattr(
+            src_mod, "_latest_commit", lambda *a, **k: ("abcdef1234", "main"),
+        )
+        r = src_mod.check_update("matched")
+        assert r["status"] == "up-to-date"
+
+    def test_check_update_unrecorded_local_is_not_up_to_date(self, fake_central, monkeypatch):
+        """Regression for 2.2: a skill whose recorded commit is None must
+        NOT report 'up-to-date', even if the remote HEAD happens to be a
+        non-empty string. Locks down the ``if local: ... else: False``
+        boundary so a future 'simplification' can't regress this case."""
+        _mk_skill(fake_central, "fresh")
+        src_mod.record_source("fresh", "https://github.com/u/r", commit=None)
+        monkeypatch.setattr(
+            src_mod, "_latest_commit", lambda *a, **k: ("abcdef1234", "main"),
+        )
+        r = src_mod.check_update("fresh")
+        assert r["status"] == "update-available"

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import zipfile
 import tempfile
@@ -268,12 +269,16 @@ def sync_skill(
                         extra_link.parent.mkdir(parents=True, exist_ok=True)
                     except OSError:
                         pass
-                    ok2, method2, _ = create_link(skill_dir, extra_link, force=force)
+                    ok2, method2, msg2 = create_link(skill_dir, extra_link, force=force)
                     if ok2:
                         if verbose:
                             print(f"  {p['short']:>10}: extra -> {extra_link} ({method2})")
                     elif method2 == "conflict":
-                        print(f"  {p['short']:>10}: extra SKIP conflict - {message}")
+                        # msg2 is the per-extra-dir conflict reason; the previous
+                        # implementation accidentally used the outer ``message``
+                        # (from the primary link), so users saw a misleading
+                        # cause when only the extra dir differed.
+                        print(f"  {p['short']:>10}: extra SKIP conflict - {msg2}")
                     elif verbose:
                         print(f"  {p['short']:>10}: extra FAIL ({method2})")
 
@@ -665,10 +670,7 @@ def _enable_in_settings(settings_path: Path, skill_name: str, verbose: bool = Tr
         skills_config = settings.setdefault("skills", {})
         skills_config[skill_name] = True
 
-        settings_path.write_text(
-            json.dumps(settings, indent=2, ensure_ascii=False),
-            encoding="utf-8"
-        )
+        _write_json_atomic(settings_path, settings)
         if verbose:
             print(f"  {'':>10}   Updated settings.json")
     except Exception as e:
@@ -687,14 +689,51 @@ def _disable_in_settings(settings_path: Path, skill_name: str) -> bool:
             settings = json.loads(settings_path.read_text(encoding="utf-8"))
             if "skills" in settings and skill_name in settings["skills"]:
                 del settings["skills"][skill_name]
-                settings_path.write_text(
-                    json.dumps(settings, indent=2, ensure_ascii=False),
-                    encoding="utf-8"
-                )
+                _write_json_atomic(settings_path, settings)
                 return True
     except Exception:
         pass
     return False
+
+
+def _write_json_atomic(path: Path, data: dict) -> None:
+    """Write *data* as JSON to *path* atomically.
+
+    A temp file is created in the same parent directory (same volume on every
+    platform, which is what ``os.replace`` requires for atomicity on
+    Windows), fsync'd, and then swapped into place via ``os.replace``.  If
+    the process dies mid-write the original file is untouched and a stray
+    ``.<name>.<rand>.tmp`` file is left behind for the next successful
+    write to overwrite.
+
+    Stdlib only - no new dependencies.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(path.parent),
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except OSError:
+                # Some filesystems / platforms don't support fsync; the
+                # os.replace below is still atomic at the rename layer.
+                pass
+        os.replace(tmp_path, path)
+    except Exception:
+        # Best-effort cleanup so we don't leak temp files on failure.
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 

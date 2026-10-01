@@ -112,7 +112,17 @@ def check_update(skill_name: str) -> dict:
         return {"skill": skill_name, "status": "error"}
 
     local = info.get("commit")
-    if local and sha.startswith(local) or local == sha:
+    # The previous ``if local and sha.startswith(local) or local == sha``
+    # relied on Python's ``A and B or C`` short-circuit; it happened to be
+    # correct in practice (``sha`` is always a non-empty hex hash from
+    # ``_latest_commit``) but the mixed-priority chain is easy to break in
+    # future edits. Spell the predicate out so the intent is unambiguous
+    # and the unrecorded (``local is None``) boundary is explicit.
+    if local:
+        is_up_to_date = sha.startswith(local) or local == sha
+    else:
+        is_up_to_date = False
+    if is_up_to_date:
         return {
             "skill": skill_name, "status": "up-to-date",
             "remote_commit": sha[:8], "branch": branch or info.get("branch"),
