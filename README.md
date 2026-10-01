@@ -317,6 +317,30 @@ pip install pytest
 pytest tests/ -v
 ```
 
+### Shell 智能补全（v0.13.0）
+
+仓库自带 bash / zsh / fish 补全脚本，零依赖：
+
+```bash
+# bash
+source completion/askill.bash
+
+# zsh — 拷贝到 $fpath 下任一目录后 compinit 即可
+cp completion/_askill ${fpath[1]}/_askill
+
+# fish
+cp completion/askill.fish ~/.config/fish/completions/
+```
+
+补全会从 `askill list --quiet` / `askill products --json` 实时拉取 skill 名
+与产品短名，所以新装的 skill 也会立刻出现在 Tab 候选里。
+
+## 贡献
+
+请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) — 项目使用 Conventional Commits
+（commitizen 强制），提交前本地跑 `ruff check src tests` + `mypy src` +
+`pytest tests -q` 三件套，CI 与本地必须同绿。
+
 ## 相关项目
 
 - [manage-my-skills](https://github.com/hchcx/manage-my-skills) — 跨平台 Skills 管理工具，支持 20+ 国际产品

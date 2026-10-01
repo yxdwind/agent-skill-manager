@@ -45,6 +45,8 @@ Documentation = "https://github.com/yxdwind/agent-skill-manager#readme"
 dev = [
     "ruff>=0.5",
     "mypy>=1.10",
+    "commitizen>=3.0",
+    "pre-commit>=3.5",
 ]
 
 [tool.setuptools]
@@ -112,6 +114,21 @@ ignore = [
     "UP031",
     "E702",
 ]
+
+# ---------------------------------------------------------------- commitizen
+# Conventional Commits enforcement + CHANGELOG generator. Used by
+# contributors via ``cz commit`` and by maintainers via ``cz bump`` to
+# bump version + regenerate CHANGELOG.md in lockstep.
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.13.0"
+tag_format = "v$version"
+version_files = [
+    "pyproject.toml",
+    "src/__init__.py",
+]
+update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]

@@ -27,5 +27,20 @@ Thumbs.db
 
 # pytest
 .pytest_cache/
-dist/
 .pytest-tmp*/
+.pytest-tmp-run/
+
+# Build / sdist outputs and one-off scratch dirs
+dist080/
+*.tmp
+*.bak
+
+# MyPy / coverage / ruff caches
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Tools / scratch state
+docs/.vitepress/
+.coverage.*

@@ -1,0 +1,110 @@
+#compdef askill
+#
+# Zsh completion for ``askill``.
+#
+# Install (one of):
+#   # system-wide, drop into the first dir in $fpath:
+#   sudo cp completion/_askill ${fpath[1]}/_askill
+#   # user-level:
+#   cp completion/_askill ~/.zsh/completions/_askill
+#   autoload -U compinit && compinit
+#
+# Smart-ish: subcommands + per-cmd flags are real; skill / product short
+# names are pulled from ``askill list --quiet`` / ``askill products --json``.
+
+local curcontext="$curcontext" state line ret=1
+local -a _askill_global_flags _askill_subcommands
+_askill_global_flags=(--quiet -q --json)
+_askill_subcommands=(
+  status:'Show installation status across products'
+  sync:'Sync skill(s) to all products'
+  list:'List skills in central repository'
+  install:'Install a skill (path / GitHub URL / skills.sh shorthand)'
+  remove:'Remove a skill from all products'
+  pack:'Package a skill as .zip for DuMate'
+  adopt:'Adopt skills from one platform (or all) into the central repo'
+  audit:'Security audit of skill(s) in central repo'
+  search:'Search skills.sh; N installs that result'
+  verify:'Check skills against the agentskills.io spec'
+  watch:'Watch central repo; auto-sync changes'
+  update:'Check/apply updates for tracked skills'
+  products:'List all supported products'
+  version:'Show version'
+  help:'Show this help message and exit'
+)
+
+_askill_refresh_dynamic() {
+  local out
+  out=$("${(q)words[1]}" list --quiet 2>/dev/null \
+    | awk '/^  / {print $1}')
+  _askill_skill_names=("${(@)out}")
+  out=$("${(q)words[1]}" products --json 2>/dev/null \
+    | python -c 'import json,sys; [print(p["short"]) for p in json.load(sys.stdin)]' 2>/dev/null)
+  _askill_product_shorts=("${(@)out}")
+}
+
+local -a _askill_skill_names _askill_product_shorts
+
+_arguments -s \
+  $_askill_global_flags \
+  '1: :->cmd' \
+  '*:: :->args'
+
+case $state in
+  cmd)
+    _describe -t subcommands 'askill subcommand' _askill_subcommands && ret=0
+    ;;
+  args)
+    local cmd="${words[2]}"
+    case "$cmd" in
+      sync)
+        _arguments -s $_askill_global_flags \
+          '1:skill name:_askill_refresh_dynamic && print -r -- ${_askill_skill_names[@]}' \
+          '--force[Overwrite differing real dirs (conflicts)]'
+        ret=0
+        ;;
+      install)
+        _arguments -s $_askill_global_flags \
+          '--sync[Also sync to all products after install]' \
+          '--audit[Print the full audit report after install]' \
+          '--no-audit[Skip the default spec + security checks]' \
+          '*:source:_files'
+        ret=0
+        ;;
+      list|version|products|audit|status)
+        _arguments -s $_askill_global_flags
+        ret=0
+        ;;
+      remove|pack|verify)
+        _arguments -s $_askill_global_flags \
+          '1:skill name:_askill_refresh_dynamic && print -r -- ${_askill_skill_names[@]}'
+        ret=0
+        ;;
+      update)
+        _arguments -s $_askill_global_flags \
+          '--check[Only check for updates, dont apply]' \
+          '1:skill name:_askill_refresh_dynamic && print -r -- ${_askill_skill_names[@]}'
+        ret=0
+        ;;
+      search)
+        _arguments -s $_askill_global_flags \
+          '--install[Install the Nth result]:result number:' \
+          '*:query:'
+        ret=0
+        ;;
+      watch)
+        _arguments -s $_askill_global_flags \
+          '--interval[Poll/fallback seconds]:seconds:'
+        ret=0
+        ;;
+      adopt)
+        _arguments -s $_askill_global_flags \
+          '1:platform short:(all $_askill_product_shorts)' \
+          '2:skill name:_askill_refresh_dynamic && print -r -- ${_askill_skill_names[@]}'
+        ret=0
+        ;;
+    esac
+    ;;
+esac
+
+return ret

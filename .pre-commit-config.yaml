@@ -1,0 +1,30 @@
+# Pre-commit configuration for agent-skill-manager.
+#
+# Install once:
+#   pip install pre-commit
+#   pre-commit install
+#   pre-commit run --all-files     # smoke check
+#
+# Hooks match the CI lint + typecheck jobs (ruff + mypy) so a failing
+# commit locally never reaches CI in a red state. The `additional_dependencies`
+# list pins the versions the CI uses, avoiding "works on my machine"
+# drift when ruff or mypy add new rules between releases.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.0
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        args: []
+        additional_dependencies:
+          - mypy==1.10.0
+        # `pass_filenames=False` lets mypy discover the full project via
+        # its own config in pyproject.toml - matches what CI does.
+        pass_filenames: false

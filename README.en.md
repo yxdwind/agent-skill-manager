@@ -319,6 +319,31 @@ pip install pytest
 pytest tests/ -v
 ```
 
+### Shell Completion (v0.13.0)
+
+The repo ships zero-dependency bash / zsh / fish completion scripts:
+
+```bash
+# bash
+source completion/askill.bash
+
+# zsh — drop into any directory in $fpath, then `compinit`
+cp completion/_askill ${fpath[1]}/_askill
+
+# fish
+cp completion/askill.fish ~/.config/fish/completions/
+```
+
+The skill / product short-name candidates are pulled live from
+`askill list --quiet` / `askill products --json`, so newly installed skills
+show up in your Tab completions immediately.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). The project enforces Conventional
+Commits (via commitizen) and requires `ruff check src tests` + `mypy src` +
+`pytest tests -q` to be green locally before pushing - CI must agree.
+
 ## Related Projects
 
 - [manage-my-skills](https://github.com/hchcx/manage-my-skills) — cross-platform skill manager for 20+ international products
