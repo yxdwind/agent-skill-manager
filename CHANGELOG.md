@@ -8,11 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
-
-### Added
-- Initial release. Cross-platform `askill sync` of skill directories
-  across 6 then-current Chinese AI agent products via symlinks (macOS,
-  Linux) and junctions (Windows). Zero third-party deps.
 ## v0.14.0 (2026-10-02)
 
 ### Feat
