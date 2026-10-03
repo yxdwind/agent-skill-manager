@@ -222,8 +222,25 @@ def sync_skill(
                 for p in PRODUCTS
             ]
             # Iterate in submission order so the reported sequence matches
-            # PRODUCTS (tests assert specific index-based tuples).
-            sync_results = [f.result() for f in futures]
+            # PRODUCTS (tests assert specific index-based tuples). A worker
+            # that raises unexpectedly returns an error tuple instead of
+            # discarding the whole skill's results.
+            sync_results = []
+            for p, f in zip(PRODUCTS, futures, strict=True):
+                try:
+                    sync_results.append(f.result())
+                except Exception as e:
+                    sync_results.append((p["short"], False, f"error: {e}"))
+
+        # A secondary that reported ``shared->X`` must not claim success
+        # when X itself failed (e.g. conflict on a real dir). Propagate the
+        # primary's failure so one directory never reports both ways.
+        by_short = {s: (ok, m) for s, ok, m in sync_results}
+        for i, (s, ok, m) in enumerate(sync_results):
+            if ok and isinstance(m, str) and m.startswith("shared->"):
+                primary_ok, primary_method = by_short.get(m.split("->", 1)[1], (True, ""))
+                if not primary_ok:
+                    sync_results[i] = (s, False, primary_method)
         if verbose:
             print()
         results[skill_dir.name] = sync_results

@@ -369,3 +369,62 @@ class TestUsageSurface:
         from agent_skill_manager.controllers.cli import USAGE
         for p in PRODUCTS:
             assert p["name"] in USAGE, f"USAGE missing {p['name']}"
+
+
+# ------------------------------------------------- audit P3 regressions
+
+class TestAuditP3Regressions:
+    """P3 items cleared in the post-v0.14.1 audit pass (docs/audit-v0.14.0.md).
+
+    - P3-7: one raising worker must not discard the skill's whole result list
+    - P3-8: a ``shared->X`` secondary must not claim success when X failed
+    """
+
+    def test_worker_exception_returns_error_tuple(self, tmp_path):
+        central = tmp_path / "central"
+        central.mkdir()
+        _mk_skill(central)
+        good = _fake("good-prod", tmp_path / "good")
+        bad = _fake("bad-prod", tmp_path / "bad")
+
+        real = core._sync_one_product
+
+        def maybe_raise(skill_dir, p, *args, **kwargs):
+            if p["short"] == "bad-prod":
+                raise RuntimeError("boom")
+            return real(skill_dir, p, *args, **kwargs)
+
+        with patch.object(core, "CENTRAL_DIR", central), \
+             patch.object(core, "PRODUCTS", [good, bad]), \
+             patch.object(core, "_sync_one_product", side_effect=maybe_raise):
+            results = core.sync_skill("demo-skill", verbose=False)
+
+        by_short = {s: (ok, m) for s, ok, m in results["demo-skill"]}
+        assert by_short["good-prod"][0] is True          # unaffected sibling
+        assert by_short["bad-prod"][0] is False
+        assert by_short["bad-prod"][1].startswith("error:")
+
+    def test_shared_dir_failure_propagates_to_secondary(self, tmp_path):
+        """Primary hits a conflict -> secondary reports the same failure,
+        never ``(True, 'shared->primary')``."""
+        shared_target = tmp_path / "shared"
+        shared_target.mkdir()
+        user_dir = shared_target / "demo-skill"
+        user_dir.mkdir()
+        (user_dir / "local-edit.md").write_text("user work")
+
+        products = [
+            _fake("primary-prod", shared_target),
+            _fake("shadow-prod", shared_target),
+        ]
+        central = tmp_path / "central"
+        central.mkdir()
+        _mk_skill(central)
+        with patch.object(core, "CENTRAL_DIR", central), \
+             patch.object(core, "PRODUCTS", products):
+            results = core.sync_skill("demo-skill", verbose=False)
+
+        by_short = {s: (ok, m) for s, ok, m in results["demo-skill"]}
+        assert by_short["primary-prod"] == (False, "conflict")
+        assert by_short["shadow-prod"][0] is False
+        assert "shared->" not in by_short["shadow-prod"][1]
