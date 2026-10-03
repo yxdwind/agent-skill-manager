@@ -94,8 +94,7 @@ def _print_list(*, quiet=False, json_mode=False):
                 print(f"Central repository not found: {CENTRAL_DIR}")
             else:
                 print(f"No skills found in {CENTRAL_DIR}")
-            if not quiet:
-                print_onboarding()
+            print_onboarding()
         return
 
     if json_mode:
@@ -238,7 +237,7 @@ def _print_status(skill_name=None, *, quiet=False, json_mode=False):
         enriched: list[dict] = []
         for r in results:
             entry = dict(r)
-            skill_dir = CENTRAL_DIR / entry["skill_name"]
+            skill_dir = CENTRAL_DIR / str(entry["skill_name"])
             if skill_dir.exists():
                 rep = analyze_skill_dir(skill_dir)
                 entry["audit_score"] = rep["score"]

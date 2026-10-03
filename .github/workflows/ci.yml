@@ -21,7 +21,10 @@ jobs:
           python-version: "3.13"
 
       - name: Install ruff
-        run: pip install "ruff>=0.5"
+        # Pinned to the exact version .pre-commit-config.yaml uses - ruff
+        # adds rules between releases, so a floating range here would let
+        # "green locally (pre-commit)" fail in CI (or vice versa).
+        run: pip install "ruff==0.16.9"
 
       - name: Run ruff
         run: ruff check src tests
@@ -40,9 +43,10 @@ jobs:
       - name: Install package + mypy
         # `pip install -e .` exposes ``agent_skill_manager`` so mypy can
         # follow the src-layout imports without an explicit mypy_path.
+        # Pinned to match .pre-commit-config.yaml (see ruff note above).
         run: |
           pip install -e .
-          pip install "mypy>=1.10"
+          pip install "mypy==1.14.1"
 
       - name: Run mypy
         run: mypy src

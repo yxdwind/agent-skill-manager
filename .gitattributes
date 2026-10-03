@@ -1,0 +1,5 @@
+# Mark real binaries so git never applies EOL conversion / text diffs to
+# them (the malicious-fixture payload.exe is a deliberate test binary).
+*.exe binary
+*.png binary
+*.zip binary

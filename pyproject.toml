@@ -21,8 +21,6 @@ classifiers = [
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -138,7 +136,7 @@ disallow_untyped_defs = false
 warn_unused_ignores = true
 warn_redundant_casts = true
 no_implicit_optional = true
-check_untyped_defs = false
+check_untyped_defs = true
 allow_untyped_calls = true
 allow_untyped_defs = true
 disallow_incomplete_defs = false

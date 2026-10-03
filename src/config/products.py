@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import platform
 from pathlib import Path
+from typing import cast
 
 from ..models.product import ProductSpec
 
@@ -224,10 +225,10 @@ def _platform_key() -> str:
 
 def get_product_path(product: ProductSpec) -> Path | None:
     """Get the primary skill directory for a product on the current platform."""
-    # TypedDict is total=False; ``product.get(...)`` widens to ``object``
-    # even though the runtime value is always ``Path | None``. Cast keeps
-    # the type contract without needing to widen the TypedDict schema.
-    return product.get(f"{_platform_key()}_path")  # type: ignore[return-value]
+    # TypedDict is total=False, so ``product.get(...)`` widens to ``object``
+    # even though the runtime value is always ``Path | None``; the cast
+    # restores the type contract without widening the TypedDict schema.
+    return cast("Path | None", product.get(f"{_platform_key()}_path"))
 
 
 def get_all_product_dirs(product: ProductSpec) -> list[Path]:
@@ -236,8 +237,8 @@ def get_all_product_dirs(product: ProductSpec) -> list[Path]:
     primary = product.get(f"{key}_path")
     dirs: list[Path] = []
     if primary:
-        dirs.append(primary)  # type: ignore[arg-type]
-    dirs.extend(product.get(f"extra_dirs_{key}", []))  # type: ignore[arg-type]
+        dirs.append(cast(Path, primary))
+    dirs.extend(cast("list[Path]", product.get(f"extra_dirs_{key}", [])))
     return dirs
 
 

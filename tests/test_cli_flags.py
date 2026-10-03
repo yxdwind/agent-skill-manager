@@ -161,7 +161,6 @@ class TestAuditRegressions:
 
     def test_sync_runs_sync_skill_exactly_once(self):
         """P1: the duplicate ``sync_skill`` call must stay dead."""
-        import pytest
         from agent_skill_manager.controllers import cli
         calls = []
         with patch.object(cli, "sync_skill", side_effect=lambda *a, **k: calls.append(k)):

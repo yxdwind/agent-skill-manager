@@ -27,16 +27,20 @@
 | 5 | `--json` 契约不完整：`adopt` 的 json_mode 参数被接受但忽略；sync/install/remove/pack 也接受 `--json` 却从不输出 JSON——help 承诺 "machine-readable JSON" 但脚本拿到人类文本 | cli.py `_build_parser` | `--json` 只挂在真正支持 JSON 的子命令（status/list/products/audit/search/verify/update）；其余子命令 `--json` → usage 错误 exit 2（响亮失败优于静默说谎）；回归测试 `test_json_flag_rejected_on_non_json_command` |
 | 6 | `search --json --install N` 越界时输出两个拼接的 JSON 文档，stdout 流不可解析 | cli.py `_cmd_search` | 越界校验前移到任何输出之前（错误文档替代结果文档）；回归测试 `test_search_json_invalid_install_single_document` + `test_search_json_valid_install_single_document` |
 
-## P3 — 开放项（不阻塞，留待后续）
+## P3 — 已全部清零 ✅（2026-10-03，v0.14.1 发布后）
 
-- **7.** `sync.py` 的 `[f.result() for f in futures]` 无异常兜底——单个 worker 意外异常会丢弃该 skill 全部结果（worker 内部已大量捕获，触发概率低）。建议 per-future try/except 返回 `(short, False, "error: ...")`
-- **8.** 共享目录预留先于 `create_link`：primary 冲突时 secondary 仍报 `(True, "shared->primary")`，同一目录一败一成，报告矛盾
-- **9.** ~~json_mode 下宽终端时每 skill 审计两遍~~ —— 已顺手修复（`show_score and not json_mode` 才计算行内评分）
-- **10.** ruff 版本单向漂移：pre-commit 钉 `v0.5.0`，CI 装 `ruff>=0.5`（最新）——建议 CI 改为精确钉版
-- **11.** `pyproject.toml` classifiers 仍列 Python 3.8/3.9，与 `requires-python = ">=3.10"` 矛盾，PyPI 页面误导
-- **12.** mypy 配置实际很弱（`check_untyped_defs=false` + `allow_untyped_defs=true` + watcher.py 整体排除）——建议逐步收紧
-- **13.** `_print_list` quiet 分支冗余判断；`products.py` 注释说 "Cast" 实际用 `type: ignore`
-- **14.** `tests/fixtures/malicious/exe_payload/payload.exe`（4KB 真二进制）入库——企业 AV/托管策略可能拦截，建议 `.gitattributes` 标注
+| # | 问题 | 修复 |
+|---|------|------|
+| 7 | `sync.py` 的 `[f.result() for f in futures]` 无异常兜底 | 逐 future try/except，异常返回 `(short, False, "error: ...")`，不再丢弃整个 skill 的结果；回归测试 `test_worker_exception_returns_error_tuple` |
+| 8 | primary 冲突时 secondary 仍报 `(True, "shared->primary")` | 汇总后传播 primary 的失败给共享者；回归测试 `test_shared_dir_failure_propagates_to_secondary` |
+| 9 | json_mode 下每 skill 审计两遍 | 修复于 v0.14.1 的 P2 批次（`show_score and not json_mode`） |
+| 10 | ruff 版本单向漂移（pre-commit 钉 v0.5.0、CI 装最新） | ruff `0.16.9`、mypy `1.14.1` 在 ci.yml 与 .pre-commit-config.yaml 双侧精确钉版，注释声明同步义务 |
+| 11 | classifiers 列 Python 3.8/3.9 与 `requires-python>=3.10` 矛盾 | 移除 3.8/3.9 |
+| 12 | mypy 配置过弱（`check_untyped_defs=false`） | 开启 `check_untyped_defs=true`，修复唯一暴露的错误（cli.py:240 的 `dict(r)` 值类型拓宽），mypy 全绿 |
+| 13 | `_print_list` 冗余 quiet 判断；products.py 注释说 "Cast" 实为 `type: ignore` | 删除冗余分支；改用真正的 `typing.cast`，消除 3 处 ignore |
+| 14 | `payload.exe` 二进制夹具无标注 | 新增 `.gitattributes`（`*.exe`/`*.png`/`*.zip` binary） |
+
+新增回归测试 2 个（`tests/test_matrix.py::TestAuditP3Regressions`），全套 **239 passed**，ruff / mypy 全绿。
 
 ## 环境发现（审计过程中的重要副产品）
 

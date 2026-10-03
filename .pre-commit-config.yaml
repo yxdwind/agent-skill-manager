@@ -11,20 +11,23 @@
 # drift when ruff or mypy add new rules between releases.
 
 repos:
+  # Revs must stay in lockstep with the versions pinned in ci.yml -
+  # ruff/mypy add rules between releases and one side moving alone
+  # reintroduces the "green locally, red in CI" drift.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.0
+    rev: v0.16.9
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
         types_or: [python, pyi]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
+    rev: v1.14.1
     hooks:
       - id: mypy
         args: []
         additional_dependencies:
-          - mypy==1.10.0
+          - mypy==1.14.1
         # `pass_filenames=False` lets mypy discover the full project via
         # its own config in pyproject.toml - matches what CI does.
         pass_filenames: false
