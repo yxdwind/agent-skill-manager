@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.14.1 (2026-10-03)
+
+### Fix
+
+- **cli**: audit P1/P2 — dedupe sync call, install-None crash, quiet/json contract, exit codes
+
 ## v0.14.0 (2026-10-02)
 
 ### Feat
