@@ -147,3 +147,100 @@ class TestFlagsDontConflict:
         # Empty central -> [] not {} since list mode is JSON
         out = capsys.readouterr().out
         assert out.strip() == "[]"
+
+
+class TestAuditRegressions:
+    """Regressions from the v0.14.0 audit (docs/audit-v0.14.0.md).
+
+    P1: _print_sync ran sync_skill twice (double work, quiet defeated);
+        ``askill install`` without <source> crashed in resolve_source(None).
+    P2: ``status -q`` printed an orphan header; usage errors exited 0;
+        --json was silently ignored on commands without JSON support;
+        search --json --install out-of-range emitted two JSON documents.
+    """
+
+    def test_sync_runs_sync_skill_exactly_once(self):
+        """P1: the duplicate ``sync_skill`` call must stay dead."""
+        import pytest
+        from agent_skill_manager.controllers import cli
+        calls = []
+        with patch.object(cli, "sync_skill", side_effect=lambda *a, **k: calls.append(k)):
+            cli.main(["sync", "--quiet"])
+        assert len(calls) == 1
+        assert calls[0]["verbose"] is False
+
+    def test_install_without_source_prints_help_and_exits_2(self, capsys):
+        """P1: no traceback; the shorthand help block is shown; exit 2."""
+        import pytest
+        from agent_skill_manager.controllers import cli
+        with pytest.raises(SystemExit) as ei:
+            cli.main(["install"])
+        assert ei.value.code == 2
+        out = capsys.readouterr().out
+        assert "Usage: askill install" in out
+        assert "owner/repo@skill" in out
+
+    def test_status_quiet_prints_rows_without_header(self, capsys):
+        """P2: quiet strips decoration but keeps data rows - never an
+        orphan header with zero rows."""
+        from agent_skill_manager.controllers import cli
+        entry = {"skill_name": "demo", "product_short": "t",
+                 "product_name": "T", "status": "missing", "method": "symlink"}
+        products = [{"name": "T", "short": "t", "macos_path": None,
+                     "windows_path": None, "linux_path": None,
+                     "sync_method": "symlink"}]
+        with patch.object(cli, "get_status", return_value=[entry]), \
+             patch.object(cli, "PRODUCTS", products):
+            cli._print_status(quiet=True)
+        out = capsys.readouterr().out
+        assert "demo" in out                 # the data row
+        assert "-----" not in out            # no separator line
+        assert "score" not in out            # no header row
+
+    def test_missing_required_positional_exits_2(self, capsys):
+        """P2: usage errors surface as exit code 2, not 0."""
+        import pytest
+        from agent_skill_manager.controllers import cli
+        with pytest.raises(SystemExit) as ei:
+            cli.main(["remove"])
+        assert ei.value.code == 2
+
+    def test_unknown_command_exits_2(self, capsys):
+        import pytest
+        from agent_skill_manager.controllers import cli
+        with pytest.raises(SystemExit) as ei:
+            cli.main(["bogus-command"])
+        assert ei.value.code == 2
+
+    def test_json_flag_rejected_on_non_json_command(self):
+        """P2: ``sync --json`` must fail loudly, not emit human text."""
+        import pytest
+        from agent_skill_manager.controllers import cli
+        with pytest.raises(SystemExit) as ei:
+            cli.main(["sync", "--json"])
+        assert ei.value.code == 2
+
+    def test_search_json_invalid_install_single_document(self, capsys):
+        """P2: out-of-range --install emits ONE parseable JSON doc
+        (error doc replaces the results doc, never concatenated)."""
+        from agent_skill_manager.controllers import cli
+        fake_results = [{"source": "owner/repo", "skill_id": "pdf",
+                         "name": "PDF", "installs": 100}]
+        with patch("agent_skill_manager.services.registry.search_skills",
+                   return_value=fake_results):
+            cli.main(["search", "pdf", "--json", "--install", "9"])
+        parsed = json.loads(capsys.readouterr().out)   # raises if 2 docs
+        assert "error" in parsed
+
+    def test_search_json_valid_install_single_document(self, capsys):
+        """Sanity: valid --install still yields one parseable JSON doc."""
+        from agent_skill_manager.controllers import cli
+        fake_results = [{"source": "owner/repo", "skill_id": "pdf",
+                         "name": "PDF", "installs": 100}]
+        with patch("agent_skill_manager.services.registry.search_skills",
+                   return_value=fake_results), \
+             patch.object(cli, "install_skill", return_value=True) as mock_inst:
+            cli.main(["search", "pdf", "--json", "--install", "1"])
+        parsed = json.loads(capsys.readouterr().out)
+        assert parsed["results"][0]["skill_id"] == "pdf"
+        assert mock_inst.call_count == 1

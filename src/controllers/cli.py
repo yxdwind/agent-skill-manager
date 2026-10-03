@@ -199,7 +199,9 @@ def _print_status(skill_name=None, *, quiet=False, json_mode=False):
         header += _cell(ps, cell_w)
     if show_score:
         header += _cell("score", score_w)
-    if not json_mode:
+    # quiet strips decoration (banner/header/footer) but keeps the data rows;
+    # an orphan header with zero rows is worse than either.
+    if not json_mode and not quiet:
         print(f"\n{header}{abbrev_note}")
         print("-" * (len(header) + len(abbrev_note)))
 
@@ -221,14 +223,14 @@ def _print_status(skill_name=None, *, quiet=False, json_mode=False):
             else:
                 cell = "--"
             row += _cell(cell, cell_w)
-        if show_score:
+        if show_score and not json_mode:
             skill_dir = CENTRAL_DIR / sn
             if skill_dir.exists():
                 report = analyze_skill_dir(skill_dir)
                 row += _cell(f"{report['score']}/{report['grade']} {verdict_icon[report['verdict']]}", score_w)
             else:
                 row += _cell("n/a", score_w)
-        if not quiet and not json_mode:
+        if not json_mode:
             print(row)
     if json_mode:
         # Augment the StatusEntry rows with a per-skill audit score / verdict
@@ -252,14 +254,11 @@ def _print_status(skill_name=None, *, quiet=False, json_mode=False):
 def _print_sync(skill_name=None, *, force=False, quiet=False):
     """Sync skills and print results.
 
-    ``quiet`` flips ``sync_skill(verbose=...)`` to False but keeps the
-    per-product status lines suppressed at the caller boundary too -
-    users running ``askill sync | grep conflict`` shouldn't see the
-    progress text. Conflict + SECURITY WARNING prints stay untouched
-    because they go through ``sync_skill`` directly.
+    ``quiet`` flips ``sync_skill(verbose=...)`` to False. Conflict +
+    SECURITY WARNING prints stay untouched because they go through
+    ``sync_skill`` directly.
     """
     sync_skill(skill_name, verbose=not quiet, force=force)
-    sync_skill(skill_name, verbose=True, force=force)
 
 
 def _print_install(source, sync=False, audit=False, no_audit=False, *, quiet=False):
@@ -277,7 +276,7 @@ def _print_pack(skill_name=None, *, quiet=False):
     pack_skill(skill_name, verbose=not quiet)
 
 
-def _print_adopt(platform_short, skill_name=None, *, quiet=False, json_mode=False):
+def _print_adopt(platform_short, skill_name=None, *, quiet=False):
     """Adopt skills from one platform to all others."""
     adopt_from_platform(platform_short, skill_name, verbose=not quiet)
 
@@ -353,20 +352,25 @@ def main(argv=None):
     parser = _build_parser()
     try:
         args = parser.parse_args(argv)
-    except SystemExit:
-        # argparse emitted --help / error and called sys.exit; it has
-        # already written the message. Just stop cleanly.
+    except SystemExit as e:
+        # ``--help`` exits 0: argparse already wrote the message, stop
+        # cleanly. Subparser usage errors raise SystemExit(2) directly
+        # (exit_on_error does not propagate into subparsers), and that
+        # code is the scripting-facing signal - re-raise it unchanged.
+        if e.code not in (None, 0):
+            raise
         return
     except argparse.ArgumentError as e:
-        # Per-subcommand validation failure. For ``install`` with no
-        # <source> we keep the project's existing usage block instead of
+        # Main-parser level validation failure (bad flag / unknown command).
+        # For ``install`` we keep the project's usage block instead of
         # argparse's default error so users get the skills.sh shorthand
-        # examples they expect.
+        # examples they expect. Usage errors must not exit 0 - scripts
+        # pipe askill output and rely on exit codes to detect failure.
         if argv and argv[0] == "install":
             print(_INSTALL_HELP)
         else:
             print(f"Error: {e}")
-        return
+        sys.exit(2)
 
     cmd = args.command
     if cmd is None:
@@ -383,6 +387,12 @@ def main(argv=None):
     elif cmd == "list":
         _print_list(quiet=quiet, json_mode=json_mode)
     elif cmd == "install":
+        if args.source is None:
+            # nargs="?" lets a missing <source> parse fine; keep the
+            # project's shorthand examples here instead of crashing in
+            # resolve_source(None).
+            print(_INSTALL_HELP)
+            sys.exit(2)
         _print_install(
             args.source, sync=args.sync, audit=args.audit,
             no_audit=args.no_audit, quiet=quiet,
@@ -392,10 +402,7 @@ def main(argv=None):
     elif cmd == "pack":
         _print_pack(skill_name=args.skill_name, quiet=quiet)
     elif cmd == "adopt":
-        _print_adopt(
-            args.platform_short.lower(), args.skill_name,
-            quiet=quiet, json_mode=json_mode,
-        )
+        _print_adopt(args.platform_short.lower(), args.skill_name, quiet=quiet)
     elif cmd == "audit":
         _print_audit(args.skill_name, quiet=quiet, json_mode=json_mode)
     elif cmd == "search":
@@ -434,14 +441,18 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
         exit_on_error=False,   # raise ArgumentError instead of sys.exit (Py3.9+)
     )
-    # Shared flags every subcommand inherits via ``parents=``. ``add_help=False``
-    # keeps argparse from emitting a duplicate ``--help`` for the parent.
-    _common = argparse.ArgumentParser(add_help=False)
-    _common.add_argument(
+    # ``-q/--quiet`` is universal; ``--json`` only exists on subcommands
+    # that actually emit JSON (status/list/products/audit/search/verify/
+    # update). Attaching it everywhere made ``askill sync --json`` silently
+    # return human-readable text - a lying contract for scripts. Commands
+    # without JSON support now fail the parse (SystemExit 2) instead.
+    _quiet = argparse.ArgumentParser(add_help=False)
+    _quiet.add_argument(
         "-q", "--quiet", action="store_true",
         help="Suppress non-essential output (progress, headers, tips). "
              "Errors, SECURITY WARNINGs and conflict messages still print.",
     )
+    _common = argparse.ArgumentParser(add_help=False, parents=[_quiet])
     _common.add_argument(
         "--json", action="store_true", dest="json_mode",
         help="Emit machine-readable JSON to stdout instead of formatted tables.",
@@ -457,7 +468,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_sync = sub.add_parser(
         "sync", help="Sync skill(s) to all products",
-        parents=[_common],
+        parents=[_quiet],
     )
     p_sync.add_argument("skill_name", nargs="?", default=None)
     p_sync.add_argument(
@@ -471,7 +482,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_install = sub.add_parser(
         "install",
         help="Install a skill (path / GitHub URL / skills.sh shorthand)",
-        parents=[_common],
+        parents=[_quiet],
     )
     p_install.add_argument("--sync", action="store_true",
                           help="Also sync to all products after install")
@@ -486,20 +497,20 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_remove = sub.add_parser(
         "remove", help="Remove a skill from all products",
-        parents=[_common],
+        parents=[_quiet],
     )
     p_remove.add_argument("skill_name")
 
     p_pack = sub.add_parser(
         "pack", help="Package a skill as .zip for DuMate",
-        parents=[_common],
+        parents=[_quiet],
     )
     p_pack.add_argument("skill_name")
 
     p_adopt = sub.add_parser(
         "adopt",
         help="Adopt skills from one platform (or 'all') into the central repo",
-        parents=[_common],
+        parents=[_quiet],
     )
     p_adopt.add_argument(
         "platform_short",
@@ -535,7 +546,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_watch = sub.add_parser(
         "watch", help="Watch central repo; auto-sync changes",
-        parents=[_common],
+        parents=[_quiet],
     )
     p_watch.add_argument(
         "--interval", type=int, default=3,
@@ -557,7 +568,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("products", help="List all supported products",
                    parents=[_common])
-    sub.add_parser("version", help="Show version", parents=[_common])
+    sub.add_parser("version", help="Show version", parents=[_quiet])
 
     return parser
 
@@ -600,14 +611,19 @@ def _cmd_search(query_parts, install_idx, *, quiet=False, json_mode=False):
             print(f"No skills found for {query!r} on skills.sh.")
         return
     if json_mode:
+        # Validate --install BEFORE emitting anything so stdout stays a
+        # single parseable JSON document (an error doc appended after the
+        # results doc would produce an unparseable concatenated stream).
+        if install_idx is not None and not (1 <= install_idx <= len(results)):
+            print(json.dumps({"error": f"--install {install_idx} out of range 1-{len(results)}"}))
+            return
         print(json.dumps({"query": query, "results": results}, ensure_ascii=False, indent=2))
         # ``--install N`` inside JSON mode is unusual; we honour it but skip
         # the human-friendly "Installing result #N" line so the stdout
-        # stream is parseable JSON only.
+        # stream is parseable JSON only. Caveat: install-time SECURITY
+        # WARNING / [product] prints are unconditional by design and can
+        # still appear after the JSON document.
         if install_idx is not None:
-            if install_idx < 1 or install_idx > len(results):
-                print(json.dumps({"error": f"--install {install_idx} out of range 1-{len(results)}"}))
-                return
             pick = results[install_idx - 1]
             install_skill(f"{pick['source']}@{pick['skill_id']}", verbose=False)
         return
