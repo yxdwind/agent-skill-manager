@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.14.2 (2026-10-03)
+
+### Fix
+
+- **sync**: audit P3-7/8 — per-worker exception fallback + shared-dir failure propagation
+
 ## v0.14.1 (2026-10-03)
 
 ### Fix
