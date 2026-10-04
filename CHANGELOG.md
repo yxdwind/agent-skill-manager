@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.15.0 (2026-10-04)
+
+### Feat
+
+- **cli**: R3 — list --json publish fields + watch --json event stream
+- **publish**: askill publish — one-command skill publishing (v0.15.0 R2)
+- **new**: askill new skill scaffolding (v0.15.0 R1)
+
 ## v0.14.2 (2026-10-03)
 
 ### Fix
