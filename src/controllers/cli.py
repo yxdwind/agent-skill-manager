@@ -13,6 +13,7 @@ from ..config.products import (
     get_product_path,
 )
 from ..services.audit import analyze_skill_dir
+from ..services.scaffold import create_skill
 from ..services.sync import (
     FOOTER,
     adopt_from_platform,
@@ -319,6 +320,8 @@ Usage:
                                      owner/repo@skill, skills.sh URL).
                                      Spec + security checks run by default
     askill search <query> [--install N]  Search skills.sh; N installs that result
+    askill new <name>                Scaffold a new skill (frontmatter
+        [--target short] [--minimal] prefilled from product requirements)
     askill verify [skill-name]       Check skills against the agentskills.io spec
                                      plus per-product frontmatter requirements
     askill remove <skill-name>       Remove a skill from all products
@@ -407,6 +410,12 @@ def main(argv=None):
     elif cmd == "search":
         _cmd_search(args.query, args.install_idx,
                     quiet=quiet, json_mode=json_mode)
+    elif cmd == "new":
+        _cmd_new(
+            args.name, args.target, args.description,
+            args.description_zh, args.version, args.minimal,
+            quiet=quiet, json_mode=json_mode,
+        )
     elif cmd == "verify":
         _cmd_verify(args.skill_name, quiet=quiet, json_mode=json_mode)
     elif cmd == "watch":
@@ -533,6 +542,36 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_search.add_argument("query", nargs="*", help="Search query")
 
+    p_new = sub.add_parser(
+        "new", help="Scaffold a new skill in the central repository",
+        parents=[_common],
+    )
+    p_new.add_argument(
+        "name",
+        help="Skill name (lowercase letters/digits, single hyphens)",
+    )
+    p_new.add_argument(
+        "--target", action="append", default=None, dest="target",
+        help="Product short whose frontmatter requirements to prefill; "
+             "repeatable. Default: all declaring products (superset)",
+    )
+    p_new.add_argument(
+        "--description", default=None,
+        help="Frontmatter description (TODO placeholder if omitted)",
+    )
+    p_new.add_argument(
+        "--description-zh", default=None, dest="description_zh",
+        help="Chinese description (written when a target requires it)",
+    )
+    p_new.add_argument(
+        "--version", default="0.1.0",
+        help="Value for a required version field (default 0.1.0)",
+    )
+    p_new.add_argument(
+        "--minimal", action="store_true",
+        help="Only SKILL.md - no references/ or scripts/ subdirs",
+    )
+
     p_verify = sub.add_parser(
         "verify",
         help=(
@@ -582,6 +621,39 @@ Usage: askill install [--sync] [--audit] [--no-audit] <source>
   --audit     Print the full audit report after install
   --no-audit  Skip the default spec + security checks
 """
+
+
+def _cmd_new(name, targets, description, description_zh, version, minimal,
+             *, quiet=False, json_mode=False):
+    """``askill new <name>`` body (v0.15.0, docs/v0.15.0-plan.md R1)."""
+    report = create_skill(
+        name,
+        targets=targets,
+        description=description,
+        description_zh=description_zh,
+        version=version,
+        minimal=minimal,
+    )
+    if json_mode:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return
+    if report["error"]:
+        print(f"Error: {report['error']}")
+        return
+    path = report["path"]
+    fields = list(report["frontmatter"])
+    spec = report["spec"] or {}
+    spec_part = "spec PASS" if spec.get("ok") else "spec FAIL"
+    if report["product_issues"]:
+        spec_part = "spec FAIL (product frontmatter issues)"
+    print(f"Created skill skeleton: {path}")
+    if not quiet:
+        print(f"  frontmatter: {', '.join(fields)}")
+        print(f"  verify: {spec_part} (scaffold is compliant as generated)")
+        print("Next steps:")
+        print(f"  1. Edit SKILL.md in {path} - replace the TODO placeholders")
+        print("  2. askill sync            distribute to all products")
+        print(f"  3. askill verify {name}   re-check after your edits")
 
 
 def _cmd_search(query_parts, install_idx, *, quiet=False, json_mode=False):

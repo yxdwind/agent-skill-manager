@@ -11,7 +11,7 @@
 # and so on. Skill / product names are pulled from the live CLI.
 
 _askill_global_flags="--quiet -q --json"
-_askill_subcommands="status sync list install remove pack adopt audit search verify watch update products version help"
+_askill_subcommands="status sync list install new remove pack adopt audit search verify watch update products version help"
 
 # Pull the live list of installed skill names and product short names from the
 # CLI itself - this is the zero-dep equivalent of argcomplete's lazy

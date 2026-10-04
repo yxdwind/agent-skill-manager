@@ -43,7 +43,7 @@ set -l subcmds \
     adopt  'Adopt skills from one platform (or all) into the central repo' \
     audit  'Security audit of skill(s) in central repo' \
     search 'Search skills.sh; N installs that result' \
-    verify 'Check skills against the agentskills.io spec' \
+    new    'Scaffold a new skill in the central repository' \n    verify 'Check skills against the agentskills.io spec' \
     watch  'Watch central repo; auto-sync changes' \
     update 'Check/apply updates for tracked skills' \
     products 'List all supported products' \
