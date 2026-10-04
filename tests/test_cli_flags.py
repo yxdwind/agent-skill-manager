@@ -243,3 +243,30 @@ class TestAuditRegressions:
         parsed = json.loads(capsys.readouterr().out)
         assert parsed["results"][0]["skill_id"] == "pdf"
         assert mock_inst.call_count == 1
+
+
+class TestListJsonPublishFields:
+    """v0.15.0 R3: list --json exposes publish-relevant frontmatter."""
+
+    def test_version_and_description_zh_surface(self, tmp_path, capsys):
+        from agent_skill_manager.controllers import cli
+        d = tmp_path / "with-fields"
+        d.mkdir()
+        (d / "SKILL.md").write_text(
+            "---\nname: with-fields\ndescription: x\nversion: 2.5.0\n"
+            "description_zh: 测试\n---\nbody\n",
+            encoding="utf-8",
+        )
+        bare = tmp_path / "bare"
+        bare.mkdir()
+        (bare / "SKILL.md").write_text(
+            "---\nname: bare\ndescription: y\n---\nbody\n", encoding="utf-8",
+        )
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", tmp_path), \
+             patch("agent_skill_manager.controllers.cli.CENTRAL_DIR", tmp_path):
+            cli._print_list(json_mode=True)
+        entries = {e["skill"]: e for e in json.loads(capsys.readouterr().out)}
+        assert entries["with-fields"]["version"] == "2.5.0"
+        assert entries["with-fields"]["description_zh"] == "测试"
+        assert entries["bare"]["version"] is None
+        assert entries["bare"]["description_zh"] is None

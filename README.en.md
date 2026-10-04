@@ -175,6 +175,15 @@ askill products
 4. askill pack my-skill   <- .zip for DuMate
 ```
 
+### Create & Publish (v0.15.0)
+
+```
+1. askill new my-skill --target qwenwork      # scaffold: frontmatter prefilled per product
+2. askill publish my-skill --repo owner/name  # gates + dry run (--push to publish)
+```
+
+Published skills are installable via `askill install owner/repo@skill` and `npx skills add`; skills.sh lists and ranks them automatically as installs happen.
+
 ## Project Structure
 
 ```

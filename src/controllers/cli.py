@@ -100,13 +100,21 @@ def _print_list(*, quiet=False, json_mode=False):
         return
 
     if json_mode:
+        from ..services.spec import parse_frontmatter
         entries = []
         for s in skills:
             meta = read_skill_metadata(s)
             report = analyze_skill_dir(s)
+            fields, _ = parse_frontmatter(
+                (s / "SKILL.md").read_text(encoding="utf-8", errors="replace")
+            )
             entries.append({
                 "skill": s.name,
                 "description": meta.get("description", ""),
+                # publish-relevant frontmatter (None when absent) - lets
+                # scripts spot skills that would fail the publish gate
+                "version": fields.get("version"),
+                "description_zh": fields.get("description_zh"),
                 "audit_score": report["score"],
                 "audit_grade": report["grade"],
                 "audit_verdict": report["verdict"],
@@ -429,7 +437,7 @@ def main(argv=None):
         _cmd_verify(args.skill_name, quiet=quiet, json_mode=json_mode)
     elif cmd == "watch":
         from ..services.watch import watch_loop
-        watch_loop(interval=args.interval)
+        watch_loop(interval=args.interval, json_events=json_mode)
     elif cmd == "update":
         _cmd_update(args.skill_name, args.check,
                     quiet=quiet, json_mode=json_mode)
@@ -627,7 +635,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_watch = sub.add_parser(
         "watch", help="Watch central repo; auto-sync changes",
-        parents=[_quiet],
+        parents=[_common],
     )
     p_watch.add_argument(
         "--interval", type=int, default=3,

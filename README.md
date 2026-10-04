@@ -173,6 +173,15 @@ askill products
 3. askill update --check ← 想升级时看看哪些 skill 有新版本
 ```
 
+### 创作与发布（v0.15.0）
+
+```
+1. askill new my-skill --target qwenwork      ← 脚手架：frontmatter 按产品要求预填
+2. askill publish my-skill --repo owner/name  ← 门禁校验 + dry run（--push 实发）
+```
+
+发布后的技能即可被 `askill install owner/repo@skill` 和 `npx skills add` 安装，skills.sh 随安装量自动收录排行。
+
 ## 项目结构
 
 ```

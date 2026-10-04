@@ -20,6 +20,7 @@ Provides the ``askill watch`` long-running mode:
 from __future__ import annotations
 
 import contextlib
+import json
 import time
 from pathlib import Path
 
@@ -177,6 +178,7 @@ def audit_downgrade_check(
 def watch_loop(
     interval: int = POLL_INTERVAL_S,
     on_change=None,
+    json_events: bool = False,
 ) -> None:
     """Run the watch loop until interrupted (Ctrl+C).
 
@@ -186,8 +188,15 @@ def watch_loop(
             every RECONCILE_INTERVAL_S instead of every ``interval``.
         on_change: Optional callback(skill_name) invoked after each sync -
             used by tests to observe the loop without a real filesystem.
+        json_events: Emit one JSON object per line instead of human text
+            (v0.15.0). Security-warning details still print as plain text
+            after the event line - a deliberate trade-off so the loud
+            warnings never get swallowed by a JSON consumer.
     """
     if not CENTRAL_DIR.exists():
+        if json_events:
+            print(json.dumps({"event": "error", "message": f"central repository not found: {CENTRAL_DIR}"}))
+            return
         print(f"Central repository not found: {CENTRAL_DIR}")
         from .sync import print_onboarding
         print_onboarding()
@@ -197,13 +206,15 @@ def watch_loop(
     mode = backend.describe()
     if mode == "poll":
         cadence = interval
-        print(f"Watching {CENTRAL_DIR} (poll every {cadence}s, Ctrl+C to stop)")
+        if not json_events:
+            print(f"Watching {CENTRAL_DIR} (poll every {cadence}s, Ctrl+C to stop)")
     else:
         cadence = max(RECONCILE_INTERVAL_S, interval)
-        print(
-            f"Watching {CENTRAL_DIR} [native {mode} events, "
-            f"reconcile every {cadence}s, Ctrl+C to stop]"
-        )
+        if not json_events:
+            print(
+                f"Watching {CENTRAL_DIR} [native {mode} events, "
+                f"reconcile every {cadence}s, Ctrl+C to stop]"
+            )
 
     known_verdicts: dict[str, str] = {}
     # prime the initial verdict table without spamming
@@ -213,7 +224,10 @@ def watch_loop(
 
     prev = snapshot_central()
     n_top = len({k.split("/", 1)[0] for k in prev})
-    print(f"Tracking {n_top} entries. Ready.")
+    if json_events:
+        print(json.dumps({"event": "start", "backend": mode, "tracking": n_top}))
+    else:
+        print(f"Tracking {n_top} entries. Ready.")
 
     try:
         while True:
@@ -221,10 +235,13 @@ def watch_loop(
                 backend.wait(cadence)
             except OSError as exc:
                 # native backend died mid-run: degrade to polling, keep watching
-                print(
-                    f"  [watch] {mode} watcher failed ({exc}); "
-                    f"falling back to polling every {interval}s"
-                )
+                if json_events:
+                    print(json.dumps({"event": "backend-fallback", "mode": "poll", "reason": str(exc)}))
+                else:
+                    print(
+                        f"  [watch] {mode} watcher failed ({exc}); "
+                        f"falling back to polling every {interval}s"
+                    )
                 with contextlib.suppress(Exception):
                     backend.close()
                 backend = PollingWatcher(CENTRAL_DIR, interval=interval)
@@ -237,37 +254,58 @@ def watch_loop(
                 prev = curr
                 continue
 
-            print(f"\n[{time.strftime('%H:%M:%S')}] detected changes")
+            if not json_events:
+                print(f"\n[{time.strftime('%H:%M:%S')}] detected changes")
             for name in sorted(deleted):
-                print(f"- deleted skill: {name}")
-                clean_deleted_skill(name)
+                cleaned = clean_deleted_skill(name, verbose=not json_events)
+                if json_events:
+                    print(json.dumps({
+                        "event": "deleted", "skill": name, "cleaned_from": sorted(set(cleaned)),
+                    }))
+                else:
+                    print(f"- deleted skill: {name}")
 
             for name in sorted(changed):
-                print(f"- changed skill: {name}")
+                if not json_events:
+                    print(f"- changed skill: {name}")
                 sync_results = sync_skill(name, verbose=False).get(name, [])
-                print(f"  [watch] synced '{name}' to all products")
-                pack_skipped = [s for s, ok, m in sync_results if m == "pack"]
-                if pack_skipped:
-                    print(
-                        f"  [watch] pack-mode product(s) not auto-updated - "
-                        f"run 'askill pack {name}' to refresh the zip"
-                    )
-                conflicts = [s for s, ok, m in sync_results if m == "conflict"]
-                if conflicts:
-                    print(
-                        f"  [watch] conflicts kept local: {', '.join(conflicts)} "
-                        f"(resolve them or run 'askill sync {name} --force')"
-                    )
                 new_verdict = audit_downgrade_check(
-                    name, known_verdicts.get(name)
+                    name, known_verdicts.get(name), verbose=not json_events
                 )
                 if new_verdict:
                     known_verdicts[name] = new_verdict
+                if json_events:
+                    print(json.dumps({
+                        "event": "changed",
+                        "skill": name,
+                        "sync": [
+                            {"product": s, "ok": ok, "method": m}
+                            for s, ok, m in sync_results
+                        ],
+                        "conflicts": [s for s, ok, m in sync_results if m == "conflict"],
+                        "pack_pending": [s for s, ok, m in sync_results if m == "pack"],
+                        "verdict": new_verdict,
+                    }, ensure_ascii=False))
+                else:
+                    print(f"  [watch] synced '{name}' to all products")
+                    pack_skipped = [s for s, ok, m in sync_results if m == "pack"]
+                    if pack_skipped:
+                        print(
+                            f"  [watch] pack-mode product(s) not auto-updated - "
+                            f"run 'askill pack {name}' to refresh the zip"
+                        )
+                    conflicts = [s for s, ok, m in sync_results if m == "conflict"]
+                    if conflicts:
+                        print(
+                            f"  [watch] conflicts kept local: {', '.join(conflicts)} "
+                            f"(resolve them or run 'askill sync {name} --force')"
+                        )
                 if on_change:
                     on_change(name)
 
             prev = snapshot_central()  # re-snapshot: sync may touch mtimes
     except KeyboardInterrupt:
-        print("\nWatch stopped.")
+        if not json_events:
+            print("\nWatch stopped.")
     finally:
         backend.close()

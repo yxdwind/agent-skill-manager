@@ -318,3 +318,62 @@ class TestSources:
         )
         r = src_mod.check_update("fresh")
         assert r["status"] == "update-available"
+
+
+# ---------------------------------------------------------------- json events
+
+class TestJsonEvents:
+    """v0.15.0: ``askill watch --json`` emits one JSON object per line."""
+
+    def test_change_cycle_emits_parseable_lines(self, fake_central, monkeypatch, capsys):
+        import json as _json
+        d = _mk_skill(fake_central, "json-skill")
+        monkeypatch.setattr(
+            watch_mod, "sync_skill",
+            lambda name, verbose=False: {name: [("fake", True, "junction")]},
+        )
+        monkeypatch.setattr(
+            watch_mod, "list_skills", lambda: [fake_central / "json-skill"],
+        )
+
+        class FakeBackend:
+            def __init__(self):
+                self.n = 0
+            def describe(self):
+                return "fake-native"
+            def wait(self, timeout):
+                self.n += 1
+                if self.n == 1:
+                    return True          # spurious wake - no event line
+                if self.n == 2:
+                    time.sleep(0.01)
+                    (d / "SKILL.md").write_text("v2", encoding="utf-8")
+                    return True
+                raise KeyboardInterrupt()
+            def close(self):
+                pass
+
+        monkeypatch.setattr(
+            watch_mod, "create_watcher",
+            lambda root, poll_interval=3.0: FakeBackend(),
+        )
+        watch_mod.watch_loop(interval=1, json_events=True)
+
+        lines = [ln for ln in capsys.readouterr().out.splitlines() if ln.strip()]
+        events = [_json.loads(ln) for ln in lines]   # raises if any line is not JSON
+        kinds = [e["event"] for e in events]
+        assert kinds[0] == "start"
+        assert "changed" in kinds
+        changed = next(e for e in events if e["event"] == "changed")
+        assert changed["skill"] == "json-skill"
+        assert changed["sync"][0]["product"] == "fake"
+        assert changed["verdict"] in ("safe", "caution", "risky", "dangerous")
+        # no human text mixed into the stream
+        assert not any("[watch]" in ln or "Watching" in ln for ln in lines)
+
+    def test_missing_central_emits_error_object(self, fake_central, monkeypatch, capsys):
+        import json as _json
+        monkeypatch.setattr(watch_mod, "CENTRAL_DIR", fake_central.parent / "absent")
+        watch_mod.watch_loop(json_events=True)
+        parsed = _json.loads(capsys.readouterr().out)
+        assert parsed["event"] == "error"
