@@ -457,7 +457,15 @@ class _WinDirChangeWatcher:
                 ctypes.byref(returned), None, None,
             )
             if not ok:
-                break   # closed/cancelled, or root vanished
+                # Handle failed: closed/cancelled, or the root vanished.
+                # Signal the event so a wait() already blocked on it wakes
+                # up - the reader thread must never exit silently, or a
+                # blocked wait races the thread death and root deletion
+                # only surfaces on the NEXT wait call (or never, within
+                # this timeout). A spurious True is fine: callers re-diff
+                # cheap snapshots to decide what actually changed.
+                self._event.set()
+                break
             if returned.value == 0:
                 self._event.set()   # buffer overflow - treat as change
                 continue
