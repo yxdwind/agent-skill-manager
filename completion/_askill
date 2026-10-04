@@ -26,6 +26,7 @@ _askill_subcommands=(
   audit:'Security audit of skill(s) in central repo'
   search:'Search skills.sh; N installs that result'
   new:'Scaffold a new skill in the central repository'
+  publish:'Publish a skill from the central repo to a git repository'
   verify:'Check skills against the agentskills.io spec'
   watch:'Watch central repo; auto-sync changes'
   update:'Check/apply updates for tracked skills'

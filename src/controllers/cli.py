@@ -13,6 +13,7 @@ from ..config.products import (
     get_product_path,
 )
 from ..services.audit import analyze_skill_dir
+from ..services.publish import publish_skill
 from ..services.scaffold import create_skill
 from ..services.sync import (
     FOOTER,
@@ -322,6 +323,8 @@ Usage:
     askill search <query> [--install N]  Search skills.sh; N installs that result
     askill new <name>                Scaffold a new skill (frontmatter
         [--target short] [--minimal] prefilled from product requirements)
+    askill publish <skill> --repo owner/name   Publish to a git repo
+        [--push] [--root] [--create] (default: dry run, additive subdir)
     askill verify [skill-name]       Check skills against the agentskills.io spec
                                      plus per-product frontmatter requirements
     askill remove <skill-name>       Remove a skill from all products
@@ -415,6 +418,12 @@ def main(argv=None):
             args.name, args.target, args.description,
             args.description_zh, args.version, args.minimal,
             quiet=quiet, json_mode=json_mode,
+        )
+    elif cmd == "publish":
+        _cmd_publish(
+            args.skill_name, args.repo,
+            root=args.root, force=args.force, https=args.https,
+            create=args.create, push=args.push, quiet=quiet,
         )
     elif cmd == "verify":
         _cmd_verify(args.skill_name, quiet=quiet, json_mode=json_mode)
@@ -572,6 +581,40 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Only SKILL.md - no references/ or scripts/ subdirs",
     )
 
+    p_publish = sub.add_parser(
+        "publish",
+        help="Publish a skill from the central repo to a git repository",
+        parents=[_quiet],
+    )
+    p_publish.add_argument("skill_name", help="Skill in the central repo")
+    p_publish.add_argument(
+        "--repo", required=True,
+        help="Target as owner/name (GitHub), or an explicit git URL",
+    )
+    p_publish.add_argument(
+        "--push", action="store_true",
+        help="Actually push. Without it the run is a dry run: gates are "
+             "checked and the git plan printed, nothing is written",
+    )
+    p_publish.add_argument(
+        "--root", action="store_true",
+        help="Replace the repo ROOT with the skill (single-skill repo, "
+             "install as owner/repo). Default: additive <skill>/ subdir "
+             "(install as owner/repo@skill)",
+    )
+    p_publish.add_argument(
+        "--force", action="store_true",
+        help="Allow --root to replace existing repo content",
+    )
+    p_publish.add_argument(
+        "--https", action="store_true",
+        help="Clone/push over HTTPS (credential helper) instead of SSH",
+    )
+    p_publish.add_argument(
+        "--create", action="store_true",
+        help="Create the GitHub repo first via the gh CLI",
+    )
+
     p_verify = sub.add_parser(
         "verify",
         help=(
@@ -654,6 +697,38 @@ def _cmd_new(name, targets, description, description_zh, version, minimal,
         print(f"  1. Edit SKILL.md in {path} - replace the TODO placeholders")
         print("  2. askill sync            distribute to all products")
         print(f"  3. askill verify {name}   re-check after your edits")
+
+
+def _cmd_publish(name, repo, *, root=False, force=False, https=False,
+                 create=False, push=False, quiet=False):
+    """``askill publish <skill> --repo owner/name`` body (v0.15.0 R2)."""
+    report = publish_skill(
+        name, repo,
+        root=root, force=force, https=https, create=create, push=push,
+        verbose=not quiet,
+    )
+    if report["error"]:
+        print(f"Error: {report['error']}")
+        for p in report.get("problems", []):
+            print(f"  gate: {p}")
+        return
+    if report.get("risky"):
+        print("  !! CAUTION: audit flagged this skill (risky/caution) - review before sharing")
+    if not report["ok"]:
+        return
+    if not push:
+        print("dry run complete - nothing was pushed. Re-run with --push to publish.")
+        return
+    entry = report["published"]
+    skill, repo_name = entry["skill"], entry["repo"]
+    print(f"Published: {skill} -> {entry['url']} ({entry['layout']} layout, {entry['commit']})")
+    if entry["layout"] == "root":
+        print(f"Install with:   askill install {repo_name}")
+        print(f"          or:   npx skills add {repo_name}")
+    else:
+        print(f"Install with:   askill install {repo_name}@{skill}")
+        print(f"          or:   npx skills add {repo_name} --skill {skill}")
+    print("skills.sh lists repos automatically once installs happen (no publish API).")
 
 
 def _cmd_search(query_parts, install_idx, *, quiet=False, json_mode=False):
