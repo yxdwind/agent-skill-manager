@@ -162,9 +162,18 @@ askill remove my-skill
 # Pack a skill as .zip for DuMate
 askill pack my-skill
 
+# Create & publish (v0.15.0): scaffold + one-command publish back to GitHub
+askill new my-skill --target qwenwork              # scaffold: frontmatter prefilled per product
+askill publish my-skill --repo owner/name          # gates + dry run (--push to publish)
+
+# Drift detection (v0.16.0): product-dir skills diverging from central (new / differs)
+askill drift [product]
+
 # List all supported products
 askill products
 ```
+
+**Exit codes (since v0.16.0)**: `0` success (incl. dry runs / empty results) - `1` operational failure (install/verify/publish could not do its job) - `2` usage error. Scripts can rely on exit codes, paired with `--json` for fully machine-readable output.
 
 ### Typical Workflow
 
@@ -199,7 +208,7 @@ agent-skill-manager/
 │   ├── __init__.py / __main__.py
 │   ├── config/products.py      # 15 product definitions (paths / sync method /
 │   │                           # settings / shared dirs / frontmatter needs, declarative)
-│   ├── controllers/cli.py      # CLI commands (14 commands)
+│   ├── controllers/cli.py      # CLI commands (17 commands)
 │   ├── models/                 # TypedDict data shapes
 │   ├── services/               # business logic (sync / audit / watch / sources
 │   │                           #             / registry / spec)

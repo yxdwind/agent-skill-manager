@@ -161,9 +161,18 @@ askill remove my-skill
 # 为 DuMate 打包 skill 为 .zip
 askill pack my-skill
 
+# 创作与发布（v0.15.0）：脚手架 + 一键发布回 GitHub 生态
+askill new my-skill --target qwenwork              # 脚手架：frontmatter 按产品要求预填
+askill publish my-skill --repo owner/name          # 门禁校验 + dry run（--push 实发）
+
+# 漂移检测（v0.16.0）：产品目录里与 central 分叉的技能（new / differs）
+askill drift [product]
+
 # 列出所有支持的产品
 askill products
 ```
+
+**退出码契约（v0.16.0 起）**：`0` 成功（含 dry-run、空结果）· `1` 操作失败（install/verify/publish 等没能完成任务）· `2` 用法错误——脚本可以用退出码判断成败，配合 `--json` 获得完整机器可读输出。
 
 ### 典型工作流
 
@@ -197,7 +206,7 @@ agent-skill-manager/
 │   ├── __init__.py / __main__.py
 │   ├── config/products.py      # 15 个产品定义（路径/sync方式/settings/共享目录/
 │   │                           # 产品级 frontmatter 要求，全部声明式）
-│   ├── controllers/cli.py      # CLI 命令（14 commands）
+│   ├── controllers/cli.py      # CLI 命令（17 commands）
 │   ├── models/                 # TypedDict 数据模型
 │   ├── services/               # 业务逻辑（sync / audit / watch / sources
 │   │                           #             / registry / spec）
