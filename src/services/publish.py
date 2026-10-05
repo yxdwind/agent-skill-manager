@@ -53,9 +53,11 @@ def _remote_url(repo: str, https: bool) -> str:
 
     Anything that is not a strict ``owner/name`` shorthand (explicit URLs,
     local paths - the latter is how tests inject file remotes) passes
-    through unchanged.
+    through unchanged.  Only trailing slashes are stripped: stripping the
+    leading one would corrupt absolute Unix paths (``/tmp/...`` became
+    ``tmp/...`` and stopped resolving - caught by CI on Linux).
     """
-    repo = repo.strip("/")
+    repo = repo.rstrip("/")
     if re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
         return f"https://github.com/{repo}.git" if https else f"git@github.com:{repo}.git"
     return repo

@@ -204,3 +204,26 @@ def patch_cental(central: Path):
                 c.__exit__(*exc)
             return False
     return _Ctx()
+
+
+class TestRemoteUrl:
+    """The owner/name shorthand detector must not corrupt other remotes."""
+
+    def test_posix_absolute_path_passthrough(self):
+        """/tmp-style remotes keep their leading slash (regression: CI on
+        Linux failed because strip('/') corrupted absolute paths)."""
+        from agent_skill_manager.services.publish import _remote_url
+        p = "/tmp/pytest-x/remote.git"
+        assert _remote_url(p, https=False) == p
+        assert _remote_url(p + "/", https=False) == p   # trailing slash stripped
+
+    def test_shorthand_expansion(self):
+        from agent_skill_manager.services.publish import _remote_url
+        assert _remote_url("owner/name", https=False) == "git@github.com:owner/name.git"
+        assert _remote_url("owner/name", https=True) == "https://github.com/owner/name.git"
+        assert _remote_url("owner/name/", https=False) == "git@github.com:owner/name.git"
+
+    def test_windows_drive_path_passthrough(self):
+        from agent_skill_manager.services.publish import _remote_url
+        p = "D:\tmp\remote.git"
+        assert _remote_url(p, https=False) == p
