@@ -266,13 +266,19 @@ def _print_sync(skill_name=None, *, force=False, quiet=False):
     ``quiet`` flips ``sync_skill(verbose=...)`` to False. Conflict +
     SECURITY WARNING prints stay untouched because they go through
     ``sync_skill`` directly.
+
+    Returns 1 when a named skill was not found (exit-code contract),
+    else 0 - per-product conflicts/failures are reported data, not a
+    command failure.
     """
-    sync_skill(skill_name, verbose=not quiet, force=force)
+    results = sync_skill(skill_name, verbose=not quiet, force=force)
+    return 1 if (skill_name and not results) else 0
 
 
 def _print_install(source, sync=False, audit=False, no_audit=False, *, quiet=False):
-    """Install a skill and print results."""
-    install_skill(source, sync=sync, audit=audit, no_audit=no_audit, verbose=not quiet)
+    """Install a skill and print results. Returns 1 on failure."""
+    ok = install_skill(source, sync=sync, audit=audit, no_audit=no_audit, verbose=not quiet)
+    return 0 if ok else 1
 
 
 def _print_remove(skill_name, *, quiet=False):
@@ -281,13 +287,19 @@ def _print_remove(skill_name, *, quiet=False):
 
 
 def _print_pack(skill_name=None, *, quiet=False):
-    """Pack a skill and print results."""
-    pack_skill(skill_name, verbose=not quiet)
+    """Pack a skill and print results. Returns 1 on failure."""
+    return 0 if pack_skill(skill_name, verbose=not quiet) else 1
 
 
 def _print_adopt(platform_short, skill_name=None, *, quiet=False):
-    """Adopt skills from one platform to all others."""
+    """Adopt skills from one platform to all others. Returns 1 on unknown platform."""
+    from ..config.products import get_product_by_short
+    if platform_short != "all" and get_product_by_short(platform_short) is None:
+        print(f"Unknown platform: {platform_short}")
+        print(f"Available: {', '.join(p['short'] for p in PRODUCTS)} (or 'all')")
+        return 1
     adopt_from_platform(platform_short, skill_name, verbose=not quiet)
+    return 0
 
 
 def _print_audit(skill_name=None, *, quiet=False, json_mode=False):
@@ -345,8 +357,13 @@ Usage:
                                      kqueue / ReadDirectoryChangesW events
                                      wake syncs instantly when available)
     askill update [skill-name]       Check/apply updates for tracked skills
+    askill drift [product]           Report product-dir skills diverging
+                                     from the central repo (new / differs)
     askill products                  List all supported products
     askill version                   Show version
+
+Exit codes: 0 success (incl. dry runs / empty results) · 1 operational
+failure (install/verify/publish/... could not do its job) · 2 usage error.
 """
 
 
@@ -393,12 +410,13 @@ def main(argv=None):
     quiet = bool(getattr(args, "quiet", False))
     json_mode = bool(getattr(args, "json_mode", False))
 
+    rc = 0
     if cmd == "status":
-        _print_status(args.skill_name, quiet=quiet, json_mode=json_mode)
+        rc = _print_status(args.skill_name, quiet=quiet, json_mode=json_mode)
     elif cmd == "sync":
-        _print_sync(args.skill_name, force=args.force, quiet=quiet)
+        rc = _print_sync(args.skill_name, force=args.force, quiet=quiet)
     elif cmd == "list":
-        _print_list(quiet=quiet, json_mode=json_mode)
+        rc = _print_list(quiet=quiet, json_mode=json_mode)
     elif cmd == "install":
         if args.source is None:
             # nargs="?" lets a missing <source> parse fine; keep the
@@ -406,49 +424,56 @@ def main(argv=None):
             # resolve_source(None).
             print(_INSTALL_HELP)
             sys.exit(2)
-        _print_install(
+        rc = _print_install(
             args.source, sync=args.sync, audit=args.audit,
             no_audit=args.no_audit, quiet=quiet,
         )
     elif cmd == "remove":
-        _print_remove(args.skill_name, quiet=quiet)
+        rc = _print_remove(args.skill_name, quiet=quiet)
     elif cmd == "pack":
-        _print_pack(skill_name=args.skill_name, quiet=quiet)
+        rc = _print_pack(skill_name=args.skill_name, quiet=quiet)
     elif cmd == "adopt":
-        _print_adopt(args.platform_short.lower(), args.skill_name, quiet=quiet)
+        rc = _print_adopt(args.platform_short.lower(), args.skill_name, quiet=quiet)
     elif cmd == "audit":
-        _print_audit(args.skill_name, quiet=quiet, json_mode=json_mode)
+        rc = _print_audit(args.skill_name, quiet=quiet, json_mode=json_mode)
     elif cmd == "search":
-        _cmd_search(args.query, args.install_idx,
-                    quiet=quiet, json_mode=json_mode)
+        rc = _cmd_search(args.query, args.install_idx,
+                         quiet=quiet, json_mode=json_mode)
     elif cmd == "new":
-        _cmd_new(
+        rc = _cmd_new(
             args.name, args.target, args.description,
             args.description_zh, args.version, args.minimal,
             quiet=quiet, json_mode=json_mode,
         )
     elif cmd == "publish":
-        _cmd_publish(
+        rc = _cmd_publish(
             args.skill_name, args.repo,
             root=args.root, force=args.force, https=args.https,
             create=args.create, push=args.push, quiet=quiet,
         )
     elif cmd == "verify":
-        _cmd_verify(args.skill_name, quiet=quiet, json_mode=json_mode)
+        rc = _cmd_verify(args.skill_name, quiet=quiet, json_mode=json_mode)
     elif cmd == "watch":
         from ..services.watch import watch_loop
         watch_loop(interval=args.interval, json_events=json_mode)
     elif cmd == "update":
-        _cmd_update(args.skill_name, args.check,
-                    quiet=quiet, json_mode=json_mode)
+        rc = _cmd_update(args.skill_name, args.check,
+                         quiet=quiet, json_mode=json_mode)
     elif cmd == "products":
-        _print_products(quiet=quiet, json_mode=json_mode)
+        rc = _print_products(quiet=quiet, json_mode=json_mode)
+    elif cmd == "drift":
+        rc = _cmd_drift(args.product_short, quiet=quiet, json_mode=json_mode)
     elif cmd == "version":
         from .. import __version__
         print(f"agent-skill-manager v{__version__}")
     else:
         print(f"Unknown command: {cmd}")
         print(USAGE)
+        rc = 2
+
+    # Exit-code contract: 0 success, 1 operational failure, 2 usage error.
+    if rc:
+        sys.exit(rc)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -657,6 +682,15 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("products", help="List all supported products",
                    parents=[_common])
+    p_drift = sub.add_parser(
+        "drift",
+        help="Report product-dir skills that diverge from the central repo",
+        parents=[_common],
+    )
+    p_drift.add_argument(
+        "product_short", nargs="?", default=None,
+        help="Limit the scan to one product short (default: all)",
+    )
     sub.add_parser("version", help="Show version", parents=[_quiet])
 
     return parser
@@ -674,6 +708,42 @@ Usage: askill install [--sync] [--audit] [--no-audit] <source>
 """
 
 
+def _cmd_drift(product_short, *, quiet=False, json_mode=False):
+    """``askill drift [product]`` body (v0.16.0)."""
+    from ..services.drift import find_drift
+    report = find_drift(product_short)
+    if report["error"]:
+        print(f"Error: {report['error']}")
+        return 1
+    if json_mode:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0
+
+    drifted = {s: e for s, e in report["products"].items() if e["new"] or e["differs"]}
+    print(f"\nDrift scan ({_platform_label()}): {len(report['scanned'])} product(s) scanned\n")
+    if not drifted:
+        print("No drift - every real skill dir matches the central repo.")
+        print()
+        return 0
+    for short, entry in drifted.items():
+        print(f"  [{short}]")
+        if entry["new"]:
+            print(f"    new:     {', '.join(entry['new'])}")
+        if entry["differs"]:
+            print(f"    differs: {', '.join(entry['differs'])}")
+    print()
+    print("  new     -> askill adopt <product> [skill]   pull into central")
+    print("  differs -> decide which side wins:")
+    print("            askill sync <skill> --force        keep central, overwrite product")
+    print("            (or copy the product version back into the central repo by hand)")
+    print()
+    return 0
+
+
+def _platform_label() -> str:
+    return {"Windows": "Windows", "Darwin": "macOS"}.get(platform.system(), platform.system())
+
+
 def _cmd_new(name, targets, description, description_zh, version, minimal,
              *, quiet=False, json_mode=False):
     """``askill new <name>`` body (v0.15.0, docs/v0.15.0-plan.md R1)."""
@@ -687,10 +757,10 @@ def _cmd_new(name, targets, description, description_zh, version, minimal,
     )
     if json_mode:
         print(json.dumps(report, ensure_ascii=False, indent=2))
-        return
+        return 0 if report["created"] else 1
     if report["error"]:
         print(f"Error: {report['error']}")
-        return
+        return 1
     path = report["path"]
     fields = list(report["frontmatter"])
     spec = report["spec"] or {}
@@ -719,7 +789,7 @@ def _cmd_publish(name, repo, *, root=False, force=False, https=False,
         print(f"Error: {report['error']}")
         for p in report.get("problems", []):
             print(f"  gate: {p}")
-        return
+        return 1
     if report.get("risky"):
         print("  !! CAUTION: audit flagged this skill (risky/caution) - review before sharing")
     if not report["ok"]:
@@ -757,7 +827,7 @@ def _cmd_search(query_parts, install_idx, *, quiet=False, json_mode=False):
             print(json.dumps({"error": f"skills.sh unreachable: {e}"}))
         elif not quiet:
             print(f"skills.sh registry unavailable: {e}")
-        return
+        return 1
     if not results:
         if json_mode:
             print(json.dumps({"query": query, "results": []}, ensure_ascii=False))
@@ -770,7 +840,7 @@ def _cmd_search(query_parts, install_idx, *, quiet=False, json_mode=False):
         # results doc would produce an unparseable concatenated stream).
         if install_idx is not None and not (1 <= install_idx <= len(results)):
             print(json.dumps({"error": f"--install {install_idx} out of range 1-{len(results)}"}))
-            return
+            return 1
         print(json.dumps({"query": query, "results": results}, ensure_ascii=False, indent=2))
         # ``--install N`` inside JSON mode is unusual; we honour it but skip
         # the human-friendly "Installing result #N" line so the stdout
@@ -798,10 +868,10 @@ def _cmd_search(query_parts, install_idx, *, quiet=False, json_mode=False):
     print(f"         or:  askill search {query} --install 1")
     print()
     if install_idx is None:
-        return
+        return 0
     if install_idx < 1 or install_idx > len(results):
         print(f"Invalid --install index: pick 1-{len(results)}")
-        return
+        return 1
     pick = results[install_idx - 1]
     print(f"Installing result #{install_idx}: {pick['source']}@{pick['skill_id']}")
     install_skill(f"{pick['source']}@{pick['skill_id']}", verbose=not quiet)
@@ -862,6 +932,9 @@ def _cmd_verify(skill_name, *, quiet=False, json_mode=False):
     print(f"\n{passed}/{len(reports)} skill(s) ready for the skills.sh ecosystem.")
     if passed < len(reports):
         print("Fix the errors above so agents and skills.sh can index the skill.")
+        rc = 1
+    else:
+        rc = 0
     if flagged:
         print("\nProduct-specific frontmatter requirements:\n")
         for sn, iss in flagged:
@@ -872,6 +945,7 @@ def _cmd_verify(skill_name, *, quiet=False, json_mode=False):
     else:
         print("All per-product frontmatter requirements satisfied.")
     print()
+    return rc
 
 
 def _cmd_update(skill_name, check_only, *, quiet=False, json_mode=False):

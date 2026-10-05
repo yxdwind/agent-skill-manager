@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 
 def _ok_skill(tmp_path: Path, name: str = "demo-skill"):
     d = tmp_path / name
@@ -28,7 +30,7 @@ class TestQuietFlag:
         """The flag is registered on every subparser (smoke check via status)."""
         from agent_skill_manager.controllers import cli
         with patch("sys.argv", ["askill", "status", "--quiet"]), \
-             patch.object(cli, "_print_status") as mock_status:
+             patch.object(cli, "_print_status", return_value=0) as mock_status:
             cli.main()
         # ``--quiet`` should have been delivered to ``_print_status``.
         args, kwargs = mock_status.call_args
@@ -37,7 +39,7 @@ class TestQuietFlag:
     def test_short_flag_alias(self, capsys):
         from agent_skill_manager.controllers import cli
         with patch("sys.argv", ["askill", "status", "-q"]), \
-             patch.object(cli, "_print_status") as mock_status:
+             patch.object(cli, "_print_status", return_value=0) as mock_status:
             cli.main()
         _, kwargs = mock_status.call_args
         assert kwargs.get("quiet") is True
@@ -129,7 +131,7 @@ class TestJsonFlag:
         """Sanity: --json is routed to the helper that supports it."""
         from agent_skill_manager.controllers import cli
         with patch("sys.argv", ["askill", "status", "--json"]), \
-             patch.object(cli, "_print_status") as mock_status:
+             patch.object(cli, "_print_status", return_value=0) as mock_status:
             cli.main()
         _, kwargs = mock_status.call_args
         assert kwargs.get("json_mode") is True
@@ -227,7 +229,9 @@ class TestAuditRegressions:
                          "name": "PDF", "installs": 100}]
         with patch("agent_skill_manager.services.registry.search_skills",
                    return_value=fake_results):
-            cli.main(["search", "pdf", "--json", "--install", "9"])
+            with pytest.raises(SystemExit) as ei:
+                cli.main(["search", "pdf", "--json", "--install", "9"])
+            assert ei.value.code == 1
         parsed = json.loads(capsys.readouterr().out)   # raises if 2 docs
         assert "error" in parsed
 

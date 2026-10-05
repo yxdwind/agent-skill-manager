@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from agent_skill_manager.services.scaffold import (
     collect_required_frontmatter,
     create_skill,
@@ -163,7 +164,9 @@ class TestNewCli:
         from agent_skill_manager.controllers import cli
         with patch("agent_skill_manager.services.scaffold.CENTRAL_DIR", tmp_path):
             cli.main(["new", "twice", "--minimal"])
-            cli.main(["new", "twice", "--minimal"])
+            with pytest.raises(SystemExit) as ei:
+                cli.main(["new", "twice", "--minimal"])
+            assert ei.value.code == 1
         out = capsys.readouterr().out
         assert "already exists" in out
 

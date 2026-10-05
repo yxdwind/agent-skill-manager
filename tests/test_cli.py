@@ -3,6 +3,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 
 def _make_skill(base: Path, name="my-skill"):
     d = base / name
@@ -230,7 +232,9 @@ def test_search_install_out_of_range(tmp_path, capsys):
     with patch("sys.argv", ["askill", "search", "pdf", "--install", "9"]), \
          patch("agent_skill_manager.services.registry.search_skills", return_value=fake), \
          patch("agent_skill_manager.controllers.cli.install_skill") as mock_install:
-        cli.main()
+        with pytest.raises(SystemExit) as ei:
+            cli.main()
+        assert ei.value.code == 1
     out = capsys.readouterr().out
     assert "Invalid --install index: pick 1-1" in out
     mock_install.assert_not_called()
