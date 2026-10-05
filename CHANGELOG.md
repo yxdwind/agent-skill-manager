@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.16.0 (2026-10-05)
+
+### Feat
+
+- **cli,v016**: exit-code contract + askill drift scan
+
+### Fix
+
+- **watcher**: signal event on reader-thread failure (Windows root deletion)
+
 ## v0.15.0 (2026-10-04)
 
 ### Feat

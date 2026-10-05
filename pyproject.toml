@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cn-skill-sync"
-version = "0.15.0"
+version = "0.16.0"
 description = "Cross-platform (macOS/Windows/Linux) skill management for 15 domestic AI agent products"
 readme = "README.md"
 license = {text = "MIT"}
@@ -119,7 +119,7 @@ ignore = [
 # bump version + regenerate CHANGELOG.md in lockstep.
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.15.0"
+version = "0.16.0"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml",
