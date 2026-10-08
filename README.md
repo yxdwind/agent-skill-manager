@@ -362,6 +362,7 @@ cp completion/askill.fish ~/.config/fish/completions/
 
 ## 相关项目
 
+- [yxdwind/skills](https://github.com/yxdwind/skills) — 官方技能发布仓库（skill-doctor / sync-troubleshoot，`askill install yxdwind/skills@<skill>` 即装，也是 askill publish 的实盘示例）
 - [manage-my-skills](https://github.com/hchcx/manage-my-skills) — 跨平台 Skills 管理工具，支持 20+ 国际产品
 - [awesome-agent-skills](https://github.com/libukai/awesome-agent-skills) — Agent Skills 终极指南
 - [skills CLI](https://www.npmjs.com/package/skills) — npm 上的 agent skills 包管理器

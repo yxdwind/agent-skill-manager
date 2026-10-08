@@ -365,6 +365,7 @@ Commits (via commitizen) and requires `ruff check src tests` + `mypy src` +
 
 ## Related Projects
 
+- [yxdwind/skills](https://github.com/yxdwind/skills) — official published skills (skill-doctor / sync-troubleshoot, `askill install yxdwind/skills@<skill>`; also a live example of askill publish)
 - [manage-my-skills](https://github.com/hchcx/manage-my-skills) — cross-platform skill manager for 20+ international products
 - [awesome-agent-skills](https://github.com/libukai/awesome-agent-skills) — the ultimate Agent Skills guide
 - [skills CLI](https://www.npmjs.com/package/skills) — npm-based agent skills package manager
