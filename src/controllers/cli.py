@@ -410,6 +410,11 @@ def main(argv=None):
     quiet = bool(getattr(args, "quiet", False))
     json_mode = bool(getattr(args, "json_mode", False))
 
+    # One-time first-run welcome (never in quiet/json/script modes).
+    if cmd != "version":
+        from ..services import welcome
+        welcome.maybe_print_welcome(quiet=quiet, json_mode=json_mode)
+
     rc = 0
     if cmd == "status":
         rc = _print_status(args.skill_name, quiet=quiet, json_mode=json_mode)
