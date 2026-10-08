@@ -74,7 +74,7 @@
 - **冲突保护（v0.13.0）**：产品目录中已存在与中央仓库内容不同的同名真实目录时，sync 跳过并警告（`--force` 才覆盖），绝不静默清掉你手动维护的技能
 - **零依赖**：仅使用 Python 标准库
 
-![Demo](docs/demo.svg)
+![Demo](docs/demo.gif)
 
 ## 安装
 
@@ -199,7 +199,8 @@ agent-skill-manager/
 ├── setup.py                    # setuptools 兼容入口
 ├── docs/
 │   ├── architecture.svg        # 架构图
-│   ├── demo.svg                # 终端演示图
+│   ├── demo.gif                # 终端演示动图
+│   ├── social-preview.png      # 社交分享卡片图（GitHub social preview）
 │   ├── product-paths.md        # 各产品详细路径参考
 │   └── product-matrix.md       # 产品能力矩阵盘点（v0.13.0 基线）
 ├── src/                        # 包根（映射为 agent_skill_manager 包）

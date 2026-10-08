@@ -74,7 +74,7 @@ Every Chinese AI agent product keeps its skills in its own directory. Developing
 - **Conflict protection (v0.13.0)**: if a product's skills dir already holds a same-named *real* directory that differs from the central repo, sync skips it with a warning (`--force` overrides) - your hand-maintained skills are never silently clobbered
 - **Zero dependencies**: Python standard library only
 
-![Demo](docs/demo.svg)
+![Demo](docs/demo.gif)
 
 ## Install
 
@@ -201,7 +201,8 @@ agent-skill-manager/
 ├── setup.py                    # setuptools compatibility entry
 ├── docs/
 │   ├── architecture.svg        # architecture diagram
-│   ├── demo.svg                # terminal demo
+│   ├── demo.gif                # animated terminal demo
+│   ├── social-preview.png      # social share card (GitHub social preview)
 │   ├── product-paths.md        # per-product path reference
 │   └── product-matrix.md       # product capability matrix (v0.13.0 baseline)
 ├── src/                        # package root (mapped as agent_skill_manager)
