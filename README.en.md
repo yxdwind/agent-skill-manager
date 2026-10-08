@@ -6,7 +6,7 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-288%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-296%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
@@ -191,7 +191,7 @@ askill products
 2. askill publish my-skill --repo owner/name  # gates + dry run (--push to publish)
 ```
 
-Published skills are installable via `askill install owner/repo@skill` and `npx skills add`; skills.sh lists and ranks them automatically as installs happen.
+Published skills are installable via `askill install owner/repo@skill` and `npx skills add`; skills.sh lists and ranks them automatically as installs happen. Live example: the official skills repo [yxdwind/skills](https://github.com/yxdwind/skills) (skill-doctor / sync-troubleshoot, install with `askill install yxdwind/skills@skill-doctor`).
 
 ## Project Structure
 
@@ -212,18 +212,24 @@ agent-skill-manager/
 │   ├── controllers/cli.py      # CLI commands (17 commands)
 │   ├── models/                 # TypedDict data shapes
 │   ├── services/               # business logic (sync / audit / watch / sources
-│   │                           #             / registry / spec)
+│   │                           #             / registry / spec / welcome (first-run))
 │   └── utils/                  # filesystem.py (cross-platform file ops)
 │                               # watcher.py (native fs events: inotify/kqueue/ReadDirectoryChangesW)
-└── tests/                      # 194 tests
+├── .github/ISSUE_TEMPLATE/     # new-product support request (user files it, supported within a week)
+└── tests/                      # 296 tests
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
     ├── test_adopt.py
     ├── test_security.py
     ├── test_cli.py
+    ├── test_cli_flags.py
+    ├── test_drift.py
+    ├── test_new.py
+    ├── test_publish.py
     ├── test_watch.py
     ├── test_watcher.py
+    ├── test_welcome.py         # first-run banner (once only / silent in quiet+json)
     ├── test_registry.py
     ├── test_spec.py
     └── test_matrix.py          # cross-product consistency regression lock (v0.13.0)
@@ -330,6 +336,8 @@ Edit `src/config/products.py` and append to the `PRODUCTS` list:
 ```
 
 Once declared, sync/status/watch behavior, frontmatter validation and the consistency assertions in `tests/test_matrix.py` all cover the new product automatically - no other code changes needed.
+
+The full onboarding flow (per-platform verification checklist and release steps) lives in [docs/onboarding-new-product.md](docs/onboarding-new-product.md) - the goal is supporting a new product within one week of its launch. Users can also file a [new-product support request](https://github.com/yxdwind/agent-skill-manager/issues/new?template=new-product-support.md) directly.
 
 ### Run Tests
 

@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-288%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-296%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#支持的产品)
 
@@ -189,7 +189,7 @@ askill products
 2. askill publish my-skill --repo owner/name  ← 门禁校验 + dry run（--push 实发）
 ```
 
-发布后的技能即可被 `askill install owner/repo@skill` 和 `npx skills add` 安装，skills.sh 随安装量自动收录排行。
+发布后的技能即可被 `askill install owner/repo@skill` 和 `npx skills add` 安装，skills.sh 随安装量自动收录排行。实盘参考：官方技能仓库 [yxdwind/skills](https://github.com/yxdwind/skills)（skill-doctor / sync-troubleshoot，可直接 `askill install yxdwind/skills@skill-doctor` 安装）。
 
 ## 项目结构
 
@@ -210,18 +210,24 @@ agent-skill-manager/
 │   ├── controllers/cli.py      # CLI 命令（17 commands）
 │   ├── models/                 # TypedDict 数据模型
 │   ├── services/               # 业务逻辑（sync / audit / watch / sources
-│   │                           #             / registry / spec）
+│   │                           #             / registry / spec / welcome（首跑引导））
 │   └── utils/                  # filesystem.py（跨平台文件操作）
 │                               # watcher.py（原生文件事件：inotify/kqueue/ReadDirectoryChangesW）
-└── tests/                      # 194 个测试
+├── .github/ISSUE_TEMPLATE/     # 新产品支持请求模板（用户填报 → 一周内适配）
+└── tests/                      # 296 个测试
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py
     ├── test_adopt.py
     ├── test_security.py
     ├── test_cli.py
+    ├── test_cli_flags.py
+    ├── test_drift.py
+    ├── test_new.py
+    ├── test_publish.py
     ├── test_watch.py
     ├── test_watcher.py
+    ├── test_welcome.py         # 首跑引导（只出现一次 / quiet·json 静默）
     ├── test_registry.py
     ├── test_spec.py
     └── test_matrix.py          # 跨产品一致性回归锁定（v0.13.0）
@@ -328,6 +334,8 @@ askill install --no-audit https://github.com/user/repo/tree/main/my-skill       
 ```
 
 声明到位后，sync/status/watch 的行为、frontmatter 校验和 `tests/test_matrix.py` 的一致性断言都会自动覆盖新产品，无需改其他代码。
+
+完整适配流程（含各平台实测清单与发布步骤）见 [docs/onboarding-new-product.md](docs/onboarding-new-product.md) —— 目标：新产品发布后一周内支持。用户也可以直接提 [新产品支持请求](https://github.com/yxdwind/agent-skill-manager/issues/new?template=new-product-support.md)。
 
 ### 运行测试
 
