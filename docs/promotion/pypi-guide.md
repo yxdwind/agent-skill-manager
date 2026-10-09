@@ -37,7 +37,7 @@ D:\ProgramData\anaconda3\python.exe -m twine upload dist/askill-0.7.0* `
 ```ini
 [pypi]
 username = __token__
-password = pypi-xxxxxxxxxxxxxxxx
+password = <你的token>
 ```
 
 然后执行：
