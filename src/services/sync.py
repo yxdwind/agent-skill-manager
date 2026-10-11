@@ -205,6 +205,9 @@ def sync_skill(
     # pool entirely when there is nothing to do.
     max_workers = max(1, min(len(PRODUCTS), 8))
     results = {}
+    # P0-1: collect products whose settings.json could not be updated
+    # (e.g. locked by a running IDE) so we can warn clearly at the end.
+    settings_issues: list[tuple[str, str, str]] = []
     for skill_dir in skills:
         if verbose:
             print(f"[{skill_dir.name}]")
@@ -218,6 +221,7 @@ def sync_skill(
                 pool.submit(
                     _sync_one_product,
                     skill_dir, p, force, synced_dirs, state_lock, verbose,
+                    settings_issues,
                 )
                 for p in PRODUCTS
             ]
@@ -245,6 +249,24 @@ def sync_skill(
             print()
         results[skill_dir.name] = sync_results
 
+    # P0-1: one clear, aggregated warning instead of a per-product line that
+    # is easy to miss. The skill link exists but is NOT enabled in these
+    # products - the most common cause is the IDE holding settings.json open.
+    if settings_issues:
+        locked = [(n, p) for n, p, r in settings_issues if r == "locked"]
+        failed = [(n, p) for n, p, r in settings_issues if r == "failed"]
+        print()
+        print("  ⚠️  settings.json 未能更新 —— 以下产品的 skill 已建立链接但【未被启用】：")
+        if locked:
+            print("     多半是对应的 IDE 正在运行并锁定了 settings.json（WinError 5）：")
+            for name, path in locked:
+                print(f"       • {name}  ({path})")
+            print("     处理：关闭/重启对应 IDE 后重跑 `askill sync`，或在产品设置里手动开启该 skill。")
+        if failed:
+            print("     其他写入失败：")
+            for name, path in failed:
+                print(f"       • {name}  ({path})")
+
     return results
 
 
@@ -255,6 +277,7 @@ def _sync_one_product(
     synced_dirs: dict[Path, str],
     state_lock: Lock,
     verbose: bool,
+    settings_issues: list[tuple[str, str, str]],
 ) -> tuple[str, bool, str]:
     """Sync one skill to one product. Returns ``(short, success, method)``.
 
@@ -320,9 +343,13 @@ def _sync_one_product(
     if success and settings_path and settings_path.parent.exists():
         # _enable_in_settings writes atomically (tempfile + os.replace); the
         # lock here only keeps output and disk-write contention in order,
-        # not data correctness.
+        # not data correctness. A "locked"/"failed" result is collected so
+        # sync_skill can print one clear, aggregated warning at the end
+        # instead of burying it per-product.
         with state_lock:
-            _enable_in_settings(settings_path, skill_dir.name, verbose=verbose)
+            enable_result = _enable_in_settings(settings_path, skill_dir.name, verbose=verbose)
+        if enable_result != "ok":
+            settings_issues.append((p["name"], str(settings_path), enable_result))
 
     return (p["short"], success, method)
 
@@ -718,7 +745,7 @@ def pack_skill(skill_name: str, verbose: bool = True) -> Path | None:
     return output_path
 
 
-def _enable_in_settings(settings_path: Path, skill_name: str, verbose: bool = True) -> None:
+def _enable_in_settings(settings_path: Path, skill_name: str, verbose: bool = True) -> str:
     """Enable a skill in a product's settings.json.
 
     Generic handler for the ``skills-switch`` settings mode (declared in
@@ -727,6 +754,14 @@ def _enable_in_settings(settings_path: Path, skill_name: str, verbose: bool = Tr
     for only invoking this when the product is actually set up on the
     machine (see the A9 guard in sync_skill); the file itself may be
     missing and will be created inside its existing product directory.
+
+    Returns:
+        ``"ok"``     - settings updated successfully
+        ``"locked"`` - the file is held by another process (most often the
+                       product IDE is running and holds an exclusive lock on
+                       settings.json). The skill link exists but is NOT
+                       enabled in the product.
+        ``"failed"`` - any other error.
     """
     try:
         if settings_path.exists():
@@ -740,9 +775,20 @@ def _enable_in_settings(settings_path: Path, skill_name: str, verbose: bool = Tr
         _write_json_atomic(settings_path, settings)
         if verbose:
             print(f"  {'':>10}   Updated settings.json")
+        return "ok"
+    except (PermissionError, OSError) as e:
+        # WinError 5 / EACCES: the file is locked by a running IDE. The
+        # junction was created but the skill is not enabled - surfaced
+        # prominently by sync_skill instead of swallowed here.
+        if verbose:
+            print(f"  {'':>10}   Warning: could not update settings.json: {e}")
+        if getattr(e, "winerror", None) == 5 or getattr(e, "errno", None) in (5, 13):
+            return "locked"
+        return "failed"
     except Exception as e:
         if verbose:
             print(f"  {'':>10}   Warning: could not update settings.json: {e}")
+        return "failed"
 
 
 def _disable_in_settings(settings_path: Path, skill_name: str) -> bool:

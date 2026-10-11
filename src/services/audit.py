@@ -15,6 +15,7 @@ Verdict: safe / caution / risky / dangerous.
 
 from __future__ import annotations
 
+import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -48,8 +49,41 @@ SKIP_DIRS = {".git", ".hg", ".svn", "__pycache__", "node_modules",
 SKIP_FILE_SUFFIXES = {".pyc", ".pyo", ".class", ".log", ".tmp", ".swp"}
 SKIP_FILE_NAMES = {".DS_Store", "Thumbs.db"}
 
+# P0-2: development / test code is still scanned (so nothing is hidden from a
+# human reviewer) but findings there are down-weighted - benign dev tooling
+# such as a dev-server stop script matching "shutdown", or a test fixture
+# referencing ~/.ssh, must not masquerade as a real runtime risk and sink
+# the skill's security score.  Opt out via the ASKILL_AUDIT_DEV_MODE env var:
+#   downweight (default) | skip (ignore dev/test files entirely) | off (legacy)
+DEV_CONTEXT_SEGMENTS = {
+    "test", "tests", "spec", "specs", "__tests__", "fixtures", "fixture",
+    "mock", "mocks", "example", "examples", "docs", "doc", "bin", "scripts",
+    "dev", "staging", "e2e", "tmp", "temp",
+}
+DEV_CONTEXT_SUFFIXES = (
+    ".test.", ".tests.", ".spec.", "-test.", "-spec.", "_test.", "_spec.",
+)
+# Severity reduction applied to findings inside a dev/test path.
+_DEV_REDUCE = {"critical": "medium", "high": "low", "medium": "low", "low": "low", "info": "info"}
+
+
+def _is_dev_context(rel: Path) -> bool:
+    """True if *rel* lives in a development / test path rather than the
+    skill's runtime payload (e.g. a ``tests/`` or ``bin/`` sub-directory, or a
+    ``foo.test.js`` file)."""
+    if set(rel.parts) & DEV_CONTEXT_SEGMENTS:
+        return True
+    name = rel.name.lower()
+    return any(s in name for s in DEV_CONTEXT_SUFFIXES)
+
 SEVERITY_WEIGHTS = {"critical": 40, "high": 20, "medium": 10, "low": 3, "info": 0}
 _CATEGORY_CAP = 40
+# P0-2: a much smaller cap for minor (low) findings per category.  Without it,
+# dozens of benign pattern hits (a URL, a .env reference, a child_process call
+# in legitimate code) summed past the serious cap and let a large but harmless
+# skill score an F.  Now only genuine critical/high/medium risks drive the
+# score down; low-severity noise is capped at _MINOR_CAP per category.
+_MINOR_CAP = 10
 
 # ---------------------------------------------------------------- patterns
 
@@ -107,7 +141,7 @@ CODE_PATTERNS = [
      "filesystem format command"),
     ("critical", re.compile(r"\bformat\s+[c-zC-Z]:", re.IGNORECASE),
      "Windows drive format command"),
-    ("high", re.compile(r"\bexec\s*\(", re.IGNORECASE),
+    ("high", re.compile(r"(?<!\.)\bexec\s*\(", re.IGNORECASE),
      "dynamic code execution (exec)"),
     ("high", re.compile(r"subprocess\b[\s\S]{0,120}?shell\s*=\s*True", re.IGNORECASE),
      "shell=True subprocess call"),
@@ -125,7 +159,7 @@ CODE_PATTERNS = [
      "raw disk write (dd)"),
     ("high", re.compile(r"\bshutdown\b", re.IGNORECASE),
      "system shutdown command"),
-    ("high", re.compile(r"(\.ssh|\.aws|\.gnupg|id_rsa|id_ed25519|\.netrc|credentials)", re.IGNORECASE),
+    ("high", re.compile(r"(\.ssh|\.aws|\.gnupg|id_rsa|id_ed25519|\.netrc)", re.IGNORECASE),
      "reads sensitive credential files"),
     ("medium", re.compile(r"\beval\s*\(", re.IGNORECASE),
      "dynamic code evaluation (eval)"),
@@ -174,8 +208,14 @@ def _scan_text(
     path: Path,
     findings: list[Finding],
     category: str,
+    dev: bool = False,
 ) -> None:
-    """Match patterns against text content; one finding per (file, pattern)."""
+    """Match patterns against text content; one finding per (file, pattern).
+
+    When *dev* is True (the file lives in a development / test path) the
+    finding's severity is down-weighted and tagged so benign dev tooling does
+    not distort the skill's security score.
+    """
     seen = set()
     for severity, regex, message in patterns:
         for i, line in enumerate(content.splitlines(), 1):
@@ -184,14 +224,19 @@ def _scan_text(
                 if key in seen:
                     break
                 seen.add(key)
-                findings.append({
+                finding = {
                     "severity": severity,
                     "category": category,
                     "file": str(path),
                     "line": i,
                     "pattern": regex.pattern,
                     "message": message,
-                })
+                }
+                if dev:
+                    finding["severity"] = _DEV_REDUCE.get(severity, severity)
+                    finding["message"] = f"{message} (dev/test path - verify)"
+                    finding["dev_context"] = True
+                findings.append(finding)
                 break
 
 
@@ -208,14 +253,24 @@ def _grade(score: int) -> tuple[str, str]:
 
 
 def _score(findings: list[Finding]) -> int:
-    """100 minus weighted severities, capped per category."""
-    per_category: dict[str, int] = {}
+    """100 minus weighted severities.
+
+    Serious findings (critical/high/medium) are capped at ``_CATEGORY_CAP``
+    per category; minor (low) findings are capped at the much smaller
+    ``_MINOR_CAP`` per category.  This keeps the score driven by genuine
+    high-impact risks while benign low-severity noise can no longer sink a
+    skill's rating.
+    """
+    serious: dict[str, int] = {}
+    minor: dict[str, int] = {}
     for f in findings:
         w = SEVERITY_WEIGHTS.get(f["severity"], 0)
         if w == 0:
             continue
-        per_category[f["category"]] = per_category.get(f["category"], 0) + w
-    total = sum(min(v, _CATEGORY_CAP) for v in per_category.values())
+        bucket = serious if f["severity"] in ("critical", "high", "medium") else minor
+        bucket[f["category"]] = bucket.get(f["category"], 0) + w
+    total = sum(min(v, _CATEGORY_CAP) for v in serious.values())
+    total += sum(min(v, _MINOR_CAP) for v in minor.values())
     return max(0, 100 - total)
 
 
@@ -228,6 +283,11 @@ def analyze_skill_dir(skill_dir: Path) -> SkillReport:
     """
     skill_dir = Path(skill_dir)
     findings: list[Finding] = []
+
+    # P0-2: how to treat development / test paths. downweight (default) keeps
+    # them scanned but lowers severity; skip ignores them; off restores the
+    # legacy behaviour of scoring every file at full severity.
+    dev_mode = os.environ.get("ASKILL_AUDIT_DEV_MODE", "downweight").lower()
 
     skill_md = skill_dir / "SKILL.md"
     files = []
@@ -282,6 +342,9 @@ def analyze_skill_dir(skill_dir: Path) -> SkillReport:
     # --- per-file scans --------------------------------------------------
     for f in files:
         rel = f.relative_to(skill_dir)
+        dev = _is_dev_context(rel)
+        if dev and dev_mode == "skip":
+            continue  # dev/test files ignored entirely (opt-in via env)
         if f.is_symlink():
             findings.append({
                 "severity": "medium", "category": "file-integrity",
@@ -318,9 +381,11 @@ def analyze_skill_dir(skill_dir: Path) -> SkillReport:
             continue
 
         if f.suffix.lower() in MARKDOWN_EXTS:
-            _scan_text(content, PROMPT_PATTERNS, rel, findings, "prompt-injection")
+            _scan_text(content, PROMPT_PATTERNS, rel, findings, "prompt-injection",
+                       dev=(dev and dev_mode == "downweight"))
         elif f.suffix.lower() in SCRIPT_EXTS:
-            _scan_text(content, CODE_PATTERNS, rel, findings, "dangerous-code")
+            _scan_text(content, CODE_PATTERNS, rel, findings, "dangerous-code",
+                       dev=(dev and dev_mode == "downweight"))
 
         if f.stat().st_size > MAX_FILE_BYTES:
             findings.append({

@@ -12,7 +12,7 @@
 | `pip install askill` | **`pip install cn-skill-sync`**（包名已从 askill 切换） |
 | 76 个测试 | **296 个测试**（三平台矩阵 CI） |
 | `docs/demo.svg` 截图 | **`docs/demo.gif`** 动图（另有 social-preview.png 封面） |
-| PyPI 版即将上线 | 已上线：https://pypi.org/project/cn-skill-sync/（v0.16.1） |
+| PyPI 版即将上线 | 已上线：https://pypi.org/project/cn-skill-sync/（v0.17.0） |
 | 33 个 skill | 本机中央仓库已达 25+ 个公开管理（数字随时间变化，发文前实查） |
 
 ## 文件清单

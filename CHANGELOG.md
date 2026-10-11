@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.17.0 (2026-10-11)
+
+### Fixed
+
+- **sync**: 当目标产品 IDE 正在运行并锁住 `settings.json`（Windows 常见，报 `WinError 5` / 拒绝访问）时，链接仍会创建，但 `sync` 末尾现在聚合打印醒目的提示，明确列出「已链接但未启用」的产品与 `settings.json` 路径，并指导用户关闭/重启 IDE 后重跑 `askill sync` 让 skill 真正生效（不再静默白做）。
+
+### Changed
+
+- **audit**: 提升安全评测精度，降低误报——
+  - 良性 low 级命中（URL、`.env` 引用、`child_process`）每类单独封顶（`_MINOR_CAP=10`），不再刷满分类上限把无害的大 skill 误评成 F；
+  - 开发/测试路径（`test/ tests/ bin/ scripts/ dev/ examples/ fixtures/ node_modules/ dist/ build/ docs/` 等）里的发现降权并标注 `(dev/test path - verify)`，保留供人工复核但不拉低评分；可用 `ASKILL_AUDIT_DEV_MODE`（`downweight` 默认 / `skip` / `off`）切换；
+  - 收紧两处过宽正则：`regex.exec()` 不再误判为「动态代码执行」（`child_process.exec` 仍由中危规则覆盖）；移除凭据检测对裸词 `credentials` 的匹配，防御性「拒绝携带凭据的 URL」代码不再被误判为「读取敏感凭据文件」。
+  - 实测评分对比（真实数据）：`archify` 57/F → 77/C、`book-to-skill` 42/F → 77/C；含真实 prompt injection 的 `agently-mail` 仍保持 57/F 不被洗白。
+
 ## v0.16.1 (2026-10-05)
 
 ### Fix

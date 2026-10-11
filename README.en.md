@@ -115,6 +115,12 @@ askill sync my-skill
 # hint. Pass --force once you have confirmed the overwrite.
 askill sync my-skill --force
 
+# v0.17.0 settings.json lock warning: if the target product's IDE is running and
+# holds settings.json open (common on Windows, raised as WinError 5 / Access Denied),
+# the link is still created but sync now prints a prominent aggregated warning at the
+# end listing the "linked but NOT enabled" products and what to do
+# (close/restart that IDE, then re-run askill sync to actually enable the skill).
+
 # List all skills in the central repository (with audit scores)
 askill list
 
@@ -291,7 +297,7 @@ askill adopt all                          # scan every product dir, adopt + dist
 
 ## Security Audit
 
-`askill audit` runs a **zero-dependency static analysis** on skills. It starts at 100 points and deducts by severity (capped at 40 per category):
+`askill audit` runs a **zero-dependency static analysis** on skills. It starts at 100 points and deducts by severity (capped at 40 per category for danger/high, capped at 10 per category for benign low findings):
 
 | Dimension | Severity | Examples |
 |-----------|----------|----------|
@@ -302,6 +308,11 @@ askill adopt all                          # scan every product dir, adopt + dist
 | File integrity | high/medium | missing SKILL.md, oversized files, symlinks |
 
 **Scoring & verdict**: A >= 90 (safe) - B >= 80 (safe) - C >= 70 (caution) - D >= 60 (risky) - F < 60 (dangerous)
+
+**v0.17.0 audit precision improvements**:
+- **Benign-noise cap**: benign low-severity hits (URLs, `.env` references, `child_process`) are capped at `_MINOR_CAP=10` per category, so they no longer saturate the cap and sink a harmless large skill to F.
+- **Dev/test path downweighting**: findings inside `test/ tests/ bin/ scripts/ dev/ examples/ fixtures/ node_modules/ dist/ build/ docs/` are downweighted and tagged `(dev/test path - verify)` - kept for human review but not counted against the score. Toggle with the `ASKILL_AUDIT_DEV_MODE` env var: `downweight` (default) / `skip` / `off` (legacy, full count).
+- **Tighter regexes**: `regex.exec()` is no longer mistaken for "dynamic code execution" (`child_process.exec` is still covered by the existing medium-severity rule); the credential rule no longer matches the bare word `credentials`, so defensive code that *rejects* credential-bearing URLs is no longer flagged as "reads sensitive credential files".
 
 Scores also appear in `askill list` and `askill status` output. **Since v0.12.0 every `askill install` runs the spec + security checks by default** (plus per-product frontmatter checks since v0.13.0): clean installs print a one-line `[check]` summary, risky/dangerous verdicts warn loudly in any mode; `--audit` prints the full report, `--no-audit` skips:
 

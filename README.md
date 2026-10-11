@@ -115,6 +115,11 @@ askill sync my-skill
 # sync 会跳过并提示；确认要覆盖时加 --force
 askill sync my-skill --force
 
+# v0.17.0 settings.json 占用提示：若目标产品 IDE 正在运行并锁住 settings.json
+# （Windows 常见，报 WinError 5 / 拒绝访问），sync 仍会建好链接，但会在末尾
+# 聚合打印醒目的提示，列出「已链接但未启用」的产品与处理建议
+# （关闭/重启该 IDE 后重跑 askill sync 即可让 skill 真正生效，不再静默白做）
+
 # 列出中央仓库中的所有 skill（含安全评测评分）
 askill list
 
@@ -289,7 +294,7 @@ askill adopt all                          # 扫描全部产品目录，收编 + 
 
 ## 安全评测（audit）
 
-`askill audit` 对 skill 做**零依赖静态分析**，从 100 分起扣，按严重级别加权（每类封顶 40 分）：
+`askill audit` 对 skill 做**零依赖静态分析**，从 100 分起扣，按严重级别加权（危险/高危每类封顶 40 分，良性 low 每类封顶 10 分）：
 
 | 检测维度 | 严重级别 | 示例 |
 |---------|---------|------|
@@ -300,6 +305,11 @@ askill adopt all                          # 扫描全部产品目录，收编 + 
 | 文件完整性 | high/medium | 缺少 SKILL.md、超大文件、符号链接 |
 
 **评分与结论**：A ≥ 90（safe）· B ≥ 80（safe）· C ≥ 70（caution）· D ≥ 60（risky）· F < 60（dangerous）
+
+**v0.17.0 审计精度提升**：
+- **良性噪声封顶**：URL、`.env` 引用、`child_process` 这类 low 级良性命中，每类单独封顶（`_MINOR_CAP=10`），不再刷满分类上限把无害的大 skill 误评成 F。
+- **开发/测试路径降权**：`test/ tests/ bin/ scripts/ dev/ examples/ fixtures/ node_modules/ dist/ build/ docs/` 等路径里的发现会被降权并标注 `(dev/test path - verify)`，保留供人工复核但不拉低评分。可用环境变量 `ASKILL_AUDIT_DEV_MODE` 切换：`downweight`（默认）/ `skip`（完全跳过）/ `off`（恢复旧行为，全量计入）。
+- **收紧误报正则**：`regex.exec()` 不再误判为「动态代码执行」（`child_process.exec` 仍由既有的中危规则覆盖）；移除凭据检测中对裸词 `credentials` 的匹配后，防御性「拒绝携带凭据的 URL」代码不再被误判为「读取敏感凭据文件」。
 
 `askill list` 和 `askill status` 的输出中也会直接带上每个 skill 的评分（score/grade/结论）。**v0.12.0 起，每次 `askill install` 都默认运行 spec 检查 + 安全评测**（v0.13.0 起还包含按产品 frontmatter 要求检查）：干净时只打印一行 `[check]` 摘要，risky/dangerous 在任何模式下高亮告警；`--audit` 打印完整报告，`--no-audit` 跳过：
 
