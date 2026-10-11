@@ -1,8 +1,11 @@
 name: Publish to PyPI
 
+# Triggers on tag push only. A GitHub *release* is created after the tag is
+# pushed (see the release step in the local release flow); publishing on both
+# `release: published` and `push: tags` would fire two runs, and the second
+# fails with a "version already exists" 409 on PyPI. `workflow_dispatch`
+# remains for manual re-runs.
 on:
-  release:
-    types: [published]
   push:
     tags: ['v*']
   workflow_dispatch:

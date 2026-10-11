@@ -371,7 +371,7 @@ pytest tests/ -v
   # fish
   cp completion/askill.fish ~/.config/fish/completions/
   ```
-- **从 PyPI 安装（v0.18.0+）**：wheel 已内置补全脚本，先定位安装位置再 source：
+- **从 PyPI 安装（v0.18.1+）**：wheel 已内置补全脚本，先定位安装位置再 source：
   ```bash
   # 找到补全脚本所在目录（Windows 把 / 换成 \）
   COMPLETION_DIR="$(python -c 'import agent_skill_manager,os;print(os.path.join(os.path.dirname(agent_skill_manager.__file__),"completion"))')"

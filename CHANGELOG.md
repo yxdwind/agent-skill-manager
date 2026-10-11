@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.18.1 (2026-10-11)
+
+### Fixed
+- `agent_skill_manager.completion` subpackage `__init__.py` shipped with an
+  unclosed docstring (syntax error) in 0.18.0. It was never imported by the
+  runtime code, so 0.18.0 worked at runtime and all tests passed, but the
+  file was invalid and broke static checks. The subpackage is now valid
+  (exposes `COMPLETION_DIR`) and `import agent_skill_manager.completion`
+  works.
+- `release.yml` no longer triggers on both `release: published` and
+  `push: tags` — that double-trigger fired two publish runs per release and
+  the second always failed with a "version already exists" 409 on PyPI. It
+  now triggers on tag push only (with `workflow_dispatch` for manual re-runs).
+
 ## v0.18.0 (2026-10-11)
 
 ### Added

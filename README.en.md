@@ -374,7 +374,7 @@ The project ships zero-dependency bash / zsh / fish completion scripts, availabl
   # fish
   cp completion/askill.fish ~/.config/fish/completions/
   ```
-- **From PyPI (v0.18.0+)**: the wheel now bundles the scripts — locate them and source:
+- **From PyPI (v0.18.1+)**: the wheel now bundles the scripts — locate them and source:
   ```bash
   COMPLETION_DIR="$(python -c 'import agent_skill_manager,os;print(os.path.join(os.path.dirname(agent_skill_manager.__file__),"completion"))')"
   source "$COMPLETION_DIR/askill.bash"
