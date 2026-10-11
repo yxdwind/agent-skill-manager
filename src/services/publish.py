@@ -63,16 +63,27 @@ def _remote_url(repo: str, https: bool) -> str:
     return repo
 
 
-def _run_gates(skill_dir: Path) -> tuple[list[str], bool]:
-    """Pre-publish gates. Returns (problems, risky_but_allowed)."""
+def _run_gates(
+    skill_dir: Path, targets: list[str] | None = None
+) -> tuple[list[str], bool]:
+    """Pre-publish gates. Returns (problems, risky_but_allowed).
+
+    ``targets`` (product shorts) scopes the per-product frontmatter gate to
+    the products the skill is actually published to; ``None`` checks all
+    declaring products (see product_frontmatter_issues).
+    """
     problems: list[str] = []
 
     spec = check_spec(skill_dir)
     if not spec["ok"]:
         problems.extend(f"spec: {e}" for e in spec["errors"])
 
-    product_issues = product_frontmatter_issues(skill_dir)
-    problems.extend(f"frontmatter: {i}" for i in product_issues)
+    product_issues = product_frontmatter_issues(skill_dir, targets=targets)
+    if product_issues:
+        scope = (
+            f"for targets {', '.join(sorted(targets))}" if targets else "for all products"
+        )
+        problems.extend(f"frontmatter ({scope}): {i}" for i in product_issues)
 
     risky = False
     report = analyze_skill_dir(skill_dir)
@@ -123,6 +134,7 @@ def publish_skill(
     https: bool = False,
     push: bool = False,
     create: bool = False,
+    targets: list[str] | None = None,
     central_dir: Path | None = None,
     verbose: bool = True,
 ) -> dict:
@@ -143,6 +155,10 @@ def publish_skill(
             the git plan prints, nothing is written.
         create: Create the GitHub repository first via ``gh repo create``
             (needs the gh CLI; other hosts must pre-create the repo).
+        targets: Limit the per-product frontmatter gate to these product
+            shorts (repeatable). Default: check every declaring product.
+            Use this when publishing a skill to a subset of products so an
+            unrelated product's requirement can't block the publish.
         central_dir: Override the central repository (tests).
         verbose: Print progress.
 
@@ -163,7 +179,7 @@ def publish_skill(
         return report
 
     # ------------------------------------------------------------- gates
-    problems, risky = _run_gates(skill_dir)
+    problems, risky = _run_gates(skill_dir, targets=targets)
     report["problems"] = problems
     report["risky"] = risky
     if problems:

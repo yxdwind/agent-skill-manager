@@ -134,7 +134,9 @@ def check_all_specs() -> list[dict]:
     return [check_spec(d) for d in list_skills()]
 
 
-def product_frontmatter_issues(skill_dir: Path) -> list[str]:
+def product_frontmatter_issues(
+    skill_dir: Path, targets: list[str] | None = None
+) -> list[str]:
     """Check a skill against products that mandate extra frontmatter fields.
 
     v0.13.0: per-product requirements are declared in products.py
@@ -142,10 +144,16 @@ def product_frontmatter_issues(skill_dir: Path) -> list[str]:
     ``description`` and ``description_zh``.  Without this check users only
     find out when the product silently fails to load the skill.
 
+    v0.18.0: ``targets`` (a list of product shorts) narrows the check to the
+    products the skill is actually meant for.  A skill published only to
+    WorkBuddy should not be blocked by QwenWork's ``description_zh``
+    requirement.  ``targets=None`` (default) checks every declaring product,
+    preserving the behaviour ``askill verify`` relies on.
+
     Returns:
         List of human-readable issues, e.g.
         ``"qwenwork: missing frontmatter field(s): version, description_zh"``.
-        Empty list when every declaring product is satisfied.
+        Empty list when every (selected) declaring product is satisfied.
     """
     from ..config.products import PRODUCTS
 
@@ -155,8 +163,12 @@ def product_frontmatter_issues(skill_dir: Path) -> list[str]:
     text = skill_md.read_text(encoding="utf-8", errors="replace")
     fields, _ = parse_frontmatter(text)
 
+    selected = {t.lower() for t in targets} if targets else None
+
     issues: list[str] = []
     for p in PRODUCTS:
+        if selected is not None and p["short"] not in selected:
+            continue
         required = p.get("required_frontmatter")
         if not required:
             continue

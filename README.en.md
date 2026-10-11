@@ -6,6 +6,8 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
+> **Package name ≠ repo name (note)**: the PyPI package is **`cn-skill-sync`** while the GitHub repo is **`agent-skill-manager`** — i.e. "install `cn-skill-sync`, source lives in `agent-skill-manager`". Every `pip install` below uses `cn-skill-sync`.
+
 [![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-296%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -359,18 +361,24 @@ pytest tests/ -v
 
 ### Shell Completion (v0.13.0)
 
-The repo ships zero-dependency bash / zsh / fish completion scripts:
+The project ships zero-dependency bash / zsh / fish completion scripts, available two ways:
 
-```bash
-# bash
-source completion/askill.bash
+- **From source (git clone)**: use the repo-root `completion/`:
+  ```bash
+  # bash
+  source completion/askill.bash
 
-# zsh — drop into any directory in $fpath, then `compinit`
-cp completion/_askill ${fpath[1]}/_askill
+  # zsh — drop into any directory in $fpath, then `compinit`
+  cp completion/_askill ${fpath[1]}/_askill
 
-# fish
-cp completion/askill.fish ~/.config/fish/completions/
-```
+  # fish
+  cp completion/askill.fish ~/.config/fish/completions/
+  ```
+- **From PyPI (v0.18.0+)**: the wheel now bundles the scripts — locate them and source:
+  ```bash
+  COMPLETION_DIR="$(python -c 'import agent_skill_manager,os;print(os.path.join(os.path.dirname(agent_skill_manager.__file__),"completion"))')"
+  source "$COMPLETION_DIR/askill.bash"
+  ```
 
 The skill / product short-name candidates are pulled live from
 `askill list --quiet` / `askill products --json`, so newly installed skills
@@ -400,6 +408,14 @@ Thanks to the following contributor:
 
 - [Security Policy (SECURITY.md)](SECURITY.md) — vulnerability reporting & security guidance
 - [Privacy Policy (PRIVACY.md)](PRIVACY.md) — local-first data handling
+
+## Known Limitations
+
+- **`sync` and `settings.json` lock**: on Windows, if the target product's IDE is running and holds its `settings.json` open (`WinError 5 / Access Denied`), `sync` still creates the skill link but cannot enable the skill inside that product. `sync` prints a prominent aggregated warning at the end listing the "linked but NOT enabled" products and how to fix it — **close / restart that IDE, then re-run `askill sync`** to actually enable the skill; don't assume the sync already took effect.
+- **`watch` in restricted / container environments**: `watch` prefers native filesystem events (Linux inotify / macOS kqueue / Windows ReadDirectoryChangesW) and falls back to polling when unavailable. In some sandboxes / containers events may not be delivered, so it can look idle even though the polling fallback keeps watching; it runs normally in a native terminal.
+- **`drift` cross-product scanning**: `drift` reads each product's directory under your home folder; in permission-restricted environments (some sandboxes) it can be interrupted by a security policy and must be run in a normally-privileged terminal.
+- **`publish` gate**: by default the per-product frontmatter gate checks **every** product that declares extra fields. If you publish to only a subset, use `askill publish <skill> --repo owner/name --target <short> [--target ...]` to scope it down and avoid being blocked by an unrelated product's field requirement.
+- **Security audit false positives**: `audit` down-weights code in development / test paths (e.g. `test/`, `bin/`), but it is still a static heuristic and may mis-flag code; treat high-severity findings as a prompt for manual review, not a verdict.
 
 ## License
 

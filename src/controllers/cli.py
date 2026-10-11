@@ -403,6 +403,17 @@ def main(argv=None):
         sys.exit(2)
 
     cmd = args.command
+
+    # Global ``--version`` wins before anything else - command dispatch, the
+    # ``cmd is None`` usage dump, and the first-run welcome (which we don't
+    # want to print for a version query). Note the distinct dest
+    # (``show_version``) declared at the parser - it must match here, and it
+    # must NOT collide with ``new --version``'s ``version`` frontmatter attr.
+    if getattr(args, "show_version", False):
+        from .. import __version__
+        print(f"agent-skill-manager v{__version__}")
+        return
+
     if cmd is None:
         print(USAGE)
         return
@@ -454,7 +465,8 @@ def main(argv=None):
         rc = _cmd_publish(
             args.skill_name, args.repo,
             root=args.root, force=args.force, https=args.https,
-            create=args.create, push=args.push, quiet=quiet,
+            create=args.create, push=args.push, targets=args.target,
+            quiet=quiet,
         )
     elif cmd == "verify":
         rc = _cmd_verify(args.skill_name, quiet=quiet, json_mode=json_mode)
@@ -495,6 +507,16 @@ def _build_parser() -> argparse.ArgumentParser:
             f"{len(PRODUCTS)} domestic AI agent products."
         ),
         exit_on_error=False,   # raise ArgumentError instead of sys.exit (Py3.9+)
+    )
+    # Global ``--version`` (v0.18.0): coexist with the ``version``
+    # subcommand so users get the version whether they type ``askill
+    # --version`` or ``askill version``. It uses a distinct dest
+    # (``show_version``) so it never collides with ``new --version`` (the
+    # frontmatter "version" field, which shares the ``--version`` flag name
+    # on a different parser and a different dest).
+    parser.add_argument(
+        "--version", action="store_true", dest="show_version",
+        help="Show the askill version and exit",
     )
     # ``-q/--quiet`` is universal; ``--json`` only exists on subcommands
     # that actually emit JSON (status/list/products/audit/search/verify/
@@ -628,6 +650,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p_publish.add_argument(
         "--repo", required=True,
         help="Target as owner/name (GitHub), or an explicit git URL",
+    )
+    p_publish.add_argument(
+        "--target", action="append", default=None, dest="target",
+        help="Limit the frontmatter gate to these product shorts (repeatable); "
+             "default checks every declaring product",
     )
     p_publish.add_argument(
         "--push", action="store_true",
@@ -783,11 +810,12 @@ def _cmd_new(name, targets, description, description_zh, version, minimal,
 
 
 def _cmd_publish(name, repo, *, root=False, force=False, https=False,
-                 create=False, push=False, quiet=False):
+                 create=False, push=False, targets=None, quiet=False):
     """``askill publish <skill> --repo owner/name`` body (v0.15.0 R2)."""
     report = publish_skill(
         name, repo,
         root=root, force=force, https=https, create=create, push=push,
+        targets=targets,
         verbose=not quiet,
     )
     if report["error"]:
@@ -966,26 +994,57 @@ def _cmd_update(skill_name, check_only, *, quiet=False, json_mode=False):
             if json_mode:
                 print(json.dumps(result, ensure_ascii=False, indent=2))
             elif not quiet:
-                print(result)
+                status = result["status"]
+                skill = result["skill"]
+                if status == "up-to-date":
+                    print(f"{skill}: up-to-date ({result.get('branch', '')})")
+                elif status == "update-available":
+                    print(
+                        f"{skill}: UPDATE {result.get('local_commit')} -> "
+                        f"{result.get('remote_commit')} ({result.get('branch', '')})"
+                    )
+                elif status == "untracked":
+                    print(f"{skill}: untracked (no source recorded - installed locally)")
+                elif status == "missing":
+                    print(f"{skill}: missing (skill directory not found in central repo)")
+                elif status == "error":
+                    print(f"{skill}: error (remote unreachable / git failed)")
+                else:
+                    print(f"{skill}: {status}")
             return
         results = check_all_updates()
         if json_mode:
             print(json.dumps(results, ensure_ascii=False, indent=2))
             return
         if not quiet:
+            print("Update check (askill update --check)\n")
+            print("  status legend:")
+            print("    up-to-date       local matches the tracked remote")
+            print("    update-available newer commit available on the remote")
+            print("    untracked        no source recorded (installed locally)")
+            print("    missing          skill directory gone from the central repo")
+            print("    error            remote unreachable / git failed")
+            print()
             for r in results:
-                if r["status"] == "up-to-date":
-                    print(f"  {r['skill']:<28} up-to-date ({r.get('branch', '')})")
-                elif r["status"] == "update-available":
+                status = r["status"]
+                skill = r["skill"]
+                if status == "up-to-date":
+                    print(f"  {skill:<28} up-to-date ({r.get('branch', '')})")
+                elif status == "update-available":
                     print(
-                        f"  {r['skill']:<28} UPDATE "
-                        f"{r.get('local_commit')} -> {r.get('remote_commit')} "
-                        f"({r.get('branch', '')})"
+                        f"  {skill:<28} UPDATE {r.get('local_commit')} -> "
+                        f"{r.get('remote_commit')} ({r.get('branch', '')})"
                     )
-                elif r["status"] == "error":
-                    print(f"  {r['skill']:<28} remote unreachable")
+                elif status == "untracked":
+                    print(f"  {skill:<28} untracked")
+                elif status == "missing":
+                    print(f"  {skill:<28} missing (skill dir gone)")
+                elif status == "error":
+                    print(f"  {skill:<28} remote unreachable")
                 else:
-                    print(f"  {r['skill']:<28} {r['status']}")
+                    print(f"  {skill:<28} {status}")
+            if not results:
+                print("  no tracked skills (install via GitHub URL to enable tracking)")
         return
     if skill_name:
         update_skill(skill_name)

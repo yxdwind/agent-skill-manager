@@ -6,6 +6,8 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
+> **包名 ≠ 仓库名（请注意）**：PyPI 安装包名为 **`cn-skill-sync`**，GitHub 仓库名为 **`agent-skill-manager`**。即「装 `cn-skill-sync`，源码在 `agent-skill-manager`」。下方所有 `pip install` 均用 `cn-skill-sync`。
+
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
@@ -356,18 +358,25 @@ pytest tests/ -v
 
 ### Shell 智能补全（v0.13.0）
 
-仓库自带 bash / zsh / fish 补全脚本，零依赖：
+自带 bash / zsh / fish 补全脚本，零依赖。补全脚本有两种获取方式：
 
-```bash
-# bash
-source completion/askill.bash
+- **从源码（git clone）**：直接用仓库根目录的 `completion/`：
+  ```bash
+  # bash
+  source completion/askill.bash
 
-# zsh — 拷贝到 $fpath 下任一目录后 compinit 即可
-cp completion/_askill ${fpath[1]}/_askill
+  # zsh — 拷贝到 $fpath 下任一目录后 compinit 即可
+  cp completion/_askill ${fpath[1]}/_askill
 
-# fish
-cp completion/askill.fish ~/.config/fish/completions/
-```
+  # fish
+  cp completion/askill.fish ~/.config/fish/completions/
+  ```
+- **从 PyPI 安装（v0.18.0+）**：wheel 已内置补全脚本，先定位安装位置再 source：
+  ```bash
+  # 找到补全脚本所在目录（Windows 把 / 换成 \）
+  COMPLETION_DIR="$(python -c 'import agent_skill_manager,os;print(os.path.join(os.path.dirname(agent_skill_manager.__file__),"completion"))')"
+  source "$COMPLETION_DIR/askill.bash"
+  ```
 
 补全会从 `askill list --quiet` / `askill products --json` 实时拉取 skill 名
 与产品短名，所以新装的 skill 也会立刻出现在 Tab 候选里。
@@ -396,6 +405,14 @@ cp completion/askill.fish ~/.config/fish/completions/
 
 - [安全政策（SECURITY.md）](SECURITY.md) — 漏洞报告指引与安全建议
 - [隐私政策（PRIVACY.md）](PRIVACY.md) — 数据本地处理说明
+
+## 已知限制
+
+- **`sync` 与 `settings.json` 占用**：Windows 上若目标产品的 IDE 正在运行并锁住其 `settings.json`（报 `WinError 5 / 拒绝访问`），`sync` 仍会建好技能链接，但无法在该产品内启用该 skill。此时 `sync` 末尾会聚合打印醒目提示，列出「已链接但未启用」的产品及处理建议——**关闭 / 重启该 IDE 后重跑 `askill sync` 即可让 skill 真正生效**，请勿误以为已同步成功。
+- **`watch` 在受限 / 容器环境**：`watch` 优先使用原生文件系统事件（Linux inotify / macOS kqueue / Windows ReadDirectoryChangesW），不可用时回退为轮询。在部分沙箱 / 容器里事件可能不下发，会表现为「看起来没反应」，但轮询兜底仍在持续监听；原生终端下可正常运行。
+- **`drift` 跨产品目录扫描**：`drift` 会读取家目录下的各产品目录，在权限受限的环境（如某些沙箱）可能被安全策略中断，需在授予权限的常规终端中运行。
+- **`publish` 门禁**：默认检查**全部**声明了额外 frontmatter 要求的产品；若你只发布到部分产品，请用 `askill publish <skill> --repo owner/name --target <short> [--target ...]` 收窄，避免被无关产品的字段要求拦截。
+- **安全评测的误报**：`audit` 会对开发 / 测试路径（如 `test/`、`bin/`）里的代码降权处理，但仍是静态启发式分析，存在误报可能；高危结论请结合源码人工复核。
 
 ## 许可证
 

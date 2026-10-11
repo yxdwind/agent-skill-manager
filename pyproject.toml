@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cn-skill-sync"
-version = "0.17.0"
-description = "Cross-platform (macOS/Windows/Linux) skill management for 15 domestic AI agent products"
+version = "0.18.0"
+description = "Cross-platform skill manager for 15 domestic AI agent products (PyPI name: cn-skill-sync; repo: agent-skill-manager)"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
@@ -48,15 +48,26 @@ dev = [
 ]
 
 [tool.setuptools]
-package-dir = {"agent_skill_manager" = "src"}
 packages = [
     "agent_skill_manager",
+    "agent_skill_manager.completion",
     "agent_skill_manager.config",
     "agent_skill_manager.controllers",
     "agent_skill_manager.models",
     "agent_skill_manager.services",
     "agent_skill_manager.utils",
 ]
+
+# Shell-completion scripts ship under the ``agent_skill_manager.completion``
+# subpackage (a real package so setuptools includes the non-Python files); the
+# repo-root ``completion/`` dir is kept for git-clone users. The pip-installed
+# location is documented in the README.
+[tool.setuptools.package-dir]
+agent_skill_manager = "src"
+"agent_skill_manager.completion" = "src/agent_skill_manager/completion"
+
+[tool.setuptools.package-data]
+"agent_skill_manager.completion" = ["*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -119,7 +130,7 @@ ignore = [
 # bump version + regenerate CHANGELOG.md in lockstep.
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.17.0"
+version = "0.18.0"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml",

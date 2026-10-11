@@ -207,13 +207,18 @@ def watch_loop(
     if mode == "poll":
         cadence = interval
         if not json_events:
-            print(f"Watching {CENTRAL_DIR} (poll every {cadence}s, Ctrl+C to stop)")
+            print(
+                f"Watching {CENTRAL_DIR}\n  mode: poll (every {cadence}s)"
+                f"\n  Ctrl+C to stop\n",
+                flush=True,
+            )
     else:
         cadence = max(RECONCILE_INTERVAL_S, interval)
         if not json_events:
             print(
-                f"Watching {CENTRAL_DIR} [native {mode} events, "
-                f"reconcile every {cadence}s, Ctrl+C to stop]"
+                f"Watching {CENTRAL_DIR}\n  mode: native {mode} events"
+                f"\n  reconcile every {cadence}s\n  Ctrl+C to stop\n",
+                flush=True,
             )
 
     known_verdicts: dict[str, str] = {}
@@ -227,7 +232,7 @@ def watch_loop(
     if json_events:
         print(json.dumps({"event": "start", "backend": mode, "tracking": n_top}))
     else:
-        print(f"Tracking {n_top} entries. Ready.")
+        print(f"Tracking {n_top} entries. Ready (watching for changes).", flush=True)
 
     try:
         while True:

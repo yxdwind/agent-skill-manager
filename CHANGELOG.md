@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.18.0 (2026-10-11)
+
+### Added
+- `askill --version` global flag (the `version` subcommand still works).
+- `askill publish --target <short>` (repeatable): scope the per-product
+  frontmatter gate to the products you actually publish to, so an unrelated
+  product's requirement can no longer block a single-platform publish.
+- Shell-completion scripts (`askill.bash` / `_askill` / `askill.fish`) are
+  now bundled inside the PyPI wheel via package-data; pip users can source
+  them from the installed package location.
+- README "Known Limitations" section (settings.json lock, watch in
+  restricted environments, drift permissions, publish gate, audit FPs).
+
+### Changed
+- `askill update --check` human output now prints a header with a status
+  legend (up-to-date / update-available / untracked / missing / error) so
+  the `missing` status is self-explanatory.
+- `askill watch` prints a clearer, flushed startup banner (watching path,
+  mode, Ctrl+C hint) so users can confirm it is alive.
+- Cross-referenced the PyPI package name (`cn-skill-sync`) and the GitHub
+  repo name (`agent-skill-manager`) in the README top and the PyPI
+  description to lower discovery friction.
+
 ## v0.17.0 (2026-10-11)
 
 ### Fixed
