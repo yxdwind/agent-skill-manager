@@ -19,7 +19,7 @@
 
 **一次开发，十五端同步** — 跨平台统一管理国内 AI Agent 产品的 Skill 安装与同步
 
-[安装](#安装) · [使用](#使用) · [二次开发](#二次开发) · [架构原理](#架构原理)
+[安装](#安装) · [使用](#使用) · [对比同类](#与同类工具的区别) · [二次开发](#二次开发) · [架构原理](#架构原理)
 
 </div>
 
@@ -79,6 +79,21 @@
 - **零依赖**：仅使用 Python 标准库
 
 ![Demo](docs/demo.gif)
+
+## 与同类工具的区别
+
+PyPI 上另有名为 `agent-skill-manager` 的同类 CLI（命令 `sm`），面向 Claude Code / Cursor / Windsurf 等国际 agent。本项目从产品覆盖面到同步模型都不同：
+
+| 维度 | askill（cn-skill-sync） |
+|------|------------------------|
+| 产品覆盖 | 15 个国产 agent：腾讯 CodeBuddy / WorkBuddy、百度 Comate / DuMate、阿里 QwenWork / Qoder CN、字节 DoubaoWork / Trae 中文系、MiniMax、Kimi、智谱 AutoClaw2、ZCode |
+| 同步模型 | 中央仓库 `~/.agents/skills/` 是唯一权威源，各产品目录用 junction / symlink 指向它——磁盘上只有一份，改一处、全部产品生效 |
+| 常驻同步 | `askill watch` 挂在操作系统原生文件事件上，并定时对账把产品侧丢失的链接补回（v0.19.0） |
+| 网络依赖 | 离线优先：安装、同步、审计全程本地完成；只有从 GitHub 装新 skill 才触网 |
+| 安全 | 安装即跑静态审计（提示注入 / 危险代码 / 敏感信息 / 二进制文件），scaffold 按产品 frontmatter 要求预填 |
+| 跨平台 | Windows junction（免管理员权限）/ macOS / Linux symlink，同一套语义 |
+
+一句话区别：同类工具的主场景是**从 GitHub 发现、下载、部署** skill；askill 的主场景是**本地中央仓库一处维护、十五个国产产品实时同步**——从 GitHub 安装只是入口之一。
 
 ## 安装
 
@@ -250,7 +265,7 @@ agent-skill-manager/
 
 - **事件驱动**：Linux 用 inotify、macOS 用 kqueue、Windows 用 ReadDirectoryChangesW（全部标准库 ctypes/select 实现）；文件一保存即刻感知，实测延迟约 0.4 秒（含去抖），不再是固定 3 秒轮询
 - **去抖合并**：编辑器一次保存的多个 syscall 事件合并为一次同步，只重同步真正变化的 skill
-- **全量对账**：事件模式下每 30 秒仍做一次快照兜底，防事件丢失（队列溢出、目录替换、根目录重建）
+- **产品侧自愈对账（v0.19.0）**：每 30 秒（随 `--interval` 放大）一次 sweep，把「中央仓库有、产品目录缺」的链接补回去——手动删掉的、同步失败丢了的、比 watch 启动更早存在的 skill 都会被补上；产品路径已有任何东西（真实目录 / 活链接 / 死 junction）则不动，你的手动副本归 `askill sync --force` 管
 - **新增/修改** skill → 自动同步到全部产品，实时打印每个产品结果
 - **冲突/打包提示（v0.13.0）** → 产品目录有同名冲突时保留本地并提示处理方式；DuMate 等 pack 类产品会提示运行 `askill pack` 刷新压缩包
 - **删除** skill → 自动清理所有产品残留链接，杜绝死链（根目录被删也能感知）

@@ -19,7 +19,7 @@
 
 **Write once, sync everywhere** — Cross-platform skill management for 15 domestic Chinese AI agent products.
 
-[Install](#install) · [Usage](#usage) · [Security Audit](#security-audit) · [Architecture](#architecture)
+[Install](#install) · [Usage](#usage) · [How It Compares](#how-it-compares) · [Security Audit](#security-audit) · [Architecture](#architecture)
 
 </div>
 
@@ -79,6 +79,21 @@ Every Chinese AI agent product keeps its skills in its own directory. Developing
 - **Zero dependencies**: Python standard library only
 
 ![Demo](docs/demo.gif)
+
+## How It Compares
+
+Another CLI on PyPI named `agent-skill-manager` (command `sm`) targets international agents such as Claude Code, Cursor and Windsurf. This project differs in both coverage and sync model:
+
+| Dimension | askill (cn-skill-sync) |
+|-----------|------------------------|
+| Product coverage | 15 domestic Chinese agents: Tencent CodeBuddy / WorkBuddy, Baidu Comate / DuMate, Alibaba QwenWork / Qoder CN, ByteDance DoubaoWork / Trae (CN variants), MiniMax, Kimi, Zhipu AutoClaw2, ZCode |
+| Sync model | One central repository `~/.agents/skills/` as the single source of truth; product directories hold junctions / symlinks to it — one copy on disk, edit once and every product sees it |
+| Live sync | `askill watch` idles on native OS file events and periodically reconciles, re-creating product-side links that went missing (v0.19.0) |
+| Network | Offline-first: install, sync and audit all run locally; only fetching a new skill from GitHub touches the network |
+| Security | Static audit on every install (prompt injection / dangerous code / secrets / binaries); scaffold prefills per-product frontmatter |
+| Cross-platform | Windows junctions (no admin rights) / macOS / Linux symlinks behind one set of semantics |
+
+In one sentence: the other tool's main scenario is **discovering, downloading and deploying skills from GitHub**; askill's main scenario is **maintaining one local central repo and keeping 15 domestic products in sync live** — installing from GitHub is just one entry point.
 
 ## Install
 
@@ -253,7 +268,7 @@ agent-skill-manager/
 
 - **Event-driven**: inotify on Linux, kqueue on macOS, ReadDirectoryChangesW on Windows (all stdlib ctypes/select); saves are sensed instantly - ~0.4s observed latency including debounce, no more fixed 3s polling
 - **Debounced**: the multiple syscalls behind one editor save collapse into a single sync; only skills that truly changed are re-synced
-- **Full reconciliation**: even in event mode a snapshot rescan runs every 30s as a safety net against lost events (queue overflow, directory swaps, root recreation)
+- **Product-side self-healing reconcile (v0.19.0)**: every 30s (scaled with `--interval`) a sweep re-links any skill the central repo has but a product lacks — deleted by hand, lost to a failed sync, or predating the watch run. A product path that already holds anything (real directory / live link / dead junction) is left alone; your own copy stays conflict territory owned by `askill sync --force`
 - **New/changed skill** → synced to all products immediately, per-product results printed live
 - **Conflict/pack hints (v0.13.0)** → when a product dir holds a conflicting real directory the local copy is kept and a resolution hint is printed; pack-mode products (DuMate) get a hint to refresh the zip via `askill pack`
 - **Deleted skill** → leftover links are cleaned from every product, no dead links (root deletion is sensed too)

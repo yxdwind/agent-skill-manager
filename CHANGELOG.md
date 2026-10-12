@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.19.1 (2026-10-12)
+
+### Documentation
+- **New comparison section in both READMEs** (「与同类工具的区别」/ "How It
+  Compares"): 15 domestic Chinese agent products vs. the international-agent
+  focus of tools like the PyPI package `agent-skill-manager`, plus the
+  central-repo single-copy sync model, self-healing `watch`, offline-first
+  operation, install-time security audit, and one cross-platform link semantic.
+- **Corrected the `askill watch` docs.** The README still described the 30s
+  sweep as a snapshot-rescan safety net — the pre-v0.19.0 behavior. Since
+  v0.19.0 that sweep is `reconcile_missing()`, which re-links any skill the
+  central repo has but a product lacks. The docs had not caught up when
+  v0.19.0 shipped.
+- Both READMEs now state why the package name stays `cn-skill-sync` (the
+  `agent-skill-manager` name on PyPI is taken by another project, and PyPI
+  names cannot be transferred).
+
 ## v0.19.0 (2026-10-12)
 
 ### Added
