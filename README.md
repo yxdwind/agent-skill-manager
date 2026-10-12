@@ -6,7 +6,7 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
-> **包名 ≠ 仓库名（请注意）**：PyPI 安装包名为 **`cn-skill-sync`**，GitHub 仓库名为 **`agent-skill-manager`**。即「装 `cn-skill-sync`，源码在 `agent-skill-manager`」。下方所有 `pip install` 均用 `cn-skill-sync`。
+> **包名 ≠ 仓库名（有意为之）**：PyPI 安装包名为 **`cn-skill-sync`**，GitHub 仓库名为 **`agent-skill-manager`**。即「装 `cn-skill-sync`，源码在 `agent-skill-manager`」。PyPI 上的 `agent-skill-manager` 已被另一个同类项目占用，且 PyPI 项目名不可转移，故包名维持 `cn-skill-sync` 不变。下方所有 `pip install` 均用 `cn-skill-sync`。
 >
 > ⚠️ **不要 `pip install askill`**——PyPI 上的 `askill` 是另一个不相关的项目。本项目安装用 `pip install cn-skill-sync`，装完的命令才叫 `askill`。
 

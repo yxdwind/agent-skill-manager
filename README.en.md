@@ -6,7 +6,7 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
-> **Package name ≠ repo name (note)**: the PyPI package is **`cn-skill-sync`** while the GitHub repo is **`agent-skill-manager`** — i.e. "install `cn-skill-sync`, source lives in `agent-skill-manager`". Every `pip install` below uses `cn-skill-sync`.
+> **Package name ≠ repo name (intentional)**: the PyPI package is **`cn-skill-sync`** while the GitHub repo is **`agent-skill-manager`** — i.e. "install `cn-skill-sync`, source lives in `agent-skill-manager`". The `agent-skill-manager` name on PyPI is already taken by another project, and PyPI names cannot be transferred, so the package name stays `cn-skill-sync`. Every `pip install` below uses `cn-skill-sync`.
 >
 > ⚠️ **Do not `pip install askill`** — the `askill` package on PyPI is an unrelated project. Install with `pip install cn-skill-sync`; the command it provides is called `askill`.
 
