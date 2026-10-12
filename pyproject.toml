@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cn-skill-sync"
-version = "0.18.1"
+version = "0.18.2"
 description = "Cross-platform skill manager for 15 domestic AI agent products (PyPI name: cn-skill-sync; repo: agent-skill-manager)"
 readme = "README.md"
 license = {text = "MIT"}
@@ -110,6 +110,30 @@ ignore = [
     "COM812",
     "ISC001",
 ]
+# RUF001 flags "confusable" characters that look like ASCII. CJK punctuation
+# is a false positive here: this CLI prints Chinese UI text, where ，。：（）…
+# are the correct characters, not homoglyph attacks. Allowlisting them keeps
+# RUF001's real value (catching Cyrillic/Greek look-alikes in identifiers and
+# URLs) instead of disabling the rule outright.
+allowed-confusables = [
+    "，",  # FULLWIDTH COMMA
+    "。",  # IDEOGRAPHIC FULL STOP
+    "、",  # IDEOGRAPHIC COMMA
+    "；",  # FULLWIDTH SEMICOLON
+    "：",  # FULLWIDTH COLON
+    "？",  # FULLWIDTH QUESTION MARK
+    "！",  # FULLWIDTH EXCLAMATION MARK
+    "（",  # FULLWIDTH LEFT PARENTHESIS
+    "）",  # FULLWIDTH RIGHT PARENTHESIS
+    "【",  # LEFT BLACK LENTICULAR BRACKET
+    "】",  # RIGHT BLACK LENTICULAR BRACKET
+    "《",  # LEFT DOUBLE ANGLE BRACKET
+    "》",  # RIGHT DOUBLE ANGLE BRACKET
+    "「",  # LEFT CORNER BRACKET
+    "」",  # RIGHT CORNER BRACKET
+    "…",  # HORIZONTAL ELLIPSIS
+    "—",  # EM DASH
+]
 
 [tool.ruff.lint.per-file-ignores]
 # Test files routinely use a MagicMock() result that's never referenced,
@@ -130,7 +154,7 @@ ignore = [
 # bump version + regenerate CHANGELOG.md in lockstep.
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.18.1"
+version = "0.18.2"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml",

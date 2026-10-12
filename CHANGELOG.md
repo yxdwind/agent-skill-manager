@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.18.2 (2026-10-11)
+
+### Fixed
+- CI `Lint (ruff)` was red since v0.17.0: RUF001 flagged the fullwidth
+  punctuation in the Chinese UI strings (`：` `（` `）` `，` …) as "ambiguous"
+  characters. For CJK text those are the correct characters, not homoglyph
+  look-alikes, so `lint.allowed-confusables` now allowlists CJK punctuation.
+  RUF001 keeps its real value elsewhere (Cyrillic / Greek look-alikes in
+  identifiers and URLs) instead of being disabled outright. The two now-
+  redundant `# noqa: RUF001` comments were removed.
+- CI `Type check (mypy)` was red since v0.17.0: `src/services/audit.py`
+  appended a `dict[str, object]` to `list[Finding]`. `Finding` is now split
+  into `_FindingCore` (required keys) and `Finding(_FindingCore,
+  total=False)`, which adds the optional `dev_context` marker — so the
+  dev/test-path tag is part of the declared schema rather than an untyped
+  extra key, and `_scan_text`'s finding literal is checked against it.
+
 ## v0.18.1 (2026-10-11)
 
 ### Fixed

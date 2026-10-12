@@ -224,7 +224,7 @@ def _scan_text(
                 if key in seen:
                     break
                 seen.add(key)
-                finding = {
+                finding: Finding = {
                     "severity": severity,
                     "category": category,
                     "file": str(path),

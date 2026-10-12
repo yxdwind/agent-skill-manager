@@ -14,7 +14,7 @@ from ..config.products import CENTRAL_DIR, PRODUCTS
 from .spec import _NAME_RE, NAME_MAX, check_spec, product_frontmatter_issues
 
 _DESC_PLACEHOLDER = "(TODO) One line: what does {name} do and when should the agent use it?"
-_DESC_ZH_PLACEHOLDER = "（TODO）一句话说明 {name} 的用途与适用场景。"  # noqa: RUF001 - intentional Chinese fullwidth punctuation
+_DESC_ZH_PLACEHOLDER = "（TODO）一句话说明 {name} 的用途与适用场景。"
 
 _BODY_TEMPLATE = """\
 

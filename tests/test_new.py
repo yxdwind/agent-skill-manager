@@ -95,7 +95,7 @@ class TestCreateSkill:
         assert "name: demo-skill" in text
         assert "description: (TODO)" in text
         assert "version: 0.1.0" in text
-        assert "description_zh: （TODO）" in text  # noqa: RUF001 - intentional Chinese punctuation
+        assert "description_zh: （TODO）" in text
         # qwenwork also declares name/description - they must NOT be
         # duplicated (a dup key would shadow the real value on parse)
         assert text.count("name:") == 1

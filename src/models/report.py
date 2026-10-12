@@ -5,13 +5,29 @@ from __future__ import annotations
 from typing import TypedDict
 
 
-class Finding(TypedDict):
+class _FindingCore(TypedDict):
+    """Keys every audit finding carries."""
+
     severity: str  # critical | high | medium | low | info
     category: str
     file: str
     line: int | None
     pattern: str
     message: str
+
+
+class Finding(_FindingCore, total=False):
+    """One static-audit hit.
+
+    ``dev_context`` is set only on findings raised from a development / test
+    path (see ``services.audit._is_dev_context``): those keep their message
+    but get a down-weighted severity, so benign dev tooling cannot sink a
+    skill's score. The key is optional (``total=False`` applies to the keys
+    declared here, not the inherited ones) so all other construction sites
+    stay plain six-key dicts.
+    """
+
+    dev_context: bool
 
 
 class SkillReport(TypedDict):
