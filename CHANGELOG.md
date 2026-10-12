@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.18.3 (2026-10-12)
+
+### Fixed
+- **Deleting a skill left dead junctions in every product.** `watch` detected
+  the deletion but could not remove the links it had created, so each product
+  kept a junction pointing at a target that no longer existed — surfacing as a
+  broken skill entry in the IDE. Root cause: `is_symlink_or_junction()` gated
+  on `path.exists()`, which *follows* the link and reports `False` once the
+  target is gone (and `Path.is_symlink()` is `False` for a Windows junction
+  either way), so a dangling junction looked like a plain missing path.
+  The reparse-point attribute is now read from `os.lstat()`, which opens the
+  path itself rather than its target — this also drops the per-call `fsutil`
+  subprocess. `remove_path()` had the same early-return and is fixed with it;
+  it now removes a link as a link (never through its target) and no longer
+  falls over on a dangling POSIX symlink.
+
+  Verified on a real Windows box: create a skill while `askill watch` runs →
+  it syncs to 11 products; delete it from the central repo → the log now
+  reports `cleaned leftovers from: autoclaw2, codebuddy, comate, ...` and zero
+  junctions remain. Before the fix the same run left 10 dead junctions behind.
+
 ## v0.18.2 (2026-10-11)
 
 ### Fixed

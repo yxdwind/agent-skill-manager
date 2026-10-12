@@ -1,11 +1,15 @@
 """Tests for agent_skill_manager.utils module."""
 
 
+import shutil
+
+import pytest
 from agent_skill_manager.utils.filesystem import (
     copy_skill,
     create_link,
     is_symlink_or_junction,
     read_skill_metadata,
+    remove_path,
 )
 
 
@@ -22,6 +26,77 @@ class TestIsSymlinkOrJunction:
         f = tmp_path / "file.txt"
         f.write_text("hello")
         assert not is_symlink_or_junction(f)
+
+    def test_dead_link_still_detected(self, tmp_path):
+        """A link whose target was deleted must still read as a link.
+
+        Regression: the old implementation gated on ``path.exists()``, which
+        follows the link and reports ``False`` once the target is gone - so a
+        dangling Windows junction was treated as a plain (missing) path and
+        never cleaned up. See ``clean_deleted_skill``.
+        """
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "SKILL.md").write_text("x", encoding="utf-8")
+        dst = tmp_path / "dst"
+        ok, method, _ = create_link(src, dst)
+        assert ok and method in ("symlink", "junction", "copy")
+
+        if method == "copy":
+            pytest.skip("link creation fell back to copy on this platform")
+        assert is_symlink_or_junction(dst)
+
+        # delete the target -> dst is now a dead link
+        shutil.rmtree(src)
+        assert not dst.exists()          # resolves through the dead link
+        assert is_symlink_or_junction(dst)  # ...but it is still a link
+
+
+class TestRemovePath:
+    def test_removes_dead_link_without_touching_target(self, tmp_path):
+        """``remove_path`` must drop a dead link, not its (gone) target."""
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "SKILL.md").write_text("x", encoding="utf-8")
+        dst = tmp_path / "dst"
+        ok, method, _ = create_link(src, dst)
+        assert ok
+        if method == "copy":
+            pytest.skip("link creation fell back to copy on this platform")
+
+        shutil.rmtree(src)
+        remove_path(dst)
+        assert not dst.exists()
+        assert not is_symlink_or_junction(dst)
+
+    def test_removes_live_link_keeps_target(self, tmp_path):
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "SKILL.md").write_text("keep me", encoding="utf-8")
+        dst = tmp_path / "dst"
+        ok, method, _ = create_link(src, dst)
+        assert ok
+        if method == "copy":
+            pytest.skip("link creation fell back to copy on this platform")
+
+        remove_path(dst)
+        assert not dst.exists()
+        assert (src / "SKILL.md").read_text(encoding="utf-8") == "keep me"
+
+    def test_removes_plain_file_and_dir(self, tmp_path):
+        f = tmp_path / "f.txt"
+        f.write_text("x", encoding="utf-8")
+        remove_path(f)
+        assert not f.exists()
+
+        d = tmp_path / "d"
+        d.mkdir()
+        (d / "inner.txt").write_text("x", encoding="utf-8")
+        remove_path(d)
+        assert not d.exists()
+
+    def test_nonexistent_path_is_a_noop(self, tmp_path):
+        remove_path(tmp_path / "never-existed")  # must not raise
 
 
 class TestCreateLink:

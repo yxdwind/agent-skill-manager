@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cn-skill-sync"
-version = "0.18.2"
+version = "0.18.3"
 description = "Cross-platform skill manager for 15 domestic AI agent products (PyPI name: cn-skill-sync; repo: agent-skill-manager)"
 readme = "README.md"
 license = {text = "MIT"}
@@ -154,7 +154,7 @@ allowed-confusables = [
 # bump version + regenerate CHANGELOG.md in lockstep.
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.18.2"
+version = "0.18.3"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml",

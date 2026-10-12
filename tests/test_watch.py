@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import time
 from pathlib import Path
 
@@ -110,6 +111,44 @@ class TestClean:
         removed = watch_mod.clean_deleted_skill("gone-skill")
         assert removed == ["fake"]
         assert not leftover.exists()
+
+    def test_clean_removes_dead_junction(self, fake_central, tmp_path, monkeypatch):
+        """Deleting a skill must drop its links, not leave dead junctions.
+
+        Regression found by running ``askill watch`` on a real Windows box:
+        the skill was detected as deleted, but every product kept a junction
+        pointing at a target that no longer existed, because
+        ``is_symlink_or_junction()`` bailed out on ``path.exists()`` (which
+        follows the link). The IDE then showed a broken skill per product.
+        """
+        from agent_skill_manager.utils.filesystem import create_link
+
+        prod_dir = tmp_path / "prod-skills"
+        prod_dir.mkdir()
+        fake_products = [{
+            "name": "Fake", "short": "fake",
+            "macos_path": prod_dir, "windows_path": prod_dir, "linux_path": prod_dir,
+            "sync_method": "symlink",
+            "extra_dirs_macos": [], "extra_dirs_windows": [],
+        }]
+        monkeypatch.setattr(watch_mod, "PRODUCTS", fake_products)
+
+        # a real link into the central repo, as `askill sync` would leave it
+        central_skill = _mk_skill(fake_central, "gone-skill")
+        link = prod_dir / "gone-skill"
+        ok, method, _ = create_link(central_skill, link)
+        assert ok and method in ("symlink", "junction", "copy")
+        if method == "copy":
+            pytest.skip("link creation fell back to copy on this platform")
+
+        # the user deletes the skill from the central repository
+        shutil.rmtree(central_skill)
+        assert not link.exists()  # dead link - resolves to nothing
+
+        removed = watch_mod.clean_deleted_skill("gone-skill")
+        assert removed == ["fake"]
+        assert not link.exists()
+        assert not (prod_dir / "gone-skill").is_symlink()
 
     def test_settings_entry_removed(self, fake_central, tmp_path, monkeypatch):
         settings = tmp_path / "settings.json"

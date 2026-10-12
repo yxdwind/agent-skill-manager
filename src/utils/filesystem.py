@@ -8,9 +8,25 @@ from pathlib import Path
 
 IS_WINDOWS = platform.system() == "Windows"
 
+# Windows FILE_ATTRIBUTE_REPARSE_POINT. Python exposes the raw attribute mask
+# as ``os.stat_result.st_file_attributes`` on Windows, so a reparse point
+# (junction or symlink) can be recognised without spawning ``fsutil``.
+_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+
 
 def is_symlink_or_junction(path: Path) -> bool:
     """Check if path is a symlink (macOS/Linux) or junction (Windows).
+
+    Detects *dead* links too - a junction whose target directory was deleted.
+    ``Path.exists()`` follows the link, so it reports ``False`` for those, and
+    ``Path.is_symlink()`` is ``False`` for a Windows junction regardless. The
+    reparse-point attribute is therefore read from ``os.lstat()``, which opens
+    the path itself rather than its target.
+
+    This matters for cleanup: ``askill watch`` and ``askill remove`` detect a
+    deleted skill and must still recognise (and drop) the junctions left in
+    every product, otherwise each product keeps a dead junction that surfaces
+    as a broken skill entry in the IDE.
 
     Args:
         path: Path to check.
@@ -18,19 +34,13 @@ def is_symlink_or_junction(path: Path) -> bool:
     Returns:
         True if the path is a symlink or junction point.
     """
-    if not path.exists() and not path.is_symlink():
-        return False
     if IS_WINDOWS:
         try:
-            result = subprocess.run(
-                ["fsutil", "reparsepoint", "query", str(path)],
-                capture_output=True, text=True, encoding="utf-8", errors="replace"
-            )
-            return result.returncode == 0
-        except Exception:
+            attrs = getattr(os.lstat(path), "st_file_attributes", 0)
+        except OSError:
             return False
-    else:
-        return path.is_symlink()
+        return bool(attrs & _FILE_ATTRIBUTE_REPARSE_POINT)
+    return path.is_symlink()
 
 
 def create_link(src: Path, dst: Path, force: bool = False) -> tuple:
@@ -162,17 +172,24 @@ def copy_skill(src: Path, dst: Path) -> None:
 def remove_path(path: Path) -> None:
     """Remove a path whether it's a symlink, junction, directory, or file.
 
+    Also removes *dead* links (a junction whose target is gone): those fail
+    both ``exists()`` and ``is_symlink()`` on Windows, so the link test runs
+    first and is ``lstat``-based. A link is always removed as a link - never
+    through its target - so deleting a dead junction can never touch (what is
+    left of) the central repository.
+
     Args:
         path: Path to remove.
     """
     path = Path(path)
-    if not path.exists() and not path.is_symlink():
-        return
     if is_symlink_or_junction(path):
-        path.rmdir()
+        try:
+            path.rmdir()  # Windows junction (a directory reparse point)
+        except OSError:
+            path.unlink()  # POSIX symlink, including a dangling one
     elif path.is_dir():
         shutil.rmtree(path)
-    else:
+    elif path.is_file():
         path.unlink()
 
 
