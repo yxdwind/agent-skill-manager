@@ -938,7 +938,7 @@ def adopt_from_platform(
     Returns:
         Dict with keys: adopted (list of tuples), synced (dict from sync_skill).
     """
-    from ..config.products import IS_WINDOWS, get_all_product_dirs
+    from ..config.products import get_all_product_dirs
 
     adopt_all = platform_short == "all"
     product: ProductSpec | None = None
@@ -1029,7 +1029,11 @@ def adopt_from_platform(
 
         try:
             real_src = src_path
-            if (IS_WINDOWS and _is_junction(src_path)) or src_path.is_symlink():
+            # A link is adopted by content, not by reference: resolve it to
+            # the real directory first. `is_symlink_or_junction` covers the
+            # Windows junction case (and, unlike a bare `is_symlink()`, a
+            # dangling one) as well as POSIX symlinks.
+            if is_symlink_or_junction(src_path):
                 real_src = src_path.resolve()
 
             shutil.copytree(real_src, dest)
@@ -1057,21 +1061,6 @@ def adopt_from_platform(
                 synced.update(result)
 
     return {"adopted": adopted, "synced": synced}
-
-
-def _is_junction(path: Path) -> bool:
-    """Check if a Windows path is a junction point."""
-    import platform
-    if platform.system() != "Windows":
-        return False
-    try:
-        result = subprocess.run(
-            ["fsutil", "reparsepoint", "query", str(path)],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-        )
-        return result.returncode == 0
-    except Exception:
-        return False
 
 
 @contextlib.contextmanager

@@ -13,9 +13,11 @@ Provides the ``askill watch`` long-running mode:
   dead junctions/symlinks.
 - After each sync the skill is re-audited; a score drop across the
   safe/risky boundary triggers a loud warning.
-- Even in event mode a full reconciliation rescan runs every
-  RECONCILE_INTERVAL_S as a safety net (queue overflow, editors that swap
-  directories, root recreation).
+- Every RECONCILE_INTERVAL_S a reconcile sweep re-creates product links that
+  went missing on the *product* side - the snapshot diff only ever sees
+  central-side changes, so without this a hand-deleted junction, a sync that
+  failed because an IDE held ``settings.json``, or a skill that simply
+  predates the watch run would stay missing forever.
 """
 from __future__ import annotations
 
@@ -104,6 +106,55 @@ def diff_snapshots(
     return changed, deleted
 
 
+# ---------------------------------------------------------------- reconciling
+
+def reconcile_missing(verbose: bool = True) -> dict[str, list[str]]:
+    """Re-create product links that went missing.
+
+    The event loop only reacts to changes *inside* the central repository, so
+    a link that disappears on the product side stays missing forever: deleted
+    by hand, lost to a sync that failed (an IDE holding ``settings.json``), or
+    never created because the skill predates this watch run. This sweeps every
+    product directory and re-syncs the skills whose link is absent.
+
+    Only "central has it, the product lacks it" is repaired. A product path
+    that already holds *anything* - a real directory (the user's own copy),
+    a live link, or a dead junction - is left alone; real directories are
+    conflict territory owned by ``askill sync --force``. Product directories
+    that do not exist are skipped: the product is simply not set up here.
+
+    Returns:
+        Mapping of skill_name -> sorted product shorts that were re-linked.
+    """
+    repaired: dict[str, list[str]] = {}
+    if not CENTRAL_DIR.exists():
+        return repaired
+
+    for skill in list_skills():
+        missing: list[str] = []
+        for p in PRODUCTS:
+            if p["sync_method"] in ("native", "pack"):
+                continue
+            for d in get_all_product_dirs(p):
+                if d is None or not Path(d).exists():
+                    continue  # product not set up on this machine
+                link = Path(d) / skill.name
+                # `exists()` follows links, so it covers real dirs and live
+                # links; `is_symlink_or_junction` adds the dead-junction case.
+                if link.exists() or is_symlink_or_junction(link):
+                    continue
+                missing.append(p["short"])
+        if not missing:
+            continue
+        sync_skill(skill.name, verbose=False)
+        repaired[skill.name] = sorted(set(missing))
+
+    if verbose and repaired:
+        for name, shorts in sorted(repaired.items()):
+            print(f"  [watch] reconcile: re-linked '{name}' -> {', '.join(shorts)}")
+    return repaired
+
+
 # ---------------------------------------------------------------- cleaning
 
 def clean_deleted_skill(skill_name: str, verbose: bool = True) -> list[str]:
@@ -184,7 +235,7 @@ def watch_loop(
 
     Args:
         interval: Seconds between polls. In native event mode this is only
-            the fallback poll cadence; the loop then reconciles at least
+            the fallback poll cadence; the loop then re-snapshots at least
             every RECONCILE_INTERVAL_S instead of every ``interval``.
         on_change: Optional callback(skill_name) invoked after each sync -
             used by tests to observe the loop without a real filesystem.
@@ -192,6 +243,10 @@ def watch_loop(
             (v0.15.0). Security-warning details still print as plain text
             after the event line - a deliberate trade-off so the loud
             warnings never get swallowed by a JSON consumer.
+
+    A ``reconcile`` sweep (see :func:`reconcile_missing`) runs every
+    ``max(cadence, RECONCILE_INTERVAL_S)`` seconds, so product-side link loss
+    is repaired even when the central repository is quiet.
     """
     if not CENTRAL_DIR.exists():
         if json_events:
@@ -217,7 +272,7 @@ def watch_loop(
         if not json_events:
             print(
                 f"Watching {CENTRAL_DIR}\n  mode: native {mode} events"
-                f"\n  reconcile every {cadence}s\n  Ctrl+C to stop\n",
+                f"\n  Ctrl+C to stop\n",
                 flush=True,
             )
 
@@ -226,6 +281,13 @@ def watch_loop(
     for s in list_skills():
         rep = analyze_skill_dir(s)
         known_verdicts[s.name] = rep.get("verdict", "safe")
+
+    # Self-heal cadence. The diff below only sees central-side changes, so a
+    # link lost on the product side needs its own sweep - this is what the
+    # "reconcile" banner promises. Never tighter than RECONCILE_INTERVAL_S:
+    # in poll mode `cadence` is only a few seconds.
+    reconcile_every = max(cadence, RECONCILE_INTERVAL_S)
+    last_reconcile = time.monotonic()
 
     prev = snapshot_central()
     n_top = len({k.split("/", 1)[0] for k in prev})
@@ -251,64 +313,76 @@ def watch_loop(
                     backend.close()
                 backend = PollingWatcher(CENTRAL_DIR, interval=interval)
                 mode, cadence = "poll", interval
+                reconcile_every = max(cadence, RECONCILE_INTERVAL_S)
                 continue
 
             curr = snapshot_central()
             changed, deleted = diff_snapshots(prev, curr)
-            if not changed and not deleted:
-                prev = curr
-                continue
 
-            if not json_events:
-                print(f"\n[{time.strftime('%H:%M:%S')}] detected changes")
-            for name in sorted(deleted):
-                cleaned = clean_deleted_skill(name, verbose=not json_events)
-                if json_events:
-                    print(json.dumps({
-                        "event": "deleted", "skill": name, "cleaned_from": sorted(set(cleaned)),
-                    }))
-                else:
-                    print(f"- deleted skill: {name}")
-
-            for name in sorted(changed):
+            if deleted:
                 if not json_events:
-                    print(f"- changed skill: {name}")
-                sync_results = sync_skill(name, verbose=False).get(name, [])
-                new_verdict = audit_downgrade_check(
-                    name, known_verdicts.get(name), verbose=not json_events
-                )
-                if new_verdict:
-                    known_verdicts[name] = new_verdict
-                if json_events:
-                    print(json.dumps({
-                        "event": "changed",
-                        "skill": name,
-                        "sync": [
-                            {"product": s, "ok": ok, "method": m}
-                            for s, ok, m in sync_results
-                        ],
-                        "conflicts": [s for s, ok, m in sync_results if m == "conflict"],
-                        "pack_pending": [s for s, ok, m in sync_results if m == "pack"],
-                        "verdict": new_verdict,
-                    }, ensure_ascii=False))
-                else:
-                    print(f"  [watch] synced '{name}' to all products")
-                    pack_skipped = [s for s, ok, m in sync_results if m == "pack"]
-                    if pack_skipped:
-                        print(
-                            f"  [watch] pack-mode product(s) not auto-updated - "
-                            f"run 'askill pack {name}' to refresh the zip"
-                        )
-                    conflicts = [s for s, ok, m in sync_results if m == "conflict"]
-                    if conflicts:
-                        print(
-                            f"  [watch] conflicts kept local: {', '.join(conflicts)} "
-                            f"(resolve them or run 'askill sync {name} --force')"
-                        )
-                if on_change:
-                    on_change(name)
+                    print(f"\n[{time.strftime('%H:%M:%S')}] detected changes")
+                for name in sorted(deleted):
+                    cleaned = clean_deleted_skill(name, verbose=not json_events)
+                    if json_events:
+                        print(json.dumps({
+                            "event": "deleted", "skill": name, "cleaned_from": sorted(set(cleaned)),
+                        }))
+                    else:
+                        print(f"- deleted skill: {name}")
+
+            if changed:
+                if not json_events:
+                    print(f"\n[{time.strftime('%H:%M:%S')}] detected changes")
+                for name in sorted(changed):
+                    if not json_events:
+                        print(f"- changed skill: {name}")
+                    sync_results = sync_skill(name, verbose=False).get(name, [])
+                    new_verdict = audit_downgrade_check(
+                        name, known_verdicts.get(name), verbose=not json_events
+                    )
+                    if new_verdict:
+                        known_verdicts[name] = new_verdict
+                    if json_events:
+                        print(json.dumps({
+                            "event": "changed",
+                            "skill": name,
+                            "sync": [
+                                {"product": s, "ok": ok, "method": m}
+                                for s, ok, m in sync_results
+                            ],
+                            "conflicts": [s for s, ok, m in sync_results if m == "conflict"],
+                            "pack_pending": [s for s, ok, m in sync_results if m == "pack"],
+                            "verdict": new_verdict,
+                        }, ensure_ascii=False))
+                    else:
+                        print(f"  [watch] synced '{name}' to all products")
+                        pack_skipped = [s for s, ok, m in sync_results if m == "pack"]
+                        if pack_skipped:
+                            print(
+                                f"  [watch] pack-mode product(s) not auto-updated - "
+                                f"run 'askill pack {name}' to refresh the zip"
+                            )
+                        conflicts = [s for s, ok, m in sync_results if m == "conflict"]
+                        if conflicts:
+                            print(
+                                f"  [watch] conflicts kept local: {', '.join(conflicts)} "
+                                f"(resolve them or run 'askill sync {name} --force')"
+                            )
+                    if on_change:
+                        on_change(name)
 
             prev = snapshot_central()  # re-snapshot: sync may touch mtimes
+
+            # Periodic self-heal, independent of whether anything changed.
+            if time.monotonic() - last_reconcile >= reconcile_every:
+                last_reconcile = time.monotonic()
+                repaired = reconcile_missing(verbose=not json_events)
+                if json_events and repaired:
+                    print(json.dumps({
+                        "event": "reconcile",
+                        "repaired": dict(sorted(repaired.items())),
+                    }, ensure_ascii=False))
     except KeyboardInterrupt:
         if not json_events:
             print("\nWatch stopped.")

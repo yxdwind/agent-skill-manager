@@ -1,4 +1,4 @@
-"""Shell-completion scripts for askill (v0.18.1).
+"""Shell-completion scripts for askill (bundled since v0.18.1).
 
 This subpackage bundles the bash / zsh / fish completion scripts so they
 ship inside the PyPI wheel. ``pip`` users can locate them at the installed

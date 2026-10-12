@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 from agent_skill_manager.services import sources as src_mod
+from agent_skill_manager.services import sync as sync_mod
 from agent_skill_manager.services import watch as watch_mod
 
 # ---------------------------------------------------------------- helpers
@@ -24,15 +25,24 @@ def _mk_skill(parent: Path, name: str = "watch-skill", body: str = "hello") -> P
 
 @pytest.fixture(autouse=True)
 def fake_central(tmp_path, monkeypatch):
-    """Point CENTRAL_DIR (and sources file) at a temp dir."""
+    """Point CENTRAL_DIR (and sources file) at a temp dir.
+
+    ``watch`` re-exports ``list_skills`` / ``sync_skill`` from ``.sync``, and
+    those read their *own* module globals - so the sync module needs patching
+    too. Without it anything that reaches ``sync_skill`` (the reconcile sweep)
+    would walk the real ``~/.agents/skills`` and link into the real product
+    directories.
+    """
+    from agent_skill_manager.config import products as prod_mod
+    from agent_skill_manager.services import sync as sync_mod
+
     central = tmp_path / "central"
     central.mkdir()
     monkeypatch.setattr(watch_mod, "CENTRAL_DIR", central)
     monkeypatch.setattr(src_mod, "CENTRAL_DIR", central)
     monkeypatch.setattr(src_mod, "SOURCES_FILE", central / ".askill-sources.json")
-    # also patch sync.list_skills which reads CENTRAL_DIR from products
-    from agent_skill_manager.config import products as prod_mod
     monkeypatch.setattr(prod_mod, "CENTRAL_DIR", central)
+    monkeypatch.setattr(sync_mod, "CENTRAL_DIR", central)
     yield central
 
 
@@ -168,6 +178,125 @@ class TestClean:
         data = json.loads(settings.read_text(encoding="utf-8"))
         assert "gone-skill" not in data["skills"]
         assert data["skills"]["keep"] is True
+
+
+# ---------------------------------------------------------------- reconciling
+
+class TestReconcileMissing:
+    """The self-heal sweep for links lost on the *product* side.
+
+    The snapshot diff only ever sees central-side changes, so without this a
+    hand-deleted junction (or a sync that failed because an IDE held
+    settings.json) would stay missing forever.
+    """
+
+    @staticmethod
+    def _products(*dirs_and_short):
+        return [{
+            "name": p[1].title(), "short": p[1],
+            "macos_path": p[0], "windows_path": p[0], "linux_path": p[0],
+            "sync_method": "symlink",
+            "extra_dirs_macos": [], "extra_dirs_windows": [],
+        } for p in dirs_and_short]
+
+    @staticmethod
+    def _patch(monkeypatch, products):
+        """Patch PRODUCTS in *both* modules that read it.
+
+        ``watch`` and ``sync`` each hold their own binding, and the sweep
+        reaches ``sync_skill`` - patching only one would let the real 15
+        products get linked into the real home directory.
+        """
+        monkeypatch.setattr(watch_mod, "PRODUCTS", products)
+        monkeypatch.setattr(sync_mod, "PRODUCTS", products)
+
+    def test_nothing_to_do_when_all_links_present(self, fake_central, tmp_path, monkeypatch):
+        from agent_skill_manager.utils.filesystem import create_link
+
+        prod = tmp_path / "prod"
+        prod.mkdir()
+        self._patch(monkeypatch, self._products((prod, "fake")))
+        skill = _mk_skill(fake_central, "s1")
+        ok, method, _ = create_link(skill, prod / "s1")
+        assert ok and method != "copy"
+
+        assert watch_mod.reconcile_missing(verbose=False) == {}
+
+    def test_relinks_hand_deleted_junction(self, fake_central, tmp_path, monkeypatch):
+        """A link the user deleted by hand must come back."""
+        from agent_skill_manager.utils.filesystem import create_link, remove_path
+
+        prod = tmp_path / "prod"
+        prod.mkdir()
+        self._patch(monkeypatch, self._products((prod, "fake")))
+        skill = _mk_skill(fake_central, "s1")
+        ok, method, _ = create_link(skill, prod / "s1")
+        assert ok and method != "copy"
+        remove_path(prod / "s1")
+        assert not (prod / "s1").exists()
+
+        repaired = watch_mod.reconcile_missing(verbose=False)
+        assert repaired == {"s1": ["fake"]}
+        assert (prod / "s1" / "SKILL.md").exists()
+
+    def test_relinks_skill_that_predates_the_watch_run(self, fake_central, tmp_path, monkeypatch):
+        """First run of `askill watch` must not strand pre-existing skills."""
+        prod = tmp_path / "prod"
+        prod.mkdir()
+        self._patch(monkeypatch, self._products((prod, "fake")))
+        _mk_skill(fake_central, "s1")
+
+        assert watch_mod.reconcile_missing(verbose=False) == {"s1": ["fake"]}
+        assert (prod / "s1" / "SKILL.md").exists()
+
+    def test_leaves_users_own_directory_alone(self, fake_central, tmp_path, monkeypatch):
+        """A real (non-link) directory is conflict territory - do not touch it."""
+        prod = tmp_path / "prod"
+        prod.mkdir()
+        self._patch(monkeypatch, self._products((prod, "fake")))
+        _mk_skill(fake_central, "s1")
+        mine = prod / "s1"
+        mine.mkdir()
+        (mine / "SKILL.md").write_text("my own version", encoding="utf-8")
+
+        assert watch_mod.reconcile_missing(verbose=False) == {}
+        assert (mine / "SKILL.md").read_text(encoding="utf-8") == "my own version"
+
+    def test_skips_products_not_set_up_here(self, fake_central, tmp_path, monkeypatch):
+        """A product dir that does not exist is 'not installed', not 'missing'."""
+        missing_dir = tmp_path / "never-created"
+        self._patch(monkeypatch, self._products((missing_dir, "fake")))
+        _mk_skill(fake_central, "s1")
+
+        assert watch_mod.reconcile_missing(verbose=False) == {}
+
+    def test_skips_native_and_pack_products(self, fake_central, tmp_path, monkeypatch):
+        prod = tmp_path / "prod"
+        prod.mkdir()
+        native_and_pack = [
+            {
+                "name": "Native", "short": "nat",
+                "macos_path": prod, "windows_path": prod, "linux_path": prod,
+                "sync_method": "native",
+                "extra_dirs_macos": [], "extra_dirs_windows": [],
+            },
+            {
+                "name": "Packed", "short": "pak",
+                "macos_path": prod, "windows_path": prod, "linux_path": prod,
+                "sync_method": "pack",
+                "extra_dirs_macos": [], "extra_dirs_windows": [],
+            },
+        ]
+        self._patch(monkeypatch, native_and_pack)
+        _mk_skill(fake_central, "s1")
+
+        assert watch_mod.reconcile_missing(verbose=False) == {}
+
+    def test_empty_central_returns_empty(self, fake_central, tmp_path, monkeypatch):
+        prod = tmp_path / "prod"
+        prod.mkdir()
+        self._patch(monkeypatch, self._products((prod, "fake")))
+        assert watch_mod.reconcile_missing(verbose=False) == {}
 
 
 # ---------------------------------------------------------------- audit hook

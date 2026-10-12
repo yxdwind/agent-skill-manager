@@ -350,7 +350,7 @@ class TestAdoptAllVerbosePath:
         with patch.object(core, "CENTRAL_DIR", central), \
              patch.object(core, "PRODUCTS", products), \
              patch.object(core, "get_product_path", return_value=prod_dir), \
-             patch.object(core, "_is_junction", return_value=False):
+             patch.object(core, "is_symlink_or_junction", return_value=False):
             result = core.adopt_from_platform("all", verbose=True)
         assert {name for name, ok, _ in result["adopted"]} == {"found-skill"}
 

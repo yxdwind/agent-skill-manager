@@ -7,11 +7,13 @@
 [English](README.en.md) | [简体中文](README.md)
 
 > **包名 ≠ 仓库名（请注意）**：PyPI 安装包名为 **`cn-skill-sync`**，GitHub 仓库名为 **`agent-skill-manager`**。即「装 `cn-skill-sync`，源码在 `agent-skill-manager`」。下方所有 `pip install` 均用 `cn-skill-sync`。
+>
+> ⚠️ **不要 `pip install askill`**——PyPI 上的 `askill` 是另一个不相关的项目。本项目安装用 `pip install cn-skill-sync`，装完的命令才叫 `askill`。
 
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-296%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-309%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#支持的产品)
 
@@ -221,7 +223,7 @@ agent-skill-manager/
 │   └── utils/                  # filesystem.py（跨平台文件操作）
 │                               # watcher.py（原生文件事件：inotify/kqueue/ReadDirectoryChangesW）
 ├── .github/ISSUE_TEMPLATE/     # 新产品支持请求模板（用户填报 → 一周内适配）
-└── tests/                      # 296 个测试
+└── tests/                      # 309 个测试
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py

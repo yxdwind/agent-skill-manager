@@ -7,8 +7,10 @@
 [English](README.en.md) | [简体中文](README.md)
 
 > **Package name ≠ repo name (note)**: the PyPI package is **`cn-skill-sync`** while the GitHub repo is **`agent-skill-manager`** — i.e. "install `cn-skill-sync`, source lives in `agent-skill-manager`". Every `pip install` below uses `cn-skill-sync`.
+>
+> ⚠️ **Do not `pip install askill`** — the `askill` package on PyPI is an unrelated project. Install with `pip install cn-skill-sync`; the command it provides is called `askill`.
 
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-296%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-309%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
@@ -224,7 +226,7 @@ agent-skill-manager/
 │   └── utils/                  # filesystem.py (cross-platform file ops)
 │                               # watcher.py (native fs events: inotify/kqueue/ReadDirectoryChangesW)
 ├── .github/ISSUE_TEMPLATE/     # new-product support request (user files it, supported within a week)
-└── tests/                      # 296 tests
+└── tests/                      # 309 tests
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py

@@ -44,7 +44,7 @@ class TestAdoptFromPlatform:
              patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
              patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=platform_dir), \
-             patch("agent_skill_manager.services.sync._is_junction",
+             patch("agent_skill_manager.services.sync.is_symlink_or_junction",
                    return_value=False):
             result = adopt_from_platform("testprod", "my-skill", verbose=False)
 
@@ -111,7 +111,7 @@ class TestAdoptFromPlatform:
              patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
              patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=platform_dir), \
-             patch("agent_skill_manager.services.sync._is_junction",
+             patch("agent_skill_manager.services.sync.is_symlink_or_junction",
                    return_value=False):
             result = adopt_from_platform("testprod", "my-skill", verbose=False)
 
@@ -160,7 +160,7 @@ class TestAdoptFromPlatform:
              patch("agent_skill_manager.services.sync.PRODUCTS", [product]), \
              patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=platform_dir), \
-             patch("agent_skill_manager.services.sync._is_junction",
+             patch("agent_skill_manager.services.sync.is_symlink_or_junction",
                    return_value=False), \
              patch("pathlib.Path.resolve", _fake_resolve):
             result = adopt_from_platform("testprod", "my-skill", verbose=False)
@@ -209,7 +209,7 @@ class TestAdoptFromPlatform:
              patch("agent_skill_manager.services.sync.PRODUCTS", [product_a, product_b]), \
              patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=primary), \
-             patch("agent_skill_manager.services.sync._is_junction",
+             patch("agent_skill_manager.services.sync.is_symlink_or_junction",
                    return_value=False):
             result = adopt_from_platform("product-a", "my-skill", verbose=False)
 
@@ -251,7 +251,7 @@ class TestAdoptAll:
              patch("agent_skill_manager.services.sync.PRODUCTS", [product_a, product_b]), \
              patch("agent_skill_manager.services.sync.get_product_path",
                    return_value=None), \
-             patch("agent_skill_manager.services.sync._is_junction",
+             patch("agent_skill_manager.services.sync.is_symlink_or_junction",
                    return_value=False):
             result = adopt_from_platform("all", verbose=False)
 

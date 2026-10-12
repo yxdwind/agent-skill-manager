@@ -8,6 +8,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.19.0 (2026-10-12)
+
+### Added
+- **`watch` now self-heals product-side link loss.** The snapshot diff only
+  ever sees changes *inside* the central repository, so a link that went
+  missing on the product side stayed missing forever: deleted by hand, lost to
+  a sync that failed (an IDE holding `settings.json`), or never created
+  because the skill predated the watch run. A new `reconcile_missing()` sweep
+  runs every `max(cadence, RECONCILE_INTERVAL_S)` seconds and re-links any
+  skill the central repo has but a product lacks.
+
+  Scope is deliberately narrow — only "central has it, the product lacks it"
+  is repaired. A product path that already holds anything (a real directory,
+  a live link, a dead junction) is left alone, so a user's own copy stays
+  conflict territory owned by `askill sync --force`. Product directories that
+  do not exist are skipped: the product simply is not installed here. In JSON
+  mode the sweep emits a `reconcile` event.
+
+  This also makes the startup banner honest — it used to advertise
+  "reconcile every 30s" while no reconciliation existed. The banner no longer
+  claims a cadence it does not keep.
+
+### Changed
+- **Dropped `_is_junction()`** (`services/sync.py`), the last `fsutil
+  reparsepoint query` caller. It spawned a subprocess per call and was blind
+  to dangling junctions. `adopt_from_platform` now uses
+  `filesystem.is_symlink_or_junction`, which is `lstat`-based (see v0.18.3)
+  and equivalent-or-better on every platform. Tests that patched
+  `_is_junction` now patch `is_symlink_or_junction`.
+
+### Documentation
+- README (both languages) warn that `pip install askill` installs an
+  **unrelated** PyPI package — the install name is `cn-skill-sync`, only the
+  command is `askill`.
+- Refreshed the test count (296 -> 309) and the stale numbers in the three
+  unpublished promotion drafts: 11 -> 15 products, 76 -> 309 tests,
+  `pip install askill` -> `cn-skill-sync`, "PyPI coming soon" -> live. The
+  OSCHINA draft's reparse-point section was rewritten — it still described
+  the pre-v0.18.3 `fsutil` approach.
+
 ## v0.18.3 (2026-10-12)
 
 ### Fixed
