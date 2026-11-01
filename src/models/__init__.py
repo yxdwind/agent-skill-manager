@@ -6,6 +6,6 @@ runtime code still works with plain dicts, so no behavioral change.
 """
 
 from .product import ProductSpec
-from .report import Finding, SkillReport, StatusEntry
+from .report import Finding, SkillReport, StatusEntry, StatusEntryDetail
 
-__all__ = ["Finding", "ProductSpec", "SkillReport", "StatusEntry"]
+__all__ = ["Finding", "ProductSpec", "SkillReport", "StatusEntry", "StatusEntryDetail"]

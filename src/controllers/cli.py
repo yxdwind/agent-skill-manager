@@ -241,6 +241,12 @@ def _print_status(skill_name=None, *, quiet=False, json_mode=False):
                 row += _cell("n/a", score_w)
         if not json_mode:
             print(row)
+    if not json_mode and not quiet:
+        # A2 (health check 2026-10-31): explain degraded cells once, below
+        # the table, instead of widening every cell.
+        reasons = sorted({r["reason"] for r in results if r.get("reason")})
+        if reasons:
+            print(f"\n  note: {'; '.join(reasons)}")
     if json_mode:
         # Augment the StatusEntry rows with a per-skill audit score / verdict
         # so consumers don't have to re-read the central repo to render it.
@@ -930,7 +936,7 @@ def _cmd_verify(skill_name, *, quiet=False, json_mode=False):
         target_dir = skill_dir
         reports = [check_spec(skill_dir)]
     else:
-        reports = check_all_specs()
+        reports = check_all_specs(CENTRAL_DIR)
     if not reports:
         if json_mode:
             print(json.dumps({"results": [], "product_issues": []}))

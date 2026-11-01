@@ -46,5 +46,17 @@ class StatusEntry(TypedDict):
     skill_name: str
     product_short: str
     product_name: str
-    status: str  # ok | missing | manual | n/a
-    method: str  # symlink | junction | copy | native | pack
+    status: str  # ok | missing | manual | packed | stale | n/a
+    method: str  # link | copy | native | manual | packed | stale | n/a
+
+
+class StatusEntryDetail(StatusEntry, total=False):
+    """Optional per-row detail keys (health check 2026-10-31, A2).
+
+    ``reason`` explains a degraded ``status`` so ``askill status --json``
+    consumers can tell "not applicable" apart from "unexplained". Set
+    today only on ``n/a`` rows (the product ships no build for the
+    current platform, e.g. ``"no linux build"``).
+    """
+
+    reason: str

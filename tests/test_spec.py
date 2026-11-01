@@ -117,7 +117,7 @@ class TestCheckAllSpecs:
         from agent_skill_manager.services import spec as spec_mod
         good = _mk_skill(tmp_path, "good-skill")
         bad = _mk_skill(tmp_path, "bad-skill", frontmatter="---\nname: mismatch\n---\n")
-        monkeypatch.setattr(spec_mod, "list_skills", lambda: [good, bad])
+        monkeypatch.setattr(spec_mod, "list_skills", lambda central=None: [good, bad])
         reports = check_all_specs()
         assert [r["skill"] for r in reports] == ["good-skill", "bad-skill"]
         assert reports[0]["ok"] and not reports[1]["ok"]

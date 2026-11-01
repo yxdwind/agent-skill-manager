@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from .sync import list_skills
+from .inventory import list_skills
 
 # Spec constraints (https://agentskills.io/specification)
 NAME_MAX = 64
@@ -129,9 +129,16 @@ def check_spec(skill_dir: Path) -> dict:
     }
 
 
-def check_all_specs() -> list[dict]:
-    """Validate every skill in the central repository."""
-    return [check_spec(d) for d in list_skills()]
+def check_all_specs(central: Path | None = None) -> list[dict]:
+    """Validate every skill in the central repository.
+
+    Args:
+        central: override the central repository. Defaults to the
+            configured ``CENTRAL_DIR``; the CLI passes its own (seam-aware)
+            enumeration so tests patching ``sync.CENTRAL_DIR`` keep
+            working while spec itself stays decoupled from sync.
+    """
+    return [check_spec(d) for d in list_skills(central)]
 
 
 def product_frontmatter_issues(

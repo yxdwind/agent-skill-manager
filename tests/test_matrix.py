@@ -292,6 +292,11 @@ class TestStatusContract:
         assert by_short["nopath-prod"] == "n/a"
         # shadow shares the dir -> same verdict as primary, no second lookup
         assert by_short["shadow-prod"] == by_short["linked-prod"] == "missing"
+        # A2 (health check 2026-10-31): n/a rows carry a machine-readable
+        # reason; other rows must not invent one.
+        reason_by_short = {e["product_short"]: e.get("reason") for e in entries}
+        assert reason_by_short["nopath-prod"] == f"no {core._platform_key()} build"
+        assert reason_by_short["native-prod"] is None
 
     def test_pack_status_transitions(self, tmp_path):
         central = tmp_path / "central"
