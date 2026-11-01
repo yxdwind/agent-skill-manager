@@ -157,4 +157,10 @@ cli.py 内 7 处（:103/:296/:426/:474/:745/:847/:916/:986）+ services 内 8 �
 
 ---
 
+## 10. 复检记录
+
+- **2026-11-01**：§6 A2 已闭环 —— 新增 `StatusEntryDetail.reason`（models/report.py），`get_status` 在 n/a 行写入 `no <platform> build`（services/sync.py），`askill status --json` 行与人类表格脚注均携带原因；§3 spec⇄sync 模块级环已解除 —— `list_skills` 下沉至 `services/inventory.py`（带可选 central 参数），`spec.py` 改从 inventory 导入，`check_all_specs(central)` 由 CLI 传入接缝感知的 `CENTRAL_DIR`，sync 保留薄包装维持 `patch sync.CENTRAL_DIR` 测试接缝。门禁：ruff 全绿、mypy 24 文件全绿、pytest 309 passed（watcher 原生事件测试在全量并发下偶发一次时序抖动，单跑与全量复跑均通过，判定非回归）。
+
+---
+
 *体检人：MOE · 证据均来自 f15636c 工作区实测 · 复检建议：下一个 minor 发版前重跑 §1 基线 + §6 台账*
