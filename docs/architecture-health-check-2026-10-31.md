@@ -1,0 +1,160 @@
+# agent-skill-manager 架构体检报告
+
+- **日期**：2026-10-31　**基线**：v0.19.1（commit f15636c，工作区 clean）
+- **方法**：源码走读（25 个 .py 全量）+ 门禁实测 + 历史缺口台账逐项核对
+- **声明**：本报告为只读体检，未改动任何源码；所有结论附 file:line 证据
+
+---
+
+## 0. 总评
+
+**总体评级：B+（健康，可放心继续演进）**
+
+| 维度 | 评级 | 一句话 |
+|------|:---:|--------|
+| 分层与依赖方向 | A- | 五层无倒置；services 内有一处被惰性导入压制的模块级环 |
+| 声明式产品模型 | A | 250 行声明驱动 15 产品 × 17 命令，配套 430 行一致性锁，是全项目最大亮点 |
+| 缺口闭环能力 | A | product-matrix 台账 A1–A9 八项已闭环、一项部分修复（见 §6） |
+| 模块规模与职责 | B- | cli/sync 双千行模块占全库 41%，sync 五职责集中，是最大的演进债 |
+| 静态与类型 | A | ruff 全绿；mypy 23 文件全绿（watcher 豁免是文档化决定） |
+| 测试架构 | A- | 309 passed；恶意样本 fixture 库 + 跨产品回归锁模式成熟 |
+| 打包与仓库卫生 | A | completion 子包三处声明齐全；根目录 0 噪音；.gitignore 覆盖完备 |
+| 文档与事实一致性 | A | 测试徽章与实测一致（309/309）；CHANGELOG 与 git log 一一对应 |
+
+无红色项：不存在分层倒置、安全红旗或会导致运行故障的循环依赖。
+
+---
+
+## 1. 门禁基线（本次实测）
+
+```
+ruff  → All checks passed
+mypy  → Success: no issues found in 23 source files
+pytest → 309 passed (16.4s)
+git   → working tree clean
+```
+
+watcher.py 的 mypy 豁免（pyproject exclude + overrides 双保险，附平台理由）是**记录在案的例外**而非失修，评 A 不扣分。
+
+---
+
+## 2. 演进速览（0.16.1 → 0.19.1，2026-10-09 → 10-12）
+
+| 版本 | 架构意义 |
+|------|---------|
+| P0（8536d6a） | settings.json 原子写 + 锁定告警聚合 —— A3 收尾 |
+| v0.18.0 | 命名交叉引用、wheel 内置补全、publish --target、UX |
+| v0.18.1 | completion 合法子包化 + 单 PyPI 触发（打包架构修正） |
+| v0.18.2 | CI 修复（RUF001 CJK 同形字符）—— 工具链升级的连带成本已消化 |
+| v0.18.3 | 删除 skill 时清理死 junction |
+| v0.19.0 | **watch 自愈产品侧链接丢失** —— watch 从“同步器”升级为“自愈守护进程”，架构角色变化 |
+
+**解读**：四天 9 个提交全部是小步 feat/fix，无大重构；漏洞修复节奏健康，说明当前架构支撑得了快速迭代——这也意味着 §4 的拆分建议不紧急，但随新功能加入（每个新产品 ≈ +1 个分支）会持续恶化。
+
+---
+
+## 3. 分层与依赖
+
+```
+controllers/cli.py (1077)  ──→  config / services / utils
+        │
+services/  sync(1076) watch(390) publish(298) scaffold(191)
+           sources(185) spec(181) registry(124) drift(88) audit(441) welcome(49)
+        │                       │
+        ├──→ config/products.py (250) ──→ models/product.py
+        ├──→ models/report.py（audit/sync 消费）
+        └──→ utils/ filesystem(219) watcher(553)   ← 零内部依赖，完全隔离 ✅
+```
+
+**方向健康**：config→models、controllers→{config,services,utils}、services→{config,models,utils} 均无倒置；utils 与 models 是纯叶子层。
+
+### 🟡 发现 1：spec ⇄ sync 模块级环（唯一真实的环）
+
+- `spec.py:16` —— **模块级** `from .sync import list_skills`
+- `sync.py:453` —— 函数内 `from .spec import check_spec, product_frontmatter_issues`
+
+运行时靠 sync 侧的惰性导入压制，一旦有人在 sync.py 顶层加 `from .spec import ...` 立即 ImportError。环的根因是 `list_skills`（目录枚举，本质是 filesystem 层能力）被放进了 sync 这个重型模块。
+
+**建议**（低成本，30 分钟）：把 `list_skills` 下沉到 `utils/filesystem.py` 或独立 `inventory.py`，spec 改从那里导入，环即解除。
+
+### 🟡 发现 2：sources ⇄ sync 双向惰性依赖
+
+`sources.py:169` 与 `sync.py:640` 互相函数内导入。当前无害，但 install 流程的“装完登记来源”逻辑横跨两个模块，后续拆分时需一起考虑。
+
+### 🟢 惰性导入作为一致模式
+
+cli.py 内 7 处（:103/:296/:426/:474/:745/:847/:916/:986）+ services 内 8 处，均为启动提速或环规避。模式一致、注释到位——可接受，但 §4 的拆分会消化掉其中大半。
+
+---
+
+## 4. 模块规模与职责
+
+| 模块 | LOC | 占比 | 评估 |
+|------|----:|-----:|------|
+| controllers/cli.py | 1077 | 20.4% | 🟡 17 命令的 parser 构建 + if/elif 大 dispatch；尚可但逼近上限 |
+| services/sync.py | 1076 | 20.4% | 🟡 **五职责集中**：sync / install / adopt / settings_io / pack |
+| utils/watcher.py | 553 | 10.5% | 🟢 三平台原生事件，内聚合理，豁免有据 |
+| services/audit.py | 441 | 8.4% | 🟢 |
+| 其余 14 个模块 | 2124 | 40.3% | 🟢 均在 400 行以内 |
+
+- **cli.py**：千行里大半是 `_build_parser`（argparse 声明天然冗长）+ dispatch。低风险的改进是表驱动 dispatch（`{cmd: handler}` 映射），可消掉 40 行 if/elif 链并让 17 命令一目了然。**优先级低**。
+- **sync.py（主要演进债）**：sync_engine / install（含 registry+sources 钩子）/ adopt / settings_io / pack 五个子域共享一个文件，互相之间只有 2-3 个共享工具函数。**建议**在下次大功能前拆为子包（`services/sync/` 下分模块），预计每个子模块 150-350 行；`tests/` 已按行为组织（test_adopt/test_watch 等），拆分对测试几乎无感。
+- 测试/实现 LOC 比 ≈ 0.78（4089/5271），对 CLI 工具属良好水位。
+
+---
+
+## 5. 声明式模型与一致性锁（架构最大亮点）
+
+`products.py` 250 行声明式定义（路径/平台矩阵/sync_method/settings/frontmatter/共享目录/extra_dirs）驱动全部 17 个命令；`test_matrix.py` 430 行从声明推导断言。**新增一个产品 = 只改一个文件 + 一条声明**，且 CI 自动校验声明完整性——这正是 onboarding-new-product.md 承诺“一周适配”的架构底气。保持住“产品逻辑不进代码、只进声明”的纪律即可。
+
+---
+
+## 6. 历史缺口台账核对（product-matrix.md v0.13.0 基线 → v0.19.1 现状）
+
+| # | 缺口 | 现状 | 证据 |
+|---|------|------|------|
+| A1 | USAGE 产品清单停在 6 个 | ✅ 已修 | 硬编码清单已删除（grep "Supports:" 无匹配），动态生成 |
+| A2 | 平台无路径时输出裸 n/a | 🟡 **部分修复** | 人类可读输出已带原因 `skip (no windows build)`（sync.py:303），但机器可读的 StatusEntry 仍是裸 `"n/a"`（sync.py:94/:306），`status --json` 消费者拿不到原因 |
+| A3 | settings 按 WorkBuddy 硬编码 | ✅ 已修 | 通用 `_enable_in_settings`（sync.py:746）+ 声明式 settings_file + 原子写 + 锁定告警聚合（sync.py:339-357）；watch.py:37 复用 `_disable_in_settings` |
+| A4 | 无按产品 frontmatter 校验 | ✅ 已修（v0.13.0） | `product_frontmatter_issues` 进入 publish 门禁（sync.py:453） |
+| A5 | 共享目录重复同步 | ✅ 已修（by-design） | `synced_dirs` 预留 + `shared->traecn` 报告（sync.py:307-313） |
+| A6 | sync 静默覆盖真实目录 | ✅ 已修（v0.13.0） | `create_link` 返回 conflict → `SKIP conflict` 无条件打印（sync.py:325-331） |
+| A7 | adopt 死代码块 | ✅ 已修 | `adopt_from_platform` 仅 1 def + 1 调用 + 1 注释（sync.py:917 / cli.py:20,301） |
+| A8 | pack 产品 status 恒为 manual | ✅ 已修 | manual/packed/stale 三态（sync.py:139-152） |
+| A9 | 未安装产品也建目录 | ✅ 已修 | `product_set_up` 门卫进 extra_dirs 与 settings 两条路径（sync.py:349-365） |
+
+**8/9 闭环，A2 是唯一残余**——修复成本约 15 分钟：给 StatusEntry 加 `reason` 字段（或把 n/a 改为 `n/a (no windows build)`），同步 test_matrix 断言。
+
+---
+
+## 7. 打包与仓库卫生
+
+- ✅ **completion 子包**（v0.18.1）：packages / package-dir / package-data 三处声明齐备（pyproject），`COMPLETION_DIR` 常量暴露安装路径——wheel 内资源引用的正确做法
+- ✅ **根目录 0 噪音**：8 天前还存在的 4 个 egg-info、dist080、50+ 个 .pytest-tmp-* 已全部清理，且 .gitignore 对 `.pytest-tmp*/`、`*.egg-info/`、`dist080/` 全覆盖，不会复发
+- ✅ **测试 fixtures**：tests/fixtures/malicious/ 下的 grab.py / run.py / clean.py 是安全测试的恶意样本（credential_grab、exec、rm_rf_root、shell_true），命名扎眼但合规，勿误删
+- ✅ PyPI 名与 repo 名分离有明确文档（cn-skill-sync vs agent-skill-manager，CHANGELOG/README 双处）
+
+---
+
+## 8. 文档健康
+
+- ✅ **README 测试徽章与实测一致**：双语 badge 均为 Tests-309（README.md:16 / README.en.md:13），与 v0.19.1 的 309 个测试同步——发版同步徽章的纪律在 0.18/0.19 两次发版中都保持了
+- ✅ CHANGELOG 与 SemVer 纪律良好（0.19.1 条目与 git log 一一对应）
+
+---
+
+## 9. 行动建议（按收益/成本排序）
+
+| # | 行动 | 成本 | 收益 |
+|---|------|------|------|
+| 1 | 轮换 2026-09 提交中引用过的 PyPI 上传 token（已由安全提交 022eee0 从工作区移除；按泄漏处置流程仍应轮换） | 5 分钟 | 消除在案凭据风险 |
+| 2 | A2 收尾：StatusEntry 的 n/a 附原因 + test_matrix 断言 | 15 分钟 | 补齐 8/9 → 9/9 缺口闭环 |
+| 3 | `list_skills` 下沉解 spec⇄sync 环 | 30 分钟 | 消除唯一模块级环，惰性导入 -1 |
+| 4 | sync.py 拆子包（sync/install/adopt/settings/pack） | 半天-1 天 | 消化最大演进债；建议放在下一个大功能（如第 16 个产品）之前 |
+| 5 | cli dispatch 表驱动 | 1 小时 | 可读性优化，可与 4 同批做 |
+
+**不建议现在做**：watcher.py 去豁免（平台代码，mypy 无法建模，当前双保险隔离是正确姿势）；引入任何第三方依赖（零依赖是核心卖点，已被 README/推广物料反复引用）。
+
+---
+
+*体检人：MOE · 证据均来自 f15636c 工作区实测 · 复检建议：下一个 minor 发版前重跑 §1 基线 + §6 台账*
