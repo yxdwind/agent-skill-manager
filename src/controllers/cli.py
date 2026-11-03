@@ -5,6 +5,7 @@ import json
 import platform
 import shutil
 import sys
+from collections.abc import Callable
 
 from ..config.products import (
     CENTRAL_DIR,
@@ -416,8 +417,7 @@ def main(argv=None):
     # (``show_version``) declared at the parser - it must match here, and it
     # must NOT collide with ``new --version``'s ``version`` frontmatter attr.
     if getattr(args, "show_version", False):
-        from .. import __version__
-        print(f"agent-skill-manager v{__version__}")
+        _print_version()
         return
 
     if cmd is None:
@@ -426,73 +426,24 @@ def main(argv=None):
 
     quiet = bool(getattr(args, "quiet", False))
     json_mode = bool(getattr(args, "json_mode", False))
+    # normalize onto the namespace so every dispatch entry can read them
+    # directly (some subparsers don't declare --json; absence means False)
+    args.quiet = quiet
+    args.json_mode = json_mode
 
     # One-time first-run welcome (never in quiet/json/script modes).
     if cmd != "version":
         from ..services import welcome
         welcome.maybe_print_welcome(quiet=quiet, json_mode=json_mode)
 
-    rc = 0
-    if cmd == "status":
-        rc = _print_status(args.skill_name, quiet=quiet, json_mode=json_mode)
-    elif cmd == "sync":
-        rc = _print_sync(args.skill_name, force=args.force, quiet=quiet)
-    elif cmd == "list":
-        rc = _print_list(quiet=quiet, json_mode=json_mode)
-    elif cmd == "install":
-        if args.source is None:
-            # nargs="?" lets a missing <source> parse fine; keep the
-            # project's shorthand examples here instead of crashing in
-            # resolve_source(None).
-            print(_INSTALL_HELP)
-            sys.exit(2)
-        rc = _print_install(
-            args.source, sync=args.sync, audit=args.audit,
-            no_audit=args.no_audit, quiet=quiet,
-        )
-    elif cmd == "remove":
-        rc = _print_remove(args.skill_name, quiet=quiet)
-    elif cmd == "pack":
-        rc = _print_pack(skill_name=args.skill_name, quiet=quiet)
-    elif cmd == "adopt":
-        rc = _print_adopt(args.platform_short.lower(), args.skill_name, quiet=quiet)
-    elif cmd == "audit":
-        rc = _print_audit(args.skill_name, quiet=quiet, json_mode=json_mode)
-    elif cmd == "search":
-        rc = _cmd_search(args.query, args.install_idx,
-                         quiet=quiet, json_mode=json_mode)
-    elif cmd == "new":
-        rc = _cmd_new(
-            args.name, args.target, args.description,
-            args.description_zh, args.version, args.minimal,
-            quiet=quiet, json_mode=json_mode,
-        )
-    elif cmd == "publish":
-        rc = _cmd_publish(
-            args.skill_name, args.repo,
-            root=args.root, force=args.force, https=args.https,
-            create=args.create, push=args.push, targets=args.target,
-            quiet=quiet,
-        )
-    elif cmd == "verify":
-        rc = _cmd_verify(args.skill_name, quiet=quiet, json_mode=json_mode)
-    elif cmd == "watch":
-        from ..services.watch import watch_loop
-        watch_loop(interval=args.interval, json_events=json_mode)
-    elif cmd == "update":
-        rc = _cmd_update(args.skill_name, args.check,
-                         quiet=quiet, json_mode=json_mode)
-    elif cmd == "products":
-        rc = _print_products(quiet=quiet, json_mode=json_mode)
-    elif cmd == "drift":
-        rc = _cmd_drift(args.product_short, quiet=quiet, json_mode=json_mode)
-    elif cmd == "version":
-        from .. import __version__
-        print(f"agent-skill-manager v{__version__}")
-    else:
+    handler = _HANDLERS.get(cmd)
+    if handler is None:
         print(f"Unknown command: {cmd}")
         print(USAGE)
         rc = 2
+    else:
+        # `watch` never returns; handlers returning None count as success.
+        rc = handler(args) or 0
 
     # Exit-code contract: 0 success, 1 operational failure, 2 usage error.
     if rc:
@@ -1077,6 +1028,66 @@ def _cmd_update(skill_name, check_only, *, quiet=False, json_mode=False):
     print(f"Updating {len(pending)} skill(s): {', '.join(pending)}")
     for name in pending:
         update_skill(name, verbose=not quiet)
+
+
+# ---------------------------------------------------------------- dispatch
+# Command -> handler table (health check 2026-10-31 §9). Each handler takes
+# the parsed Namespace and returns an exit code (None counts as success).
+# `--version` / the welcome banner are handled in main() before this runs;
+# main() normalizes args.quiet/args.json_mode for uniform access below.
+
+
+def _print_version() -> None:
+    from .. import __version__
+
+    print(f"agent-skill-manager v{__version__}")
+
+
+def _dispatch_install(args: argparse.Namespace) -> int:
+    # nargs="?" lets a missing <source> parse fine; keep the project's
+    # shorthand examples here instead of crashing in resolve_source(None).
+    if args.source is None:
+        print(_INSTALL_HELP)
+        sys.exit(2)
+    return _print_install(
+        args.source, sync=args.sync, audit=args.audit,
+        no_audit=args.no_audit, quiet=args.quiet,
+    )
+
+
+def _dispatch_watch(args: argparse.Namespace) -> None:
+    # lazy import: pulling the watcher drags in the platform-specific
+    # ReadDirectoryChangesW/inotify/kqueue layer; `status` stays fast.
+    from ..services.watch import watch_loop
+
+    watch_loop(interval=args.interval, json_events=args.json_mode)
+
+
+_HANDLERS: dict[str, Callable[[argparse.Namespace], int | None]] = {
+    "status": lambda a: _print_status(a.skill_name, quiet=a.quiet, json_mode=a.json_mode),
+    "sync": lambda a: _print_sync(a.skill_name, force=a.force, quiet=a.quiet),
+    "list": lambda a: _print_list(quiet=a.quiet, json_mode=a.json_mode),
+    "install": _dispatch_install,
+    "remove": lambda a: _print_remove(a.skill_name, quiet=a.quiet),
+    "pack": lambda a: _print_pack(skill_name=a.skill_name, quiet=a.quiet),
+    "adopt": lambda a: _print_adopt(a.platform_short.lower(), a.skill_name, quiet=a.quiet),
+    "audit": lambda a: _print_audit(a.skill_name, quiet=a.quiet, json_mode=a.json_mode),
+    "search": lambda a: _cmd_search(a.query, a.install_idx, quiet=a.quiet, json_mode=a.json_mode),
+    "new": lambda a: _cmd_new(
+        a.name, a.target, a.description, a.description_zh, a.version,
+        a.minimal, quiet=a.quiet, json_mode=a.json_mode,
+    ),
+    "publish": lambda a: _cmd_publish(
+        a.skill_name, a.repo, root=a.root, force=a.force, https=a.https,
+        create=a.create, push=a.push, targets=a.target, quiet=a.quiet,
+    ),
+    "verify": lambda a: _cmd_verify(a.skill_name, quiet=a.quiet, json_mode=a.json_mode),
+    "watch": _dispatch_watch,
+    "update": lambda a: _cmd_update(a.skill_name, a.check, quiet=a.quiet, json_mode=a.json_mode),
+    "products": lambda a: _print_products(quiet=a.quiet, json_mode=a.json_mode),
+    "drift": lambda a: _cmd_drift(a.product_short, quiet=a.quiet, json_mode=a.json_mode),
+    "version": lambda a: _print_version(),
+}
 
 
 if __name__ == "__main__":
