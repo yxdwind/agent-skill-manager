@@ -55,6 +55,7 @@ packages = [
     "agent_skill_manager.controllers",
     "agent_skill_manager.models",
     "agent_skill_manager.services",
+    "agent_skill_manager.services.sync",
     "agent_skill_manager.utils",
 ]
 
