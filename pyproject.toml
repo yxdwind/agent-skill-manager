@@ -148,6 +148,13 @@ allowed-confusables = [
     "E702",
 ]
 
+# The sync package facade re-exports the public API (and the names tests
+# patch on this namespace) from its submodules - unused-on-import is the
+# point, not a defect.
+"src/services/sync/__init__.py" = [
+    "F401",
+]
+
 # ---------------------------------------------------------------- commitizen
 # Conventional Commits enforcement + CHANGELOG generator. Used by
 # contributors via ``cz commit`` and by maintainers via ``cz bump`` to
