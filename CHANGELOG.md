@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.20.0 (2026-11-03)
+
+### Feat
+
+- **status**: n/a rows carry reason; move list_skills to inventory
+
+### Refactor
+
+- **cli**: table-driven command dispatch
+- **services**: split sync.py into a seam-preserving sync package
+
 ## v0.19.1 (2026-10-12)
 
 ### Documentation
