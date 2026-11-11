@@ -92,6 +92,9 @@ Another CLI on PyPI named `agent-skill-manager` (command `sm`) targets internati
 | Network | Offline-first: install, sync and audit all run locally; only fetching a new skill from GitHub touches the network |
 | Security | Static audit on every install (prompt injection / dangerous code / secrets / binaries); scaffold prefills per-product frontmatter |
 | Cross-platform | Windows junctions (no admin rights) / macOS / Linux symlinks behind one set of semantics |
+| Team / multi-machine | `askill bundle` exports a commit-ready manifest; `install --manifest` aligns a machine with zero server |
+
+Full competitive teardown (8 peer projects, mechanisms borrowed and declined) lives in [docs/competitive-research-2026-11.md](docs/competitive-research-2026-11.md).
 
 In one sentence: the other tool's main scenario is **discovering, downloading and deploying skills from GitHub**; askill's main scenario is **maintaining one local central repo and keeping 15 domestic products in sync live** — installing from GitHub is just one entry point.
 
@@ -193,6 +196,14 @@ askill publish my-skill --repo owner/name          # gates + dry run (--push to 
 
 # Drift detection (v0.16.0): product-dir skills diverging from central (new / differs)
 askill drift [product]
+
+# Team / multi-machine manifest sync (v0.21.0): export the local list as a
+# commit-ready JSON; teammates align with one command
+askill bundle
+askill install --manifest askill-manifest.json
+
+# Attention-budget audit (v0.21.0): context cost of every skill description
+askill audit --residency
 
 # List all supported products
 askill products

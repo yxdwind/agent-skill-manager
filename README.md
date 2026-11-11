@@ -92,6 +92,9 @@ PyPI 上另有名为 `agent-skill-manager` 的同类 CLI（命令 `sm`），面�
 | 网络依赖 | 离线优先：安装、同步、审计全程本地完成；只有从 GitHub 装新 skill 才触网 |
 | 安全 | 安装即跑静态审计（提示注入 / 危险代码 / 敏感信息 / 二进制文件），scaffold 按产品 frontmatter 要求预填 |
 | 跨平台 | Windows junction（免管理员权限）/ macOS / Linux symlink，同一套语义 |
+| 团队/多机 | `askill bundle` 导出可提交清单 + `install --manifest` 一键对齐，零服务端 |
+
+完整竞品对标（8 个同类项目的机制拆解与借鉴结论）见 [docs/competitive-research-2026-11.md](docs/competitive-research-2026-11.md)。
 
 一句话区别：同类工具的主场景是**从 GitHub 发现、下载、部署** skill；askill 的主场景是**本地中央仓库一处维护、十五个国产产品实时同步**——从 GitHub 安装只是入口之一。
 
@@ -191,6 +194,13 @@ askill publish my-skill --repo owner/name          # 门禁校验 + dry run（--
 
 # 漂移检测（v0.16.0）：产品目录里与 central 分叉的技能（new / differs）
 askill drift [product]
+
+# 团队/多机清单同步（v0.21.0）：把本机清单导出为可提交的 JSON，队友一键对齐
+askill bundle
+askill install --manifest askill-manifest.json
+
+# 注意力预算审计（v0.21.0）：每个技能 description 的上下文成本排行
+askill audit --residency
 
 # 列出所有支持的产品
 askill products
