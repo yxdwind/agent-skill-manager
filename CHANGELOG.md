@@ -14,6 +14,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **packaging**: ship the sync subpackage in the wheel
 
+## v0.21.0 (2026-11-03)
+
+### Feat
+
+- **cli,services**: team manifest sync + attention-budget audit
+- **marketing**: askill-ops - agent-facing self-management skill
+
+### Fix
+
+- **packaging**: ship the sync subpackage in the wheel
+
+### CI
+
+- **release**: smoke-install the built wheel before publishing
+
 ## v0.20.0 (2026-11-03)
 
 ### Feat
