@@ -12,7 +12,7 @@ submodules through ``_pkg`` at call time - so
 from ...config.products import CENTRAL_DIR, PRODUCTS, get_product_path
 from ...utils.filesystem import is_symlink_or_junction
 from .adopt import _patch_products, adopt_from_platform
-from .audit_report import audit_all, audit_skill
+from .audit_report import audit_all, audit_skill, residency_report
 from .engine import (
     FOOTER,
     _pack_status,

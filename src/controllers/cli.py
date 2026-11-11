@@ -6,6 +6,7 @@ import platform
 import shutil
 import sys
 from collections.abc import Callable
+from pathlib import Path
 
 from ..config.products import (
     CENTRAL_DIR,
@@ -14,6 +15,7 @@ from ..config.products import (
     get_product_path,
 )
 from ..services.audit import analyze_skill_dir
+from ..services.manifest import bundle_manifest, install_manifest
 from ..services.publish import publish_skill
 from ..services.scaffold import create_skill
 from ..services.sync import (
@@ -27,6 +29,7 @@ from ..services.sync import (
     pack_skill,
     print_onboarding,
     remove_skill,
+    residency_report,
     sync_skill,
 )
 from ..utils.filesystem import read_skill_metadata
@@ -528,6 +531,19 @@ def _build_parser() -> argparse.ArgumentParser:
         "source", nargs="?", default=None,
         help="Local path, GitHub URL, or skills.sh shorthand",
     )
+    p_install.add_argument(
+        "--manifest", default=None,
+        help="Align the central repo to a manifest instead of installing <source>",
+    )
+
+    p_bundle = sub.add_parser(
+        "bundle", help="Export askill-manifest.json for team / multi-machine sync",
+        parents=[_quiet],
+    )
+    p_bundle.add_argument(
+        "--output", default=None,
+        help="Manifest path (default: alongside the central repo)",
+    )
 
     p_remove = sub.add_parser(
         "remove", help="Remove a skill from all products",
@@ -557,6 +573,11 @@ def _build_parser() -> argparse.ArgumentParser:
         parents=[_common],
     )
     p_audit.add_argument("skill_name", nargs="?", default=None)
+    p_audit.add_argument(
+        "--residency", action="store_true",
+        help="Attention-budget report (context cost of every description) "
+            "instead of the security scan",
+    )
 
     p_search = sub.add_parser(
         "search", help="Search skills.sh; N installs that result",
@@ -1044,6 +1065,8 @@ def _print_version() -> None:
 
 
 def _dispatch_install(args: argparse.Namespace) -> int:
+    if args.manifest:
+        return _cmd_install_manifest(args.manifest, quiet=args.quiet)
     # nargs="?" lets a missing <source> parse fine; keep the project's
     # shorthand examples here instead of crashing in resolve_source(None).
     if args.source is None:
@@ -1053,6 +1076,66 @@ def _dispatch_install(args: argparse.Namespace) -> int:
         args.source, sync=args.sync, audit=args.audit,
         no_audit=args.no_audit, quiet=args.quiet,
     )
+
+
+def _cmd_bundle(args: argparse.Namespace) -> int:
+    try:
+        bundle_manifest(
+            output=Path(args.output) if args.output else None,
+            verbose=not args.quiet,
+        )
+    except OSError as e:
+        print(f"Error: {e}")
+        return 1
+    return 0
+
+
+def _cmd_install_manifest(path: str, quiet: bool) -> int:
+    report = install_manifest(Path(path), verbose=not quiet)
+    if not report["ok"]:
+        print(f"Error: {report['error']}")
+        return 1
+    if not quiet:
+        print(
+            f"\nAligned: {len(report['installed'])} installed, "
+            f"{len(report['present'])} present, "
+            f"{len(report['failed'])} failed, "
+            f"{len(report['manual'])} need manual handling"
+        )
+        for name, why in report["manual"]:
+            print(f"  - {name}: {why}")
+    return 1 if (report["failed"] or report["manual"]) else 0
+
+
+def _dispatch_audit(args: argparse.Namespace) -> int:
+    # --residency swaps the security scan for the attention-budget report
+    # (repo-wide; the skill_name positional is ignored in this mode).
+    if args.residency:
+        return _print_residency(quiet=args.quiet, json_mode=args.json_mode)
+    return _print_audit(args.skill_name, quiet=args.quiet, json_mode=args.json_mode)
+
+
+def _print_residency(*, quiet: bool = False, json_mode: bool = False) -> int:
+    rows = residency_report(CENTRAL_DIR)
+    if json_mode:
+        print(json.dumps(rows, ensure_ascii=False, indent=2))
+        return 0
+    if not rows:
+        if not quiet:
+            print("No skills found in central repository.")
+        return 0
+    if not quiet:
+        print(f"\n{'skill':<28} {'desc':>6} {'~tok':>6} {'lines':>6} {'kb':>7}  suggestion")
+        print("-" * 66)
+        for r in rows:
+            print(
+                f"{r['skill'][:27]:<28} {r['desc_chars']:>6} "
+                f"{r['desc_tokens_est']:>6} {r['body_lines']:>6} "
+                f"{r['dir_kb']:>7}  {r['suggestion']}"
+            )
+        print()
+        print("  --  " + FOOTER)
+    return 0
 
 
 def _dispatch_watch(args: argparse.Namespace) -> None:
@@ -1068,10 +1151,11 @@ _HANDLERS: dict[str, Callable[[argparse.Namespace], int | None]] = {
     "sync": lambda a: _print_sync(a.skill_name, force=a.force, quiet=a.quiet),
     "list": lambda a: _print_list(quiet=a.quiet, json_mode=a.json_mode),
     "install": _dispatch_install,
+    "bundle": _cmd_bundle,
     "remove": lambda a: _print_remove(a.skill_name, quiet=a.quiet),
     "pack": lambda a: _print_pack(skill_name=a.skill_name, quiet=a.quiet),
     "adopt": lambda a: _print_adopt(a.platform_short.lower(), a.skill_name, quiet=a.quiet),
-    "audit": lambda a: _print_audit(a.skill_name, quiet=a.quiet, json_mode=a.json_mode),
+    "audit": _dispatch_audit,
     "search": lambda a: _cmd_search(a.query, a.install_idx, quiet=a.quiet, json_mode=a.json_mode),
     "new": lambda a: _cmd_new(
         a.name, a.target, a.description, a.description_zh, a.version,
