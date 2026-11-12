@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **packaging**: ship the sync subpackage in the wheel
 
+## v0.22.0 (2026-11-12)
+
+### Feat
+
+- **cli,services**: reference tier get, archive install, proxy-aware clone errors
+
+### Chore
+
+- **gh**: dependabot, CodeQL, CoC, issue templates
+
 ## v0.21.0 (2026-11-03)
 
 ### Feat
