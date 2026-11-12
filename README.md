@@ -202,6 +202,12 @@ askill install --manifest askill-manifest.json
 # 注意力预算审计（v0.21.0）：每个技能 description 的上下文成本排行
 askill audit --residency
 
+# 先看后装（v0.22.0）：SKILL.md 打到 stdout 预览，--dir 借用完整目录到临时路径，--list 看仓库有什么
+askill get owner/repo@skill [--dir | --list]
+
+# 从本地 zip/.skill 归档安装（v0.22.0，DuMate 打包往返）
+askill install path/to/skill.zip
+
 # 列出所有支持的产品
 askill products
 ```

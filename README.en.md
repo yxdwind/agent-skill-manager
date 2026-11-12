@@ -205,6 +205,13 @@ askill install --manifest askill-manifest.json
 # Attention-budget audit (v0.21.0): context cost of every skill description
 askill audit --residency
 
+# Try before you install (v0.22.0): print SKILL.md to stdout, borrow the full
+# folder to a temp path, or list what a repo offers
+askill get owner/repo@skill [--dir | --list]
+
+# Install from a local zip/.skill archive (v0.22.0, DuMate round-trip)
+askill install path/to/skill.zip
+
 # List all supported products
 askill products
 ```
