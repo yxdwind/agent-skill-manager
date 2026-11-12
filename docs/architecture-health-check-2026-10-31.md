@@ -166,6 +166,8 @@ cli.py 内 7 处（:103/:296/:426/:474/:745/:847/:916/:986）+ services 内 8 �
 
 - **2026-11-12**：0.21.0（竞品借鉴轮）复检。新增 `services/manifest.py`（零依赖，只依赖 config/products + inventory + sources + sync.install 的 `_install_from_url`）与 `audit_report.residency_report`（挂在 sync.audit_report 命令层，安全分析器零改动）——两处均未新增模块环，分层约束保持。门禁：ruff 全绿、mypy 31 文件全绿、pytest 320 passed。**wheel 冒烟守门首次实战通过**：release.yml 在 PyPI 上包前实装 0.21.0 wheel，manifest/residency 模块可导入（0.20.0 式事故未重演）。端到端：PyPI 实装 → `askill install yxdwind/skills@askill-ops --sync` 全产品 ok（DuMate manual 属设计内）。流程备注：本次 `cz bump --changelog` 静默未执行（打印了计划但未改文件、未建提交），改用手动 bump（pyproject 两处 version：项目 + [tool.commitizen] 需同步改）；tag 需在 bump 提交落位后建，第一次手建 tag 指在了未 bump 提交上已删重建。另一个环境发现：全局 gitconfig 的 http.proxy=127.0.0.1:7897 在代理未运行时会让 `askill install`（内部 git clone 走 HTTPS）报难懂的错误，临时用 GIT_CONFIG_GLOBAL 空文件绕过——产品侧可考虑失败提示中点名代理问题。提交：6799393 / a73e828 / 76a4110 / 1a03769，tag v0.21.0，PyPI 0.21.0 实装验证通过。
 
+- **2026-11-12（晚）**：0.22.0（引用层轮）复检。新增 `services/get.py`（只读预览，克隆通道复用 install.py 新提取的 `_shallow_clone`/`_report_clone_failure`，代理不可达时输出可操作提示而非裸 stderr——源自本机 gitconfig 代理未开时的真实故障）；新增 `_install_from_archive`（zip/.skill，zip-slip 防护 + frontmatter 名字段防路径逃逸双保险）。分层约束保持，测试 patch 目标无新增。门禁：ruff 全绿、mypy 32 文件全绿、pytest 336 passed。发布链路：手动 bump（cz 跳过风险已知，直接绕过）→ tag 后推 → release.yml 冒烟守门二次实战通过 → PyPI 0.22.0 上架（/simple/ 索引 CDN 传播有几分钟延迟，JSON API 先可见）→ 干净 venv 实装 + `get --list` 真实网络测试通过。信任基建：Dependabot + CodeQL（周更）+ CoC + 3 个 issue 模板（bug/feature/audit 误报申诉）。内容线：marketing/06 对标拆解文 + 07 即刻碎片。提交：1b457a3 / a39c960 / ec72e63 / 1c6e8e6 / 8079b9c，tag v0.22.0。踩坑入册：venv 内 pip 装包必须 `PIP_USER=false`（工具链全局 PIP_USER=1），本次首次安装还被 /simple/ 传播延迟误导以为包不存在。
+
 ---
 
 *体检人：MOE · 证据均来自 f15636c 工作区实测 · 复检建议：下一个 minor 发版前重跑 §1 基线 + §6 台账*
