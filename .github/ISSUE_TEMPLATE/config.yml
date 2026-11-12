@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: New product support
+    url: https://github.com/yxdwind/agent-skill-manager/blob/master/.github/ISSUE_TEMPLATE/new-product-support.md
+    about: Request support for an AI agent product that askill does not cover yet
