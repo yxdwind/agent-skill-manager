@@ -15,6 +15,7 @@ from ..config.products import (
     get_product_path,
 )
 from ..services.audit import analyze_skill_dir
+from ..services.get import get_skill
 from ..services.manifest import bundle_manifest, install_manifest
 from ..services.publish import publish_skill
 from ..services.scaffold import create_skill
@@ -529,7 +530,7 @@ def _build_parser() -> argparse.ArgumentParser:
                           help="Skip the default spec + security checks")
     p_install.add_argument(
         "source", nargs="?", default=None,
-        help="Local path, GitHub URL, or skills.sh shorthand",
+        help="Local path, .zip/.skill archive, GitHub URL, or skills.sh shorthand",
     )
     p_install.add_argument(
         "--manifest", default=None,
@@ -543,6 +544,23 @@ def _build_parser() -> argparse.ArgumentParser:
     p_bundle.add_argument(
         "--output", default=None,
         help="Manifest path (default: alongside the central repo)",
+    )
+
+    p_get = sub.add_parser(
+        "get", help="Preview a skill without installing (stdout / temp dir)",
+        parents=[_quiet],
+    )
+    p_get.add_argument(
+        "source",
+        help="owner/repo@skill, owner/repo, or GitHub URL",
+    )
+    p_get.add_argument(
+        "--dir", action="store_true",
+        help="Copy the full skill folder to a temp path instead of printing SKILL.md",
+    )
+    p_get.add_argument(
+        "--list", action="store_true",
+        help="List skills available in the repo instead of printing",
     )
 
     p_remove = sub.add_parser(
@@ -1090,6 +1108,15 @@ def _cmd_bundle(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_get(args: argparse.Namespace) -> int:
+    return get_skill(
+        args.source,
+        to_dir=args.dir,
+        list_only=args.list,
+        verbose=not args.quiet,
+    )
+
+
 def _cmd_install_manifest(path: str, quiet: bool) -> int:
     report = install_manifest(Path(path), verbose=not quiet)
     if not report["ok"]:
@@ -1152,6 +1179,7 @@ _HANDLERS: dict[str, Callable[[argparse.Namespace], int | None]] = {
     "list": lambda a: _print_list(quiet=a.quiet, json_mode=a.json_mode),
     "install": _dispatch_install,
     "bundle": _cmd_bundle,
+    "get": _cmd_get,
     "remove": lambda a: _print_remove(a.skill_name, quiet=a.quiet),
     "pack": lambda a: _print_pack(skill_name=a.skill_name, quiet=a.quiet),
     "adopt": lambda a: _print_adopt(a.platform_short.lower(), a.skill_name, quiet=a.quiet),

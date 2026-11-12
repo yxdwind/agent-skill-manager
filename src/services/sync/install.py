@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 
 import agent_skill_manager.services.sync as _pkg
@@ -39,18 +40,23 @@ def install_skill(
 
     from ..registry import resolve_source
 
-    resolved = resolve_source(source)
-    if resolved:
-        if verbose:
-            hint = f" (skill: {resolved['skill']})" if resolved["skill"] else ""
-            print(f"skills.sh shorthand detected{hint}: {resolved['original']}")
-        name, ok = _pkg._install_from_url(
-            resolved["repo_url"], verbose=verbose, skill_hint=resolved["skill"],
-        )
-    elif source.startswith("http"):
-        name, ok = _pkg._install_from_url(source, verbose=verbose)
+    # v0.22.0: local .zip / .skill archives route before shorthand matching -
+    # a path like downloads/tool.zip would otherwise false-match owner/repo.
+    if source.lower().endswith((".zip", ".skill")):
+        name, ok = _install_from_archive(source, verbose=verbose)
     else:
-        name, ok = _install_from_local(source, verbose=verbose)
+        resolved = resolve_source(source)
+        if resolved:
+            if verbose:
+                hint = f" (skill: {resolved['skill']})" if resolved["skill"] else ""
+                print(f"skills.sh shorthand detected{hint}: {resolved['original']}")
+            name, ok = _pkg._install_from_url(
+                resolved["repo_url"], verbose=verbose, skill_hint=resolved["skill"],
+            )
+        elif source.startswith("http"):
+            name, ok = _pkg._install_from_url(source, verbose=verbose)
+        else:
+            name, ok = _install_from_local(source, verbose=verbose)
 
     if ok and name and not no_audit:
         _post_install_checks(name, full_report=audit, verbose=verbose)
@@ -140,6 +146,141 @@ def _install_from_local(source: str, verbose: bool = True) -> tuple[str | None, 
         print("  Run 'askill sync' to distribute to all products.")
     return src.name, True
 
+def _install_from_archive(
+    source: str, verbose: bool = True, skill_hint: str | None = None,
+) -> tuple[str | None, bool]:
+    """Install a skill from a local ``.zip`` / ``.skill`` archive (v0.22.0).
+
+    ``.skill`` files are zip archives (skills.sh convention).  Layouts
+    supported: SKILL.md at archive root, or a single skill folder wrapping
+    it; multi-skill archives are refused with their names.  Unsafe paths
+    (absolute or ``..``) are rejected before extraction (zip-slip guard),
+    and the normal post-install spec + security checks still run.  No
+    source tracking: archives carry no git origin for update checks.
+    """
+    p = Path(source)
+    if not p.exists():
+        if verbose:
+            print(f"Archive not found: {p}")
+        return None, False
+
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            with zipfile.ZipFile(p) as z:
+                unsafe = [
+                    n for n in z.namelist()
+                    if Path(n).is_absolute() or ".." in Path(n).parts
+                ]
+                if unsafe:
+                    if verbose:
+                        print("Unsafe archive paths rejected (zip-slip guard):")
+                        for n in unsafe[:5]:
+                            print(f"  {n}")
+                    return None, False
+                z.extractall(tmp)
+        except zipfile.BadZipFile:
+            if verbose:
+                print(f"Not a valid zip archive: {p}")
+            return None, False
+
+        root = Path(tmp)
+        if (root / "SKILL.md").exists():
+            skill_dir = root
+        else:
+            candidates = [
+                d for d in root.iterdir()
+                if d.is_dir() and (d / "SKILL.md").exists()
+            ]
+            if not candidates:
+                if verbose:
+                    print("No SKILL.md found in the archive (root or single skill folder).")
+                return None, False
+            if len(candidates) > 1:
+                if verbose:
+                    print("Archive contains multiple skills - repack one per archive:")
+                    for d in candidates:
+                        print(f"  {d.name}")
+                return None, False
+            skill_dir = candidates[0]
+
+        from ..spec import parse_frontmatter
+        text = (skill_dir / "SKILL.md").read_text(encoding="utf-8", errors="replace")
+        fields, _warnings = parse_frontmatter(text)
+        name = fields.get("name") or (skill_dir.name if skill_dir != root else p.stem)
+        # frontmatter names are user input - never let them escape the central
+        # repo via path separators (the zip-slip guard above covers entries,
+        # this covers the SKILL.md name field itself)
+        if not name or name in (".", "..") or any(
+            sep in name for sep in ("/", "\\", ":")
+        ):
+            name = skill_dir.name if skill_dir != root else p.stem
+
+        dest = _pkg.CENTRAL_DIR / name
+        if dest.exists():
+            if verbose:
+                print(f"Skill already exists: {dest}")
+                print(f"Remove it first: askill remove {name}")
+            return None, False
+
+        shutil.copytree(skill_dir, dest)
+        if verbose:
+            print(f"Installed to central repo: {dest}")
+            print("  Run 'askill sync' to distribute to all products.")
+        return name, True
+
+def _clone_failure_hint(stderr: str) -> list[str]:
+    """Actionable hints for common ``git clone`` network failures (v0.22.0).
+
+    Domestic users often run a local proxy (Clash / v2rayN) configured in
+    git's global config; when the proxy process is down, clones fail with a
+    confusing "Failed to connect ... over proxy" error.  Name the cause and
+    the escape hatch instead of leaving users with raw stderr.
+    """
+    s = (stderr or "").lower()
+    if "proxy" in s:
+        return [
+            "A git proxy is configured but unreachable (see 'over proxy' above).",
+            "  - Is your proxy client (Clash / v2rayN / ...) running? Start it, or",
+            "    remove the git proxy: git config --global --unset http.proxy",
+            "  - One-off bypass without touching git config (PowerShell):",
+            '    $env:GIT_CONFIG_GLOBAL = "$env:TEMP\\empty.cfg"; askill install <source>',
+        ]
+    if "could not resolve host" in s:
+        return ["DNS could not resolve the host - check your network or VPN."]
+    if "failed to connect" in s or "connection refused" in s or "connection timed out" in s:
+        return ["Could not reach the host - check your network, firewall, or VPN."]
+    return []
+
+
+def _report_clone_failure(stderr: str) -> None:
+    """Print clone stderr plus any actionable hints (install / get share this)."""
+    print(f"Git clone failed: {stderr.strip()}")
+    for line in _clone_failure_hint(stderr):
+        print(line)
+
+
+def _shallow_clone(repo_url: str, branch: str | None, dest: Path) -> tuple[bool, str]:
+    """Single ``git clone --depth 1`` path shared by install and get (v0.22.0).
+
+    Returns (ok, stderr). Callers report failures via
+    :func:`_report_clone_failure` so the proxy/network hints stay in sync.
+    """
+    cmd = ["git", "clone", "--depth", "1"]
+    if branch:
+        cmd += ["--branch", branch]
+    cmd += [repo_url, str(dest)]
+    try:
+        subprocess.run(
+            cmd, check=True, capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+        )
+        return True, ""
+    except subprocess.CalledProcessError as e:
+        return False, e.stderr or ""
+    except OSError as e:
+        return False, str(e)
+
+
 def _install_from_url(
     source: str,
     verbose: bool = True,
@@ -216,14 +357,11 @@ def _install_from_url(
 
     with tempfile.TemporaryDirectory() as tmp:
         try:
-            cmd = ["git", "clone", "--depth", "1"]
-            if branch:
-                cmd += ["--branch", branch]
-            cmd += [repo_url, tmp]
-            subprocess.run(
-                cmd,
-                check=True, capture_output=True, text=True, encoding="utf-8", errors="replace",
-            )
+            ok, err = _shallow_clone(repo_url, branch, Path(tmp))
+            if not ok:
+                if verbose:
+                    _report_clone_failure(err)
+                return None, False
             src = Path(tmp) / sub_path if sub_path else Path(tmp)
 
             if skill_hint and src.exists():
