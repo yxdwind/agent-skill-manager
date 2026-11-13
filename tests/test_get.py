@@ -1,5 +1,6 @@
 """Tests for the reference tier (askill get) and clone failure hints."""
 
+from pathlib import Path
 from subprocess import CalledProcessError
 from unittest.mock import patch
 
@@ -73,6 +74,39 @@ def test_get_unknown_hint(tmp_path, capsys):
 def test_get_unsupported_source(capsys):
     code = get_skill("not-a-source")
     assert code == 2
+
+
+def test_get_local_dir_prints_skill_md(tmp_path, capsys):
+    src = tmp_path / "my-skill"
+    src.mkdir()
+    (src / "SKILL.md").write_text("---\nname: my-skill\n---\nlocal body", encoding="utf-8")
+    code = get_skill(str(src))
+    assert code == 0
+    assert "local body" in capsys.readouterr().out
+
+
+def test_get_local_list(tmp_path, capsys):
+    src = tmp_path / "skills"
+    for n in ("alpha", "beta"):
+        d = src / n
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text(f"---\nname: {n}\n---\n", encoding="utf-8")
+    code = get_skill(str(src), list_only=True)
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "alpha" in out and "beta" in out
+
+
+def test_get_local_to_dir_borrows(tmp_path, capsys):
+    src = tmp_path / "my-skill"
+    src.mkdir()
+    (src / "SKILL.md").write_text("---\nname: my-skill\n---\n", encoding="utf-8")
+    (src / "helper.txt").write_text("support", encoding="utf-8")
+    code = get_skill(str(src), to_dir=True)
+    assert code == 0
+    out = capsys.readouterr().out
+    borrowed = Path(out.split("Borrowed to: ")[1].splitlines()[0].strip())
+    assert (borrowed / "helper.txt").exists()
 
 
 def test_get_clone_failure_names_proxy(tmp_path, capsys):

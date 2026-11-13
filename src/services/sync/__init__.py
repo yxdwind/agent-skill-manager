@@ -18,6 +18,7 @@ from .engine import (
     _pack_status,
     _platform_key,
     _sync_one_product,
+    gc_dead_links,
     get_status,
     list_skills,
     print_onboarding,

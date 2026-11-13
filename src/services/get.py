@@ -48,6 +48,45 @@ def _find_skill_dirs(root: Path) -> list[Path]:
     return found
 
 
+def _get_local(src: Path, *, to_dir: bool, list_only: bool) -> int:
+    """Preview a local skill directory without installing (v0.25.0)."""
+    dirs = _find_skill_dirs(src)
+    if list_only:
+        if not dirs:
+            print(f"No SKILL.md found under {src}.")
+            return 1
+        print(f"{len(dirs)} skill(s) under {src}:")
+        for d in dirs:
+            label = "(this dir)" if d == src else str(d.relative_to(src))
+            print(f"  {d.name}  {label}")
+        return 0
+
+    if dirs and dirs[0] == src:
+        skill_dir = src
+    elif len(dirs) == 1:
+        skill_dir = dirs[0]
+    elif [d for d in dirs if d.name == src.name]:
+        skill_dir = next(d for d in dirs if d.name == src.name)
+    else:
+        print("No SKILL.md in this directory or single skill subfolder; found:")
+        for d in dirs[:8]:
+            print(f"  {d.name}")
+        return 1
+
+    if to_dir:
+        out = Path(tempfile.gettempdir()) / "askill-get" / skill_dir.name
+        if out.exists():
+            shutil.rmtree(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(skill_dir, out)
+        print(f"Borrowed to: {out}")
+        print("Plain temp copy - delete the folder when done.")
+        return 0
+
+    print((skill_dir / "SKILL.md").read_text(encoding="utf-8", errors="replace"))
+    return 0
+
+
 def get_skill(
     source: str,
     *,
@@ -56,6 +95,12 @@ def get_skill(
     verbose: bool = True,
 ) -> int:
     """Preview a skill without installing. Returns a process exit code."""
+    # v0.25.0: local directory - same read-only semantics, no clone
+    if not source.startswith("http"):
+        src = Path(source)
+        if src.exists() and src.is_dir():
+            return _get_local(src, to_dir=to_dir, list_only=list_only)
+
     repo_url, hint = _resolve_repo(source)
     if not repo_url:
         print("Unsupported source. Use owner/repo@skill, owner/repo, or a GitHub URL.")

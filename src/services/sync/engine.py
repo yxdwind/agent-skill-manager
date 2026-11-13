@@ -22,6 +22,7 @@ from ...config.products import (
 from ...models.report import StatusEntryDetail
 from ...utils.filesystem import (
     create_link,
+    is_symlink_or_junction,
     remove_path,
 )
 from ..inventory import list_skills as _enumerate_skills
@@ -289,6 +290,47 @@ def sync_skill(
                 print(f"       • {name}  ({path})")
 
     return results
+
+def gc_dead_links(verbose: bool = True) -> dict[str, list[str]]:
+    """Remove product-side dead links (v0.25.0).
+
+    A dead link is a junction/symlink whose target no longer exists AND
+    whose name is not a skill currently in central - those get relinked by
+    a normal sync instead.  Real directories are never touched: they are
+    drift/adopt territory (``askill drift`` / ``askill adopt``).
+
+    Returns: product_short -> list of removed link names.
+    """
+    central_names = {d.name for d in list_skills()}
+    removed: dict[str, list[str]] = {}
+    for p in _pkg.PRODUCTS:
+        pdir = _pkg.get_product_path(p)
+        if not pdir or not Path(pdir).exists():
+            continue
+        gone: list[str] = []
+        for entry in Path(pdir).iterdir():
+            if (
+                is_symlink_or_junction(entry)
+                and not entry.exists()
+                and entry.name not in central_names
+            ):
+                try:
+                    remove_path(entry)
+                    gone.append(entry.name)
+                except OSError as e:
+                    if verbose:
+                        print(f"  {p['short']:>10}: could not remove {entry.name}: {e}")
+        if gone:
+            removed[p["short"]] = gone
+            if verbose:
+                print(
+                    f"  {p['short']:>10}: removed {len(gone)} dead link(s): "
+                    + ", ".join(gone)
+                )
+    if verbose and not removed:
+        print("No dead links found in any product directory.")
+    return removed
+
 
 def _sync_one_product(
     skill_dir: Path,

@@ -204,8 +204,8 @@ askill install --manifest askill-manifest.json
 # 注意力预算审计（v0.21.0）：每个技能 description 的上下文成本排行
 askill audit --residency
 
-# 先看后装（v0.22.0）：SKILL.md 打到 stdout 预览，--dir 借用完整目录到临时路径，--list 看仓库有什么
-askill get owner/repo@skill [--dir | --list]
+# 先看后装（v0.22.0）：SKILL.md 打到 stdout 预览，--dir 借用完整目录到临时路径，--list 看仓库有什么；v0.25.0 起也支持本地目录
+askill get owner/repo@skill | 本地路径 [--dir | --list]
 
 # 从本地 zip/.skill 归档安装（v0.22.0，DuMate 打包往返）
 askill install path/to/skill.zip
@@ -219,6 +219,9 @@ askill install <source> --sync --only autoclaw2
 
 # 更新快照与回滚（v0.24.0）：update 前自动快照上一版，升坏一步还原
 askill rollback <skill> [--list]
+
+# 死链回收（v0.25.0）：清理产品目录里指向已删除技能的残留链接（doctor 会点名）
+askill sync --gc
 
 # 列出所有支持的产品
 askill products

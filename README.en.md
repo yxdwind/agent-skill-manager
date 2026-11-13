@@ -206,8 +206,9 @@ askill install --manifest askill-manifest.json
 askill audit --residency
 
 # Try before you install (v0.22.0): print SKILL.md to stdout, borrow the full
-# folder to a temp path, or list what a repo offers
-askill get owner/repo@skill [--dir | --list]
+# folder to a temp path, or list what a repo offers; local dirs supported
+# since v0.25.0
+askill get owner/repo@skill | <local-dir> [--dir | --list]
 
 # Install from a local zip/.skill archive (v0.22.0, DuMate round-trip)
 askill install path/to/skill.zip
@@ -224,6 +225,10 @@ askill install <source> --sync --only autoclaw2
 # Snapshot & rollback (v0.24.0): update snapshots the outgoing version
 # automatically; one command restores it
 askill rollback <skill> [--list]
+
+# Dead-link cleanup (v0.25.0): remove product-side links whose target is
+# gone (doctor names them for you)
+askill sync --gc
 
 # List all supported products
 askill products

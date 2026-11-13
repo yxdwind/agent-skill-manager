@@ -109,26 +109,32 @@ def _settings_writable(path: Path) -> bool | None:
 def _scan_product_dir(pdir: Path, central_names: set[str]) -> dict:
     """Link health for one product skills dir (read-only sweep).
 
+    ``broken_names`` names the dead links so doctor can point at them;
     ``fork_dirs`` counts real (non-linked) folders whose name matches a
     central skill - the actual drift candidates.  Real folders with other
     names are product-local skills, not drift, and are not flagged.
     """
     links = broken = real_dirs = fork_dirs = 0
+    broken_names: list[str] = []
     try:
         entries = list(pdir.iterdir())
     except OSError:
-        return {"links": None, "broken_links": None, "real_dirs": None, "fork_dirs": None}
+        return {
+            "links": None, "broken_links": None, "broken_names": [],
+            "real_dirs": None, "fork_dirs": None,
+        }
     for e in entries:
         if is_symlink_or_junction(e):
             links += 1
             if not e.exists():
                 broken += 1
+                broken_names.append(e.name)
         elif e.is_dir():
             real_dirs += 1
             if e.name in central_names:
                 fork_dirs += 1
     return {
-        "links": links, "broken_links": broken,
+        "links": links, "broken_links": broken, "broken_names": broken_names,
         "real_dirs": real_dirs, "fork_dirs": fork_dirs,
     }
 
@@ -238,7 +244,11 @@ def doctor_report(central: Path | None = None, verbose: bool = True) -> dict:
     if broken_total:
         checks.append({
             "id": "broken-links", "severity": "warn",
-            "detail": f"{broken_total} broken link(s) across products - run: askill sync",
+            "detail": (
+                f"{broken_total} broken link(s) across products - relink "
+                "central skills with `askill sync`, remove stale ones with "
+                "`askill sync --gc`"
+            ),
         })
     if real_dir_products:
         checks.append({
@@ -280,7 +290,9 @@ def _print_report(report: dict) -> None:
             continue
         parts = [f"{row.get('links', '?')} link(s)"]
         if row.get("broken_links"):
-            parts.append(f"{row['broken_links']} broken")
+            names = row.get("broken_names") or []
+            shown = ", ".join(names[:4]) + (" ..." if len(names) > 4 else "")
+            parts.append(f"{row['broken_links']} dead ({shown})")
         if row.get("real_dirs"):
             parts.append(f"{row['real_dirs']} real dir(s)")
         if row.get("settings_writable") is False:

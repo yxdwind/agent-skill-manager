@@ -25,6 +25,7 @@ from ..services.sync import (
     adopt_from_platform,
     audit_all,
     audit_skill,
+    gc_dead_links,
     get_status,
     install_skill,
     list_skills,
@@ -272,7 +273,10 @@ def _print_status(skill_name=None, *, quiet=False, json_mode=False):
         print()
 
 
-def _print_sync(skill_name=None, *, force=False, quiet=False, only=None):
+def _print_sync(skill_name=None, *, force=False, quiet=False, only=None, gc=False):
+    if gc:
+        gc_dead_links(verbose=not quiet)
+        return 0
     """Sync skills and print results.
 
     ``quiet`` flips ``sync_skill(verbose=...)`` to False. Conflict +
@@ -519,6 +523,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--only", nargs="+", default=None, metavar="SHORT",
         help="Sync only these products (short names from `askill products`, e.g. autoclaw2 kimi)",
     )
+    p_sync.add_argument(
+        "--gc", action="store_true",
+        help="Remove product-side links whose target is gone (stale links); "
+            "no syncing happens in this mode",
+    )
 
     sub.add_parser("list", help="List skills in central repository",
                    parents=[_common])
@@ -562,7 +571,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_get.add_argument(
         "source",
-        help="owner/repo@skill, owner/repo, or GitHub URL",
+        help="owner/repo@skill, owner/repo, GitHub URL, or local skill dir",
     )
     p_get.add_argument(
         "--dir", action="store_true",
@@ -1226,7 +1235,7 @@ def _dispatch_watch(args: argparse.Namespace) -> None:
 
 _HANDLERS: dict[str, Callable[[argparse.Namespace], int | None]] = {
     "status": lambda a: _print_status(a.skill_name, quiet=a.quiet, json_mode=a.json_mode),
-    "sync": lambda a: _print_sync(a.skill_name, force=a.force, quiet=a.quiet, only=a.only),
+    "sync": lambda a: _print_sync(a.skill_name, force=a.force, quiet=a.quiet, only=a.only, gc=a.gc),
     "list": lambda a: _print_list(quiet=a.quiet, json_mode=a.json_mode),
     "install": _dispatch_install,
     "bundle": _cmd_bundle,
