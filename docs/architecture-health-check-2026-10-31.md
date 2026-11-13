@@ -168,6 +168,8 @@ cli.py 内 7 处（:103/:296/:426/:474/:745/:847/:916/:986）+ services 内 8 �
 
 - **2026-11-12（晚）**：0.22.0（引用层轮）复检。新增 `services/get.py`（只读预览，克隆通道复用 install.py 新提取的 `_shallow_clone`/`_report_clone_failure`，代理不可达时输出可操作提示而非裸 stderr——源自本机 gitconfig 代理未开时的真实故障）；新增 `_install_from_archive`（zip/.skill，zip-slip 防护 + frontmatter 名字段防路径逃逸双保险）。分层约束保持，测试 patch 目标无新增。门禁：ruff 全绿、mypy 32 文件全绿、pytest 336 passed。发布链路：手动 bump（cz 跳过风险已知，直接绕过）→ tag 后推 → release.yml 冒烟守门二次实战通过 → PyPI 0.22.0 上架（/simple/ 索引 CDN 传播有几分钟延迟，JSON API 先可见）→ 干净 venv 实装 + `get --list` 真实网络测试通过。信任基建：Dependabot + CodeQL（周更）+ CoC + 3 个 issue 模板（bug/feature/audit 误报申诉）。内容线：marketing/06 对标拆解文 + 07 即刻碎片。提交：1b457a3 / a39c960 / ec72e63 / 1c6e8e6 / 8079b9c，tag v0.22.0。踩坑入册：venv 内 pip 装包必须 `PIP_USER=false`（工具链全局 PIP_USER=1），本次首次安装还被 /simple/ 传播延迟误导以为包不存在。
 
+- **2026-11-13**：0.23.0（可支持性轮）复检。新增 `services/doctor.py`（只读诊断：git/代理 TCP 可达性探测/中央仓含孤儿追踪/产品断链与 shadowing 漂移候选/settings 锁 r+b 探测）。实现中修正：get_product_path 运行时返 str（类型标注靠 cast），doctor 内强制转 Path；drift 候选判据收紧为「真实目录名与中央同名」消除纯复制产品误报；测试加 autouse 夹具隔离真机代理（维护者 gitconfig 代理不可达会污染所有未隔离用例）。bug 模板接入 doctor --json。**doctor 首跑即发现真机 9 条死链（全是 e2e-watch-probe 测试夹具残留 + doubaowork 死 agent-skill-manager 链）与 2 条孤儿追踪——已清理；同时暴露产品缺口：sync 不回收产品侧死链（GC 缺失，列入下轮候选）**。门禁：ruff 全绿、mypy 33 文件全绿、pytest 347 passed。发布：手动 bump → PyPI 0.23.0 → 干净 venv 实装 doctor --json 验证。提交：499def5 / afb6494，tag v0.23.0。下轮候选：doctor 点名断链清单、sync --gc 死链回收、e2e 测试夹具隔离到临时目录。
+
 ---
 
 *体检人：MOE · 证据均来自 f15636c 工作区实测 · 复检建议：下一个 minor 发版前重跑 §1 基线 + §6 台账*
