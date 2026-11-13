@@ -170,6 +170,8 @@ cli.py 内 7 处（:103/:296/:426/:474/:745/:847/:916/:986）+ services 内 8 �
 
 - **2026-11-13**：0.23.0（可支持性轮）复检。新增 `services/doctor.py`（只读诊断：git/代理 TCP 可达性探测/中央仓含孤儿追踪/产品断链与 shadowing 漂移候选/settings 锁 r+b 探测）。实现中修正：get_product_path 运行时返 str（类型标注靠 cast），doctor 内强制转 Path；drift 候选判据收紧为「真实目录名与中央同名」消除纯复制产品误报；测试加 autouse 夹具隔离真机代理（维护者 gitconfig 代理不可达会污染所有未隔离用例）。bug 模板接入 doctor --json。**doctor 首跑即发现真机 9 条死链（全是 e2e-watch-probe 测试夹具残留 + doubaowork 死 agent-skill-manager 链）与 2 条孤儿追踪——已清理；同时暴露产品缺口：sync 不回收产品侧死链（GC 缺失，列入下轮候选）**。门禁：ruff 全绿、mypy 33 文件全绿、pytest 347 passed。发布：手动 bump → PyPI 0.23.0 → 干净 venv 实装 doctor --json 验证。提交：499def5 / afb6494，tag v0.23.0。下轮候选：doctor 点名断链清单、sync --gc 死链回收、e2e 测试夹具隔离到临时目录。
 
+- **2026-11-13（晚）**：0.24.0（定向同步轮，第二轮对标落地）复检。新增：`sync_skill`/`install_skill` 的 `only` 参数（按 short 过滤 PRODUCTS，非法 short 报错列全表——学 tech-leads-club -a）；update_skill 快照 + `rollback_skill`/`list_rollbackable`（快照存中央仓库外 `~/.agents/.askill-versions/`，inventory 永不可见；update 失败不再丢技能；学 FrancyJGLisboa quarantine/rollback）。接缝纪律保持：引擎内 PRODUCTS 两处迭代均改用过滤后的局部 `products`，测试 patch 目标不变；sources 的 sync_skill 惰性导入照旧，测试 patch sync 包命名空间即可。README 数字口径纪律落地（15 产品声明带复现命令），zh 标题锚点 `#支持的产品` 有徽章引用故口径进正文不动标题——**改标题前必查锚点引用，这条应入册**。P4 收录跟踪修正：awesome 收录真实状态 = JackyST0/awesome-agent-skills #74 于 8-18 因 64 星门槛关闭（此前 checkpoint 写 VoltAgent #122 open 是失真）；skills-hub.ai 为自动镜像无自助入口。门禁：ruff 全绿、mypy 33 文件全绿、pytest 354 passed。提交：edd09ce / d3b9a27，tag v0.24.0。
+
 ---
 
 *体检人：MOE · 证据均来自 f15636c 工作区实测 · 复检建议：下一个 minor 发版前重跑 §1 基线 + §6 台账*
