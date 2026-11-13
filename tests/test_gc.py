@@ -1,6 +1,8 @@
 """Tests for sync --gc (dead link removal) and doctor's broken-link naming."""
 
+import os
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -23,16 +25,32 @@ def _mk_skill(central, name):
 
 
 def _dead_junction(dst: Path) -> bool:
-    """Create a junction whose local-volume target does not exist.
+    """Create a dangling link (junction on Windows, symlink elsewhere).
 
-    mklink /J only requires a LOCAL volume (it does not validate target
-    existence), so a guaranteed-missing path on C: works everywhere.
+    Windows: mklink /J only requires a LOCAL volume (target existence is
+    not validated), so a guaranteed-missing path on C: works everywhere.
+    POSIX: os.symlink to a missing target is a plain dangling symlink.
     """
-    r = subprocess.run(
-        ["cmd", "/c", "mklink", "/J", str(dst), r"C:\__askill_missing__\nope"],
-        capture_output=True, text=True,
-    )
-    return r.returncode == 0 and is_symlink_or_junction(dst)
+    if sys.platform == "win32":
+        r = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(dst), r"C:\__askill_missing__\nope"],
+            capture_output=True, text=True,
+        )
+        return r.returncode == 0 and is_symlink_or_junction(dst)
+    os.symlink("/definitely/missing/target", dst)
+    return is_symlink_or_junction(dst) and not dst.exists()
+
+
+def _live_link(src: Path, dst: Path) -> bool:
+    """Create a working link to an existing directory (any platform)."""
+    if sys.platform == "win32":
+        r = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(dst), str(src)],
+            capture_output=True, text=True,
+        )
+        return r.returncode == 0
+    os.symlink(src, dst)
+    return True
 
 
 def test_gc_removes_stale_keeps_relinkable_and_real_dirs(tmp_path):
@@ -46,12 +64,8 @@ def test_gc_removes_stale_keeps_relinkable_and_real_dirs(tmp_path):
     assert _dead_junction(pdir / "old-probe")
     # dead but relinkable: name matches a central skill -> sync fixes it, gc keeps
     assert _dead_junction(pdir / "s1")
-    # live link: junction to an existing central skill dir -> untouched
-    r = subprocess.run(
-        ["cmd", "/c", "mklink", "/J", str(pdir / "s2-live"), str(central / "s2")],
-        capture_output=True, text=True,
-    )
-    assert r.returncode == 0
+    # live link: link to an existing central skill dir -> untouched
+    assert _live_link(central / "s2", pdir / "s2-live")
     # real dir: never touched by gc
     (pdir / "manual-dir").mkdir()
 
