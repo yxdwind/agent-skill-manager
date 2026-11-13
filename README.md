@@ -208,6 +208,9 @@ askill get owner/repo@skill [--dir | --list]
 # 从本地 zip/.skill 归档安装（v0.22.0，DuMate 打包往返）
 askill install path/to/skill.zip
 
+# 环境与仓库体检（v0.23.0）：git/代理可达性/中央仓/断链/漂移/settings 锁，一键诊断
+askill doctor [--json]
+
 # 列出所有支持的产品
 askill products
 ```

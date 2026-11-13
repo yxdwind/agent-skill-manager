@@ -212,6 +212,10 @@ askill get owner/repo@skill [--dir | --list]
 # Install from a local zip/.skill archive (v0.22.0, DuMate round-trip)
 askill install path/to/skill.zip
 
+# Environment & repo health check (v0.23.0): git, proxy reachability, central
+# repo, broken links, drift, settings locks - one command, --json for reports
+askill doctor [--json]
+
 # List all supported products
 askill products
 ```

@@ -15,6 +15,7 @@ from ..config.products import (
     get_product_path,
 )
 from ..services.audit import analyze_skill_dir
+from ..services.doctor import doctor_report
 from ..services.get import get_skill
 from ..services.manifest import bundle_manifest, install_manifest
 from ..services.publish import publish_skill
@@ -561,6 +562,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p_get.add_argument(
         "--list", action="store_true",
         help="List skills available in the repo instead of printing",
+    )
+
+    sub.add_parser(
+        "doctor", help="Environment & repository health diagnostics",
+        parents=[_common],
     )
 
     p_remove = sub.add_parser(
@@ -1117,6 +1123,14 @@ def _cmd_get(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    if args.json_mode:
+        print(json.dumps(doctor_report(verbose=False), ensure_ascii=False, indent=2))
+        return 0
+    report = doctor_report(verbose=True)
+    return 0 if report["ok"] else 1
+
+
 def _cmd_install_manifest(path: str, quiet: bool) -> int:
     report = install_manifest(Path(path), verbose=not quiet)
     if not report["ok"]:
@@ -1180,6 +1194,7 @@ _HANDLERS: dict[str, Callable[[argparse.Namespace], int | None]] = {
     "install": _dispatch_install,
     "bundle": _cmd_bundle,
     "get": _cmd_get,
+    "doctor": _cmd_doctor,
     "remove": lambda a: _print_remove(a.skill_name, quiet=a.quiet),
     "pack": lambda a: _print_pack(skill_name=a.skill_name, quiet=a.quiet),
     "adopt": lambda a: _print_adopt(a.platform_short.lower(), a.skill_name, quiet=a.quiet),

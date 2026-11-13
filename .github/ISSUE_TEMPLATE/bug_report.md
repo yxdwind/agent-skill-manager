@@ -14,6 +14,15 @@ A clear description of the problem.
 # paste the exact askill command you ran and its output
 ```
 
+**Diagnostics**
+
+Run `askill doctor --json` and paste the output below - it covers git,
+proxy reachability, central repo state, broken links and settings locks:
+
+```text
+# paste `askill doctor --json` output here
+```
+
 **Environment**
 
 - askill version (`askill version`):
