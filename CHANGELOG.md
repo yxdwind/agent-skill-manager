@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **packaging**: ship the sync subpackage in the wheel
 
+## v0.25.0 (2026-11-13)
+
+### Feat
+
+- **cli,services**: sync --gc dead-link cleanup; doctor names dead links; get supports local dirs
+
 ## v0.24.0 (2026-11-13)
 
 ### Feat
