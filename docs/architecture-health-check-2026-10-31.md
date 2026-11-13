@@ -172,6 +172,8 @@ cli.py 内 7 处（:103/:296/:426/:474/:745/:847/:916/:986）+ services 内 8 �
 
 - **2026-11-13（晚）**：0.24.0（定向同步轮，第二轮对标落地）复检。新增：`sync_skill`/`install_skill` 的 `only` 参数（按 short 过滤 PRODUCTS，非法 short 报错列全表——学 tech-leads-club -a）；update_skill 快照 + `rollback_skill`/`list_rollbackable`（快照存中央仓库外 `~/.agents/.askill-versions/`，inventory 永不可见；update 失败不再丢技能；学 FrancyJGLisboa quarantine/rollback）。接缝纪律保持：引擎内 PRODUCTS 两处迭代均改用过滤后的局部 `products`，测试 patch 目标不变；sources 的 sync_skill 惰性导入照旧，测试 patch sync 包命名空间即可。README 数字口径纪律落地（15 产品声明带复现命令），zh 标题锚点 `#支持的产品` 有徽章引用故口径进正文不动标题——**改标题前必查锚点引用，这条应入册**。P4 收录跟踪修正：awesome 收录真实状态 = JackyST0/awesome-agent-skills #74 于 8-18 因 64 星门槛关闭（此前 checkpoint 写 VoltAgent #122 open 是失真）；skills-hub.ai 为自动镜像无自助入口。门禁：ruff 全绿、mypy 33 文件全绿、pytest 354 passed。提交：edd09ce / d3b9a27，tag v0.24.0。
 
+- **2026-11-13（深夜）**：0.25.0（清洁轮）复检。新增：`sync --gc` 死链回收（只删目标不存在且名字不在中央的链接；中央同名死链留给正常 sync 重连；真实目录永不触碰——drift/adopt 的领地）；doctor 的 scan 返回 `broken_names` 并在报告里点名，断链检查同时给出两条出路（sync 重连 / sync --gc 删残留）；`get` 支持本地目录（与仓库流相同的只读语义）。测试基建发现：`_create_junction` 对不存在的目标会回退成复制（shutil 直接炸），测试造悬空 junction 必须 `cmd /c mklink /J` 且目标须为【本地卷】上不存在的路径（Z: 这类不存在卷会报 Local volumes required）。另核实：真机 9 条 e2e-watch-probe 死链非测试产生，是 watch 功能开发期的手动探针残留——测试无罪，GC 是正确治本。门禁：ruff 全绿、mypy 33 文件全绿、pytest 362 passed；真机 GC 实跑 no-op（清理后预期）。提交：1ad8eb0 / 72ebf9c，tag v0.25.0，PyPI 0.25.0 + venv 实装（sync --gc / get 本地路径）验证通过。发布链路备忘：PyPI JSON API 先可见、/simple/ 索引滞后 1-3 分钟，venv 冒烟遇 No matching distribution 先重试再怀疑发布失败。
+
 ---
 
 *体检人：MOE · 证据均来自 f15636c 工作区实测 · 复检建议：下一个 minor 发版前重跑 §1 基线 + §6 台账*
