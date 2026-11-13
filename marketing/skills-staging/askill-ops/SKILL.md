@@ -2,19 +2,22 @@
 name: askill-ops
 description: |
   Drive the askill CLI (agent-skill-manager) to manage skills across 15
-  Chinese AI agent products: check status, sync the central repo to every
-  product, install skills from GitHub or skills.sh, export/import a team
-  manifest, run security and attention-budget audits, pack zips for
-  upload-only products, and detect drift. Use when the user asks to sync,
-  install, check, audit, or troubleshoot their skills, or mentions askill,
-  skill sync across products, or a skill missing in some agent.
-version: 1.0.0
+  Chinese AI agent products: diagnose machine health, check status, sync
+  (all or targeted products) the central repo, install skills from GitHub,
+  local dirs, skills.sh, archives or a team manifest, roll back bad
+  updates, run security and attention-budget audits, pack zips for
+  upload-only products, and clean dead links. Use when the user asks to
+  sync, install, check, audit, fix, or troubleshoot their skills, or
+  mentions askill, skill sync across products, or a skill missing in some
+  agent.
+version: 1.1.0
 description_zh: |
   驱动 askill CLI（agent-skill-manager）跨 15 个国产 AI Agent 产品管理技能：
-  查看状态、把中央仓库同步到全部产品、从 GitHub 或 skills.sh 安装技能、
-  导出/对齐团队 manifest、跑安全与注意力预算审计、为仅支持上传的产品打包、
-  检测漂移。当用户要求同步、安装、检查、审计技能，或提到 askill、技能跨产品
-  同步、某个产品里技能缺失时使用。
+  诊断机器健康、查看状态、定向或全量同步中央仓库、从 GitHub/本地目录/
+  skills.sh/归档/团队 manifest 安装技能、回滚失败更新、跑安全与注意力
+  预算审计、为仅支持上传的产品打包、清理死链。当用户要求同步、安装、检查、
+  审计、修复、排障技能，或提到 askill、技能跨产品同步、某个产品里技能
+  缺失时使用。
 ---
 
 # askill Ops
@@ -36,18 +39,23 @@ every product directory is a link to it.
 ## Core commands
 
 ```bash
+askill doctor [--json]       # machine health: git/proxy/central/broken links/settings locks
 askill status [skill]        # which products have which skill (json: --json)
 askill sync [skill] [--force]  # distribute central -> all products
+askill sync [skill] --only autoclaw2 kimi  # targeted: only these products
+askill sync --gc             # remove product-side dead links (targets gone)
 askill list                  # what is in the central repo
 askill products              # where each product's skills dir is
-askill install <source>      # local path / GitHub URL / owner/repo@skill
+askill install <source>      # local path / GitHub URL / owner/repo@skill / .zip
 askill install --manifest <path>  # align central to a team manifest
 askill bundle [--output <p>] # export the manifest for teammates
 askill verify [skill]        # agentskills.io spec + per-product frontmatter
 askill audit [skill]         # security scan (injection / dangerous code / secrets)
 askill audit --residency     # attention-budget: context cost of every description
 askill drift [product]       # product-side skills that forked from central
-askill update [--check]      # pull updates for git-tracked skills
+askill update [--check]      # pull updates for git-tracked skills (auto-snapshot)
+askill rollback <skill>      # restore the pre-update snapshot (one-step undo)
+askill get <source>          # preview SKILL.md without installing (also local dirs)
 askill pack <skill>          # zip for upload-only products (DuMate)
 askill remove <skill>        # DESTRUCTIVE - see safety rules
 askill watch                 # blocking loop; auto-sync on every save
@@ -66,11 +74,22 @@ prints a SECURITY WARNING, show the findings and let the user decide before
 `askill sync`. If it prints `[product]` frontmatter issues, add the missing
 fields to the central SKILL.md first, then sync.
 
-**User asks "why is a skill not loading in product X"**: check in order -
-`askill status <skill>` (missing?), then `askill verify <skill>` (missing
-frontmatter, e.g. QwenWork needs `description_zh`?), then whether the
-product needs a restart. For zip-only products (DuMate) run
-`askill pack <skill>` and tell the user to import it in the app.
+**User asks "why is a skill not loading in product X"**: start with
+`askill doctor --json` (proxy unreachable, broken links, settings locks -
+the machine-level causes), then `askill status <skill>` (missing?), then
+`askill verify <skill>` (missing frontmatter, e.g. QwenWork needs
+`description_zh`?), then whether the product needs a restart. For zip-only
+products (DuMate) run `askill pack <skill>` and tell the user to import it
+in the app. Doctor reports dead links - clean them with `askill sync --gc`.
+
+**User says "an update broke this skill"**: `askill rollback <skill>`
+restores the snapshot that update took automatically; `askill rollback
+--list` shows what is restorable. No snapshot means the skill was never
+updated - say so instead of guessing.
+
+**User wants a skill in only some products**: `askill sync <skill>
+--only <short> [<short>...]` (shorts from `askill products`). Unknown
+shorts abort with the valid list - relay it, do not guess.
 
 **New machine / teammate setup**: `askill install --manifest
 askill-manifest.json` after getting the manifest from the team repo (or
