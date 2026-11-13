@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **packaging**: ship the sync subpackage in the wheel
 
+## v0.23.0 (2026-11-13)
+
+### Feat
+
+- **cli,services**: askill doctor - environment & repository health diagnostics
+
 ## v0.22.0 (2026-11-12)
 
 ### Feat
