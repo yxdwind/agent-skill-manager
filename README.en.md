@@ -17,7 +17,7 @@
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#supported-products)
 
-**Write once, sync everywhere** — Cross-platform skill management for 15 domestic Chinese AI agent products.
+**Write once, sync everywhere** — Cross-platform skill management for 15 domestic Chinese AI agent products (declarative list in `src/config/products.py`; reproduce with `askill products`).
 
 [Install](#install) · [Usage](#usage) · [How It Compares](#how-it-compares) · [Security Audit](#security-audit) · [Architecture](#architecture)
 
@@ -86,7 +86,7 @@ Another CLI on PyPI named `agent-skill-manager` (command `sm`) targets internati
 
 | Dimension | askill (cn-skill-sync) |
 |-----------|------------------------|
-| Product coverage | 15 domestic Chinese agents: Tencent CodeBuddy / WorkBuddy, Baidu Comate / DuMate, Alibaba QwenWork / Qoder CN, ByteDance DoubaoWork / Trae (CN variants), MiniMax, Kimi, Zhipu AutoClaw2, ZCode |
+| Product coverage | 15 domestic Chinese agents (cohort: `askill products`): Tencent CodeBuddy / WorkBuddy, Baidu Comate / DuMate, Alibaba QwenWork / Qoder CN, ByteDance DoubaoWork / Trae (CN variants), MiniMax, Kimi, Zhipu AutoClaw2, ZCode |
 | Sync model | One central repository `~/.agents/skills/` as the single source of truth; product directories hold junctions / symlinks to it — one copy on disk, edit once and every product sees it |
 | Live sync | `askill watch` idles on native OS file events and periodically reconciles, re-creating product-side links that went missing (v0.19.0) |
 | Network | Offline-first: install, sync and audit all run locally; only fetching a new skill from GitHub touches the network |
@@ -215,6 +215,15 @@ askill install path/to/skill.zip
 # Environment & repo health check (v0.23.0): git, proxy reachability, central
 # repo, broken links, drift, settings locks - one command, --json for reports
 askill doctor [--json]
+
+# Per-product targeting (v0.24.0): sync only the named products (shorts
+# from `askill products`)
+askill sync [skill] --only autoclaw2 kimi
+askill install <source> --sync --only autoclaw2
+
+# Snapshot & rollback (v0.24.0): update snapshots the outgoing version
+# automatically; one command restores it
+askill rollback <skill> [--list]
 
 # List all supported products
 askill products

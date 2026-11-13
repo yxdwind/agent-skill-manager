@@ -272,7 +272,7 @@ def _print_status(skill_name=None, *, quiet=False, json_mode=False):
         print()
 
 
-def _print_sync(skill_name=None, *, force=False, quiet=False):
+def _print_sync(skill_name=None, *, force=False, quiet=False, only=None):
     """Sync skills and print results.
 
     ``quiet`` flips ``sync_skill(verbose=...)`` to False. Conflict +
@@ -283,13 +283,14 @@ def _print_sync(skill_name=None, *, force=False, quiet=False):
     else 0 - per-product conflicts/failures are reported data, not a
     command failure.
     """
-    results = sync_skill(skill_name, verbose=not quiet, force=force)
+    results = sync_skill(skill_name, verbose=not quiet, force=force, only=only)
     return 1 if (skill_name and not results) else 0
 
 
-def _print_install(source, sync=False, audit=False, no_audit=False, *, quiet=False):
+def _print_install(source, sync=False, audit=False, no_audit=False, *, quiet=False, only=None):
     """Install a skill and print results. Returns 1 on failure."""
-    ok = install_skill(source, sync=sync, audit=audit, no_audit=no_audit, verbose=not quiet)
+    ok = install_skill(source, sync=sync, audit=audit, no_audit=no_audit, verbose=not quiet,
+                       only=only)
     return 0 if ok else 1
 
 
@@ -514,6 +515,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--force", action="store_true",
         help="Overwrite differing real dirs (conflicts)",
     )
+    p_sync.add_argument(
+        "--only", nargs="+", default=None, metavar="SHORT",
+        help="Sync only these products (short names from `askill products`, e.g. autoclaw2 kimi)",
+    )
 
     sub.add_parser("list", help="List skills in central repository",
                    parents=[_common])
@@ -525,6 +530,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_install.add_argument("--sync", action="store_true",
                           help="Also sync to all products after install")
+    p_install.add_argument(
+        "--only", nargs="+", default=None, metavar="SHORT",
+        help="With --sync: distribute only to these products (short names)",
+    )
     p_install.add_argument("--audit", action="store_true",
                           help="Print the full audit report after install")
     p_install.add_argument("--no-audit", action="store_true",
@@ -567,6 +576,16 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser(
         "doctor", help="Environment & repository health diagnostics",
         parents=[_common],
+    )
+
+    p_rollback = sub.add_parser(
+        "rollback", help="Restore the pre-update snapshot of a skill",
+        parents=[_common],
+    )
+    p_rollback.add_argument("skill_name", nargs="?", default=None)
+    p_rollback.add_argument(
+        "--list", action="store_true",
+        help="List skills that have a rollback snapshot",
     )
 
     p_remove = sub.add_parser(
@@ -1098,7 +1117,7 @@ def _dispatch_install(args: argparse.Namespace) -> int:
         sys.exit(2)
     return _print_install(
         args.source, sync=args.sync, audit=args.audit,
-        no_audit=args.no_audit, quiet=args.quiet,
+        no_audit=args.no_audit, quiet=args.quiet, only=args.only,
     )
 
 
@@ -1129,6 +1148,24 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
         return 0
     report = doctor_report(verbose=True)
     return 0 if report["ok"] else 1
+
+
+def _cmd_rollback(args: argparse.Namespace) -> int:
+    from ..services.sources import list_rollbackable, rollback_skill
+
+    if args.list:
+        items = list_rollbackable()
+        if not items:
+            print("No rollback snapshots (taken automatically before each 'askill update').")
+            return 0
+        print("Rollback snapshot(s) - one per skill, from its last update:")
+        for n, when in items:
+            print(f"  {n}  (snapshot taken {when})")
+        return 0
+    if not args.skill_name:
+        print("Usage: askill rollback <skill> | askill rollback --list")
+        return 2
+    return 0 if rollback_skill(args.skill_name, verbose=not args.quiet) else 1
 
 
 def _cmd_install_manifest(path: str, quiet: bool) -> int:
@@ -1189,12 +1226,13 @@ def _dispatch_watch(args: argparse.Namespace) -> None:
 
 _HANDLERS: dict[str, Callable[[argparse.Namespace], int | None]] = {
     "status": lambda a: _print_status(a.skill_name, quiet=a.quiet, json_mode=a.json_mode),
-    "sync": lambda a: _print_sync(a.skill_name, force=a.force, quiet=a.quiet),
+    "sync": lambda a: _print_sync(a.skill_name, force=a.force, quiet=a.quiet, only=a.only),
     "list": lambda a: _print_list(quiet=a.quiet, json_mode=a.json_mode),
     "install": _dispatch_install,
     "bundle": _cmd_bundle,
     "get": _cmd_get,
     "doctor": _cmd_doctor,
+    "rollback": _cmd_rollback,
     "remove": lambda a: _print_remove(a.skill_name, quiet=a.quiet),
     "pack": lambda a: _print_pack(skill_name=a.skill_name, quiet=a.quiet),
     "adopt": lambda a: _print_adopt(a.platform_short.lower(), a.skill_name, quiet=a.quiet),

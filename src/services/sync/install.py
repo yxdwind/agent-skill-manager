@@ -19,6 +19,7 @@ def install_skill(
     audit: bool = False,
     verbose: bool = True,
     no_audit: bool = False,
+    only: list[str] | None = None,
 ) -> bool:
     """Install a skill to the central repository.
 
@@ -32,6 +33,8 @@ def install_skill(
             default every install runs the agentskills.io spec check plus a
             security audit scan (v0.12.0) - safe results print one line,
             risky/dangerous results warn loudly regardless of verbosity.
+        only: With ``sync`` (v0.24.0): distribute only to the products whose
+            short names appear here (forwarded to :func:`sync_skill`).
 
     Returns:
         True if installation succeeded.
@@ -64,7 +67,7 @@ def install_skill(
     if ok and sync and name:
         if verbose:
             print()
-        _pkg.sync_skill(name, verbose=verbose)
+        _pkg.sync_skill(name, verbose=verbose, only=only)
 
     return ok
 

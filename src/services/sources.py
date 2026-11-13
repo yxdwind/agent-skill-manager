@@ -137,6 +137,78 @@ def check_all_updates() -> list[dict]:
     return results
 
 
+# ---------------------------------------------------------------- rollback
+
+def _versions_root() -> Path:
+    """Snapshot root OUTSIDE the central repo (inventory/status never see it)."""
+    return CENTRAL_DIR.parent / ".askill-versions"
+
+
+def snapshot_skill(skill_name: str) -> Path | None:
+    """Copy the current version of a skill as the rollback point (v0.24.0).
+
+    One snapshot per skill - the next update overwrites it.  Returns the
+    snapshot dir, or None when the skill does not exist.
+    """
+    import shutil
+
+    skill_dir = CENTRAL_DIR / skill_name
+    if not skill_dir.exists():
+        return None
+    root = _versions_root() / skill_name
+    if root.exists():
+        shutil.rmtree(root)
+    root.mkdir(parents=True)
+    shutil.copytree(skill_dir, root / "last")
+    return root / "last"
+
+
+def list_rollbackable() -> list[tuple[str, str]]:
+    """Skills with a rollback snapshot, with the snapshot's mtime label."""
+    import time
+
+    root = _versions_root()
+    if not root.exists():
+        return []
+    out = []
+    for d in sorted(root.iterdir()):
+        last = d / "last"
+        if last.exists():
+            when = time.strftime("%Y-%m-%d %H:%M", time.localtime(last.stat().st_mtime))
+            out.append((d.name, when))
+    return out
+
+
+def rollback_skill(skill_name: str, verbose: bool = True) -> bool:
+    """Restore the pre-update snapshot of a skill and re-sync (v0.24.0).
+
+    The snapshot is consumed on success (one-step undo, not a version
+    history - for that, keep the skill in a git repo).
+    """
+    import shutil
+    import tempfile
+
+    snap = _versions_root() / skill_name / "last"
+    if not snap.exists():
+        if verbose:
+            print(f"No rollback snapshot for '{skill_name}'.")
+            print("Snapshots are taken automatically each time 'askill update' replaces a skill.")
+        return False
+
+    skill_dir = CENTRAL_DIR / skill_name
+    if skill_dir.exists():
+        with tempfile.TemporaryDirectory() as tmp:
+            shutil.move(str(skill_dir), str(Path(tmp) / "current"))
+    shutil.copytree(snap, skill_dir)
+    shutil.rmtree(_versions_root() / skill_name)
+    if verbose:
+        print(f"Rolled back '{skill_name}' to the pre-update snapshot.")
+
+    from .sync import sync_skill
+    sync_skill(skill_name, verbose=verbose)
+    return True
+
+
 def update_skill(skill_name: str, verbose: bool = True) -> bool:
     """Re-install one skill from its recorded origin and re-sync everywhere.
 
@@ -160,6 +232,10 @@ def update_skill(skill_name: str, verbose: bool = True) -> bool:
 
     skill_dir = CENTRAL_DIR / skill_name
     if skill_dir.exists():
+        # v0.24.0: keep the outgoing version as a one-step undo (the update
+        # below moves the old dir into a temp dir that dies on exit - without
+        # the snapshot a failed update would lose the skill entirely)
+        snapshot_skill(skill_name)
         with tempfile.TemporaryDirectory() as tmp:
             shutil.move(str(skill_dir), str(Path(tmp) / "old"))
         if verbose:

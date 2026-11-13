@@ -158,6 +158,7 @@ def sync_skill(
     skill_name: str | None = None,
     verbose: bool = True,
     force: bool = False,
+    only: list[str] | None = None,
 ) -> dict[str, list[tuple[str, bool, str]]]:
     """Sync skills from central repo to all products.
 
@@ -173,6 +174,9 @@ def sync_skill(
         force: Overwrite product directories that exist as real dirs and
             differ from the central repo. Without it (v0.13.0 conflict
             protection) such directories are skipped and reported.
+        only: If given (v0.24.0, borrowed from tech-leads-club's ``-a``),
+            sync only the products whose short names appear here. Unknown
+            shorts abort with the valid list; default None = all products.
 
     Returns:
         Dict mapping skill_name -> list of (product_short, success, method).
@@ -196,8 +200,23 @@ def sync_skill(
             print_onboarding()
         return {}
 
+    products = _pkg.PRODUCTS
+    if only:
+        configured = {q["short"] for q in _pkg.PRODUCTS}
+        unknown = [s for s in only if s not in configured]
+        if unknown:
+            if verbose:
+                print(f"Unknown product short name(s): {', '.join(unknown)}")
+                print("Valid shorts (askill products): " + ", ".join(sorted(configured)))
+            return {}
+        products = [q for q in _pkg.PRODUCTS if q["short"] in set(only)]
+        if not products:
+            if verbose:
+                print("No products matched --only.")
+            return {}
+
     if verbose:
-        print(f"\nSyncing {len(skills)} skill(s) to {len(_pkg.PRODUCTS)} product(s)...\n")
+        print(f"\nSyncing {len(skills)} skill(s) to {len(products)} product(s)...\n")
 
     # Cap concurrency so a huge PRODUCTS list (or low-RAM CI) doesn't spawn
     # too many simultaneous ``mklink`` subprocesses; 8 is plenty for I/O.
@@ -205,7 +224,7 @@ def sync_skill(
     # ``_patch_products`` (the source platform is excluded); a worker count
     # of 0 makes ``ThreadPoolExecutor`` raise, so floor at 1 and skip the
     # pool entirely when there is nothing to do.
-    max_workers = max(1, min(len(_pkg.PRODUCTS), 8))
+    max_workers = max(1, min(len(products), 8))
     results = {}
     # P0-1: collect products whose settings.json could not be updated
     # (e.g. locked by a running IDE) so we can warn clearly at the end.
@@ -225,14 +244,14 @@ def sync_skill(
                     skill_dir, p, force, synced_dirs, state_lock, verbose,
                     settings_issues,
                 )
-                for p in _pkg.PRODUCTS
+                for p in products
             ]
             # Iterate in submission order so the reported sequence matches
             # PRODUCTS (tests assert specific index-based tuples). A worker
             # that raises unexpectedly returns an error tuple instead of
             # discarding the whole skill's results.
             sync_results = []
-            for p, f in zip(_pkg.PRODUCTS, futures, strict=True):
+            for p, f in zip(products, futures, strict=True):
                 try:
                     sync_results.append(f.result())
                 except Exception as e:

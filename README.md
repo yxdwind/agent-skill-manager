@@ -44,6 +44,8 @@
 
 ## 支持的产品（15 个）
 
+> 口径：15 = 声明式清单（`src/config/products.py`）里的产品数，`askill products` 可复现。
+
 | 产品 | 公司 | macOS 目录 | Windows 目录 | Linux 目录 | 同步方式 |
 |------|------|-----------|-------------|-----------|----------|
 | AutoClaw2 | 智谱 | `~/.openclaw-autoclaw/skills/` | `%USERPROFILE%\.openclaw-autoclaw\skills\` | 同 macOS | symlink/junction |
@@ -86,7 +88,7 @@ PyPI 上另有名为 `agent-skill-manager` 的同类 CLI（命令 `sm`），面�
 
 | 维度 | askill（cn-skill-sync） |
 |------|------------------------|
-| 产品覆盖 | 15 个国产 agent：腾讯 CodeBuddy / WorkBuddy、百度 Comate / DuMate、阿里 QwenWork / Qoder CN、字节 DoubaoWork / Trae 中文系、MiniMax、Kimi、智谱 AutoClaw2、ZCode |
+| 产品覆盖 | 15 个国产 agent（口径：`askill products`）：腾讯 CodeBuddy / WorkBuddy、百度 Comate / DuMate、阿里 QwenWork / Qoder CN、字节 DoubaoWork / Trae 中文系、MiniMax、Kimi、智谱 AutoClaw2、ZCode |
 | 同步模型 | 中央仓库 `~/.agents/skills/` 是唯一权威源，各产品目录用 junction / symlink 指向它——磁盘上只有一份，改一处、全部产品生效 |
 | 常驻同步 | `askill watch` 挂在操作系统原生文件事件上，并定时对账把产品侧丢失的链接补回（v0.19.0） |
 | 网络依赖 | 离线优先：安装、同步、审计全程本地完成；只有从 GitHub 装新 skill 才触网 |
@@ -210,6 +212,13 @@ askill install path/to/skill.zip
 
 # 环境与仓库体检（v0.23.0）：git/代理可达性/中央仓/断链/漂移/settings 锁，一键诊断
 askill doctor [--json]
+
+# 产品定向同步（v0.24.0）：只同步指定产品（short 名来自 askill products）
+askill sync [skill] --only autoclaw2 kimi
+askill install <source> --sync --only autoclaw2
+
+# 更新快照与回滚（v0.24.0）：update 前自动快照上一版，升坏一步还原
+askill rollback <skill> [--list]
 
 # 列出所有支持的产品
 askill products
