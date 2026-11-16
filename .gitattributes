@@ -9,3 +9,5 @@
 # changes instead of whole-file line-ending churn.
 *.md text eol=lf
 *.py text eol=lf
+*.json text eol=lf
+*.toml text eol=lf

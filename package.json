@@ -1,6 +1,6 @@
 {
   "name": "agent-skill-manager",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "Cross-platform skill manager for 15 domestic Chinese AI agent products (macOS/Windows/Linux)",
   "license": "MIT",
   "repository": {
