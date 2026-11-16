@@ -4,6 +4,7 @@
 - **方法**：本地源码走读 + GitHub REST/Search API 实拉 + 竞品 README 原文抓取 + PyPI / pypistats / skills.sh 采用度核验
 - **声明**：本报告为只读分析，未改动任何源码。外部事实均带证据编号，`§9` 给出 URL 与可信度评级。**结论、情景与优先级属推断，已与事实分开标注。**
 - **状态更新（2026-11-15 14:40）**：报告中的 P0 建议已执行（详见优化报告顶部状态块）。`§2` 的文档失真清单与 `§8` R6 是**执行前快照**，现已修正；保留原值作研究时间线
+- **状态更新（2026-11-16 22:15）**：向上游提路径 PR 的结果已出——`vercel-labs/skills#2763` **被维护者 antfu 关闭**，回复明确推动 `.agents/skills` 统一 [A15]。这使 `§7` Bear 情景的核心触发条件从推断升级为**一手观测**；详见 `§7` 末段与 `§9` [A15]
 
 ---
 
@@ -206,6 +207,29 @@
 3. **商业上限受限**：MIT + 零依赖 + 离线 + 单点 CLI，无账号、无服务端、无数据沉淀、无网络效应；作为独立商业化产品天花板低。更现实的价值形态是开发者声誉、生态位，或作为企业侧支持/合规门禁服务的入口。不建议按 SaaS 或平台型估值框架推演。
 4. **当前最大短板不是功能，是分发**：25 个 release / 54 天的高迭代速度，对应的是 2 stars 与 2 次 skills.sh 安装。工程投入的边际收益已明显低于分发投入的边际收益。
 
+### 7.1 已观测信号（2026-11-16）：Bear 的核心触发条件被一手证据命中
+
+本项目向 `vercel-labs/skills` 提交了 5 个国产 agent 的全局路径（`src/agents.ts`，非文档），
+即 [PR #2763](https://github.com/vercel-labs/skills/pull/2763)。维护者 **antfu 于 2026-11-16 关闭了该 PR**，
+理由原文要点 [A15]：
+
+> 推荐 coding agents 从共享 `.agents/skills` 文件夹读取；这样它们开箱即用地兼容 `npx skills`，本仓库无需改动。
+> 若你不维护该 agent，请让它的维护者支持 `.agents/skills`。想按名字列出的话，等它支持 `.agents/skills` 后
+> 再开一个小 PR，把项目目录写成 `.agents/skills`，我们就很乐意收录。
+
+**判定变化**：Bear 列的「`~/.agents/skills/` 成为国产产品原生统一路径」此前是推断 [C]，
+现在有了**上游维护者主动推动该标准、且拒绝维护产品特定路径**的一手证据 [A15]。
+这是 `R1` / `R2` 风险从「高」走向「已发生」的信号，而不是新的独立风险。
+
+**但不能过度外推**：上游拒绝的是「在本仓库维护产品特定路径」，并不等于国产桌面/办公产品
+已经统一支持 `.agents/skills`。真实用户侧的路径碎片化、Windows junction 免管理员、settings 开关、
+产品侧链接丢失后的自愈，短期内仍然存在——**消失的是「路径清单」这一层护城河，不是「可靠性机制」这一层**。
+
+**路线调整**：
+1. 不再把「向上游 PR 加路径」当作主要上游化方式；改按上游建议，推动国产产品支持 `.agents/skills`。
+2. 对外叙事重心从「支持 15 个产品」移到「权威源 + 分发 + 自愈 + 诊断修复 + 回滚」的机制组合（见 `docs/reliability-model.md`）。
+3. `askill products --json --paths` 仍保留——它现在更适合作为**用户自查与漂移监测**的输入，而非上游 PR 素材。
+
 ---
 
 ## 8. 风险清单
@@ -241,6 +265,7 @@
 | A12 | knoxgraeme/skillfish README | `https://raw.githubusercontent.com/knoxgraeme/skillfish/main/README.md` | A |
 | A13 | 同名包元数据 | `https://pypi.org/pypi/agent-skill-manager/json`、`https://pypi.org/pypi/askill/json`、`https://api.github.com/repos/ackness/skill-manager` | A |
 | A14 | GitHub Search API 分桶统计 | `https://api.github.com/search/repositories?q=...created:...` | A（噪声解释属 C） |
+| A15 | 上游维护者对路径 PR 的处置 | `https://github.com/vercel-labs/skills/pull/2763`（antfu 2026-11-16 评论） | A |
 | B1 | Agent Skills 规范概览 | `https://agentskills.io/` | B |
 | B2 | 规范仓库 popularity 侧证 | `https://github.com/anthropics/skills` + [A1] | A/B |
 | B3 | `gh skill` 发布说明（2026-04-16, gh v2.90.0 public preview） | GitHub Docs changelog 镜像 `https://github.com/MIATC-AF/docs/blob/main/CHANGELOG.md`；交叉 `https://releases.sh/github/github-cli`、`https://agentpatterns.ai/tools/copilot/gh-skill-cli-management/` | B |

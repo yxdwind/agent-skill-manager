@@ -3,7 +3,7 @@
 - **日期**：2026-11-15　**配套分析**：`docs/market-analysis-2026-11-15.md`（证据编号 A*/B*/C 沿用该文件 `§9`）
 - **性质**：可执行方案，本报告本身未改动任何源码；所有「动作」为待执行项
 - **硬约束**：① 零第三方运行时依赖不变 ② 不做服务端 / 账号体系 ③ 保持离线优先与 `PRIVACY.md` 口径 ④ 保持「声明式 `products.py` 为唯一产品事实源」的架构纪律 ⑤ 不引入内置遥测
-- **执行状态（2026-11-16 20:50）**：**分析报告 P0 / P1 / P2 全部项目已完成**；上游 PR 已发出（https://github.com/vercel-labs/skills/pull/2763）。剩余均为收尾决策：**行尾策略、工作区改动提交**（见文末）。
+- **执行状态（2026-11-16 22:15）**：**分析报告 P0 / P1 / P2 全部项目已完成、全部代码已提交并推送**（`9db5ba0` / `d936b7a`，远程 CI 8/8 绿）。上游 PR [#2763](https://github.com/vercel-labs/skills/pull/2763) **已被维护者关闭**（推荐 `.agents/skills` 统一路径），路径上游化路线需调整；信号已写回 `market-analysis` §7 与 `metrics.md`。**未发 v0.26**（PyPI 仍 0.25.0）。
   - P0：全仓口径与竞品结论纠偏、命名对照表、收录对象调整（文档/元数据）。
   - P1-5：`askill products --json --paths`、`scripts/export_agents_md.py`、`src/services/paths_export.py`、8 个回归测试、上游覆盖复核。
   - P1-6：`scripts/check_upstream_paths.py`（只读漂移监测，真实上游数据检出 4 条路径分歧）、5 个测试、周度 CI workflow。

@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **consistency**: align Python floor / test count / command count with v0.25.0 (`3.10+`, 362 passed, 21 commands); sync `package.json` version; add release number-discipline checklist to `CONTRIBUTING.md`
 - **competitive-research**: 2026-11-15 revision note — `npx skills` and `dsh-skills-manager` now cover several domestic product paths, so the "no one covers the domestic matrix" claim no longer holds
 - **naming**: document the repo / PyPI package / CLI command split and the unrelated PyPI `askill` package
+- **market-analysis**: record the 2026-11-16 upstream PR closure as an observed Bear signal - maintainers recommend a shared `.agents/skills` path and decline product-specific path entries; update the monthly metrics baseline accordingly
 
 ## v0.20.1 (2026-11-03)
 
