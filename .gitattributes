@@ -3,3 +3,9 @@
 *.exe binary
 *.png binary
 *.zip binary
+
+# Markdown is authored and reviewed in the repo. Keep it LF on every platform
+# so legacy CRLF README blobs cannot reappear and `git diff` shows content
+# changes instead of whole-file line-ending churn.
+*.md text eol=lf
+*.py text eol=lf
