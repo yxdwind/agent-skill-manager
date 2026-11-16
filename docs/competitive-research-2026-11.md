@@ -3,6 +3,19 @@
 > 方法：GitHub Search API 5 组关键词 + 网络搜索交叉验证，深读 8 个头部项目 README。
 > 目的：为 agent-skill-manager（askill v0.20.1）提炼可借鉴机制，排出优化优先级。
 
+> ## ⚠️ 2026-11-15 修订（v0.25.0 复核，原文保留作历史记录）
+>
+> **§四「15 个国产产品矩阵…无人有」已不再成立。** 实拉 GitHub 数据：
+> [`vercel-labs/skills`](https://github.com/vercel-labs/skills/blob/main/docs/agents.md)（`npx skills`，39,395 stars）的
+> `docs/agents.md` 已列出 9 行国产/中文条目（CodeBuddy / Trae / Trae CN / Qoder / Qoder CN / ZCode / MiniMax Code / Qwen Code / Kimi Code CLI）；
+> [`MichengAI/dsh-skills-manager`](https://github.com/MichengAI/dsh-skills-manager/blob/master/README.md)（570 stars，仍活跃）
+> 的路径表已含 WorkBuddy / CodeBuddy / Trae CN / Qoder CN 等 20+ 工具。
+> **真正未被复刻的是机制组合**：中央权威源 + Windows junction 免管理员 + 原生事件 watch 自愈 +
+> 冲突保护 / GC / 回滚 + 安装即审计与按产品 frontmatter 门禁；单纯的路径数量优势会被上游补齐。
+> 完整证据、URL 与可信度评级见 [`market-analysis-2026-11-15.md`](market-analysis-2026-11-15.md) §4，
+> 行动方案见 [`optimization-report-2026-11-15.md`](optimization-report-2026-11-15.md) P1-5。
+> §一星数为 2026-11-04 快照。
+
 ## 一、生态快照
 
 自研工具 9 月立项时同类只有 PyPI 上的 `sm` 一个；两个月后「skill 管理器」已是一个红海品类，

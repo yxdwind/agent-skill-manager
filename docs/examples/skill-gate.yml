@@ -1,0 +1,45 @@
+# Example CI gate for a repository that keeps Agent Skills under version control.
+# Copy to `.github/workflows/skill-gate.yml` and replace `path/to/your/skills`.
+#
+# `verify --format github` emits one annotation per spec error / warning /
+# per-product frontmatter gap. `audit --format github --fail-on D,F` emits
+# annotations for high-severity findings and fails the job on grade D or F.
+# Both keep the project's exit-code contract: 0 pass, 1 gate failure, 2 usage.
+
+name: Skill gate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install askill
+        run: pip install cn-skill-sync
+
+      - name: Load skills into the central repo
+        # askill reads ~/.agents/skills/ - point this at your skills directory.
+        run: |
+          mkdir -p ~/.agents/skills
+          cp -r path/to/your/skills/* ~/.agents/skills/
+
+      - name: Spec + product frontmatter check
+        run: askill verify --format github
+
+      - name: Security gate
+        run: askill audit --format github --fail-on D,F
+
+      - name: Triage description overlap (informational)
+        run: askill audit --overlap

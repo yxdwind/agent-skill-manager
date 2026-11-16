@@ -31,6 +31,21 @@ askill install anthropics/skills@pdf
 askill sync
 ```
 
+## Naming
+
+Install with `pip install cn-skill-sync`. The names below are deliberately
+different — do not guess an install command from the repo name.
+
+| Concept | Value |
+|---------|-------|
+| GitHub repo | `yxdwind/agent-skill-manager` |
+| PyPI package | `cn-skill-sync` |
+| Python package | `agent_skill_manager` |
+| CLI command | `askill` |
+
+Do **not** run `pip install askill` (an unrelated PyPI package). The PyPI
+package `agent-skill-manager` (`sm`) is another, dormant project.
+
 ## When to Use
 
 - User wants to install a skill to multiple AI products simultaneously

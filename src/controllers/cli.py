@@ -10,15 +10,25 @@ from pathlib import Path
 
 from ..config.products import (
     CENTRAL_DIR,
+    LOCALAPPDATA,
     PRODUCTS,
     get_all_product_dirs,
     get_product_path,
 )
 from ..services.audit import analyze_skill_dir
+from ..services.ci_format import (
+    audit_annotations,
+    grades_failed,
+    parse_fail_on,
+    verify_annotations,
+)
 from ..services.doctor import doctor_report
 from ..services.get import get_skill
 from ..services.manifest import bundle_manifest, install_manifest
+from ..services.overlap import overlap_rows, render_overlap
+from ..services.paths_export import build_path_records
 from ..services.publish import publish_skill
+from ..services.remediation import build_fix_plan, render_plan
 from ..services.scaffold import create_skill
 from ..services.sync import (
     FOOTER,
@@ -36,6 +46,19 @@ from ..services.sync import (
     sync_skill,
 )
 from ..utils.filesystem import read_skill_metadata
+
+
+def _print_product_paths():
+    """Emit the full portable cross-platform declaration as JSON.
+
+    Kept as a separate entry point so ``_print_products`` retains the
+    long-standing signature that shell completion and tests patch against.
+    """
+    records = build_path_records(
+        PRODUCTS, home=Path.home(), localappdata=LOCALAPPDATA,
+    )
+    print(json.dumps(records, ensure_ascii=False, indent=2))
+    return 0
 
 
 def _print_products(*, quiet=False, json_mode=False):
@@ -319,24 +342,52 @@ def _print_adopt(platform_short, skill_name=None, *, quiet=False):
     return 0
 
 
-def _print_audit(skill_name=None, *, quiet=False, json_mode=False):
-    """Audit one or all skills and print reports."""
-    if json_mode:
-        # audit_all returns the SkillReport list; audit_skill returns None
-        # if the skill doesn't exist. We avoid the verbose path entirely
-        # so JSON output isn't prepended by formatted findings.
+def _print_audit(
+    skill_name=None, *, quiet=False, json_mode=False,
+    fail_on=None, gh_format=False,
+):
+    """Audit one or all skills and print reports.
+
+    CI mode (``--format github`` / ``--fail-on``) gathers the machine-readable
+    reports first so a grade gate can drive the exit code; the default human
+    path is left byte-for-byte unchanged.
+    """
+    fail_on = fail_on or set()
+    if json_mode or fail_on or gh_format:
         reports = (
             [audit_skill(skill_name, verbose=False)]
             if skill_name
             else audit_all(verbose=False)
         )
         reports = [r for r in reports if r is not None]
-        print(json.dumps(reports, ensure_ascii=False, indent=2))
-        return
+        failed = grades_failed(reports, fail_on)
+        if json_mode:
+            print(json.dumps(reports, ensure_ascii=False, indent=2))
+            return 1 if failed else 0
+        if gh_format:
+            for line in audit_annotations(reports, fail_on=fail_on):
+                print(line)
+        elif not quiet:
+            summary = ", ".join(f"{r['skill']}={r['grade']}" for r in reports) or "(none)"
+            print(f"askill audit - {len(reports)} skill(s): {summary}")
+        if failed and not quiet:
+            print("  gate failed for: " + ", ".join(failed))
+        return 1 if failed else 0
     if skill_name:
         audit_skill(skill_name, verbose=not quiet)
     else:
         audit_all(verbose=not quiet)
+
+
+def _print_overlap(*, quiet=False, json_mode=False, threshold=0.6):
+    """Deterministic description-overlap report (P1-9)."""
+    rows = overlap_rows(CENTRAL_DIR, threshold=threshold)
+    if json_mode:
+        print(json.dumps(rows, ensure_ascii=False, indent=2))
+        return 0
+    if not quiet:
+        print(render_overlap(rows, threshold))
+    return 0
 
 
 
@@ -376,7 +427,7 @@ Usage:
     askill update [skill-name]       Check/apply updates for tracked skills
     askill drift [product]           Report product-dir skills diverging
                                      from the central repo (new / differs)
-    askill products                  List all supported products
+    askill products [--paths]        List products / export portable paths as JSON
     askill version                   Show version
 
 Exit codes: 0 success (incl. dry runs / empty results) · 1 operational
@@ -463,299 +514,14 @@ def main(argv=None):
 def _build_parser() -> argparse.ArgumentParser:
     """Build the argparse subcommand parser.
 
-    Extracted so tests can introspect it. Keeps every flag / positional
-    compatible with the hand-rolled parser that lived here before; the
-    only visible user-output change is the format of ``--help``.
+    The command definitions live in ``controllers/parsers`` (three command
+    families). This wrapper stays here so ``main()`` and introspection keep a
+    single stable entry point; all flags and registration order are unchanged.
     """
-    parser = argparse.ArgumentParser(
-        prog="askill",
-        description=(
-            "Agent Skill Manager - Cross-platform skill management for "
-            f"{len(PRODUCTS)} domestic AI agent products."
-        ),
-        exit_on_error=False,   # raise ArgumentError instead of sys.exit (Py3.9+)
-    )
-    # Global ``--version`` (v0.18.0): coexist with the ``version``
-    # subcommand so users get the version whether they type ``askill
-    # --version`` or ``askill version``. It uses a distinct dest
-    # (``show_version``) so it never collides with ``new --version`` (the
-    # frontmatter "version" field, which shares the ``--version`` flag name
-    # on a different parser and a different dest).
-    parser.add_argument(
-        "--version", action="store_true", dest="show_version",
-        help="Show the askill version and exit",
-    )
-    # ``-q/--quiet`` is universal; ``--json`` only exists on subcommands
-    # that actually emit JSON (status/list/products/audit/search/verify/
-    # update). Attaching it everywhere made ``askill sync --json`` silently
-    # return human-readable text - a lying contract for scripts. Commands
-    # without JSON support now fail the parse (SystemExit 2) instead.
-    _quiet = argparse.ArgumentParser(add_help=False)
-    _quiet.add_argument(
-        "-q", "--quiet", action="store_true",
-        help="Suppress non-essential output (progress, headers, tips). "
-             "Errors, SECURITY WARNINGs and conflict messages still print.",
-    )
-    _common = argparse.ArgumentParser(add_help=False, parents=[_quiet])
-    _common.add_argument(
-        "--json", action="store_true", dest="json_mode",
-        help="Emit machine-readable JSON to stdout instead of formatted tables.",
-    )
+    from .parsers import build_parser
 
-    sub = parser.add_subparsers(dest="command", metavar="COMMAND")
+    return build_parser(len(PRODUCTS))
 
-    p_status = sub.add_parser(
-        "status", help="Show installation status across products",
-        parents=[_common],
-    )
-    p_status.add_argument("skill_name", nargs="?", default=None)
-
-    p_sync = sub.add_parser(
-        "sync", help="Sync skill(s) to all products",
-        parents=[_quiet],
-    )
-    p_sync.add_argument("skill_name", nargs="?", default=None)
-    p_sync.add_argument(
-        "--force", action="store_true",
-        help="Overwrite differing real dirs (conflicts)",
-    )
-    p_sync.add_argument(
-        "--only", nargs="+", default=None, metavar="SHORT",
-        help="Sync only these products (short names from `askill products`, e.g. autoclaw2 kimi)",
-    )
-    p_sync.add_argument(
-        "--gc", action="store_true",
-        help="Remove product-side links whose target is gone (stale links); "
-            "no syncing happens in this mode",
-    )
-
-    sub.add_parser("list", help="List skills in central repository",
-                   parents=[_common])
-
-    p_install = sub.add_parser(
-        "install",
-        help="Install a skill (path / GitHub URL / skills.sh shorthand)",
-        parents=[_quiet],
-    )
-    p_install.add_argument("--sync", action="store_true",
-                          help="Also sync to all products after install")
-    p_install.add_argument(
-        "--only", nargs="+", default=None, metavar="SHORT",
-        help="With --sync: distribute only to these products (short names)",
-    )
-    p_install.add_argument("--audit", action="store_true",
-                          help="Print the full audit report after install")
-    p_install.add_argument("--no-audit", action="store_true",
-                          help="Skip the default spec + security checks")
-    p_install.add_argument(
-        "source", nargs="?", default=None,
-        help="Local path, .zip/.skill archive, GitHub URL, or skills.sh shorthand",
-    )
-    p_install.add_argument(
-        "--manifest", default=None,
-        help="Align the central repo to a manifest instead of installing <source>",
-    )
-
-    p_bundle = sub.add_parser(
-        "bundle", help="Export askill-manifest.json for team / multi-machine sync",
-        parents=[_quiet],
-    )
-    p_bundle.add_argument(
-        "--output", default=None,
-        help="Manifest path (default: alongside the central repo)",
-    )
-
-    p_get = sub.add_parser(
-        "get", help="Preview a skill without installing (stdout / temp dir)",
-        parents=[_quiet],
-    )
-    p_get.add_argument(
-        "source",
-        help="owner/repo@skill, owner/repo, GitHub URL, or local skill dir",
-    )
-    p_get.add_argument(
-        "--dir", action="store_true",
-        help="Copy the full skill folder to a temp path instead of printing SKILL.md",
-    )
-    p_get.add_argument(
-        "--list", action="store_true",
-        help="List skills available in the repo instead of printing",
-    )
-
-    sub.add_parser(
-        "doctor", help="Environment & repository health diagnostics",
-        parents=[_common],
-    )
-
-    p_rollback = sub.add_parser(
-        "rollback", help="Restore the pre-update snapshot of a skill",
-        parents=[_common],
-    )
-    p_rollback.add_argument("skill_name", nargs="?", default=None)
-    p_rollback.add_argument(
-        "--list", action="store_true",
-        help="List skills that have a rollback snapshot",
-    )
-
-    p_remove = sub.add_parser(
-        "remove", help="Remove a skill from all products",
-        parents=[_quiet],
-    )
-    p_remove.add_argument("skill_name")
-
-    p_pack = sub.add_parser(
-        "pack", help="Package a skill as .zip for DuMate",
-        parents=[_quiet],
-    )
-    p_pack.add_argument("skill_name")
-
-    p_adopt = sub.add_parser(
-        "adopt",
-        help="Adopt skills from one platform (or 'all') into the central repo",
-        parents=[_quiet],
-    )
-    p_adopt.add_argument(
-        "platform_short",
-        help="Short name of source product, or 'all'",
-    )
-    p_adopt.add_argument("skill_name", nargs="?", default=None)
-
-    p_audit = sub.add_parser(
-        "audit", help="Security audit of skill(s) in central repo",
-        parents=[_common],
-    )
-    p_audit.add_argument("skill_name", nargs="?", default=None)
-    p_audit.add_argument(
-        "--residency", action="store_true",
-        help="Attention-budget report (context cost of every description) "
-            "instead of the security scan",
-    )
-
-    p_search = sub.add_parser(
-        "search", help="Search skills.sh; N installs that result",
-        parents=[_common],
-    )
-    p_search.add_argument(
-        "--install", type=int, default=None, dest="install_idx",
-        help="Install the Nth result",
-    )
-    p_search.add_argument("query", nargs="*", help="Search query")
-
-    p_new = sub.add_parser(
-        "new", help="Scaffold a new skill in the central repository",
-        parents=[_common],
-    )
-    p_new.add_argument(
-        "name",
-        help="Skill name (lowercase letters/digits, single hyphens)",
-    )
-    p_new.add_argument(
-        "--target", action="append", default=None, dest="target",
-        help="Product short whose frontmatter requirements to prefill; "
-             "repeatable. Default: all declaring products (superset)",
-    )
-    p_new.add_argument(
-        "--description", default=None,
-        help="Frontmatter description (TODO placeholder if omitted)",
-    )
-    p_new.add_argument(
-        "--description-zh", default=None, dest="description_zh",
-        help="Chinese description (written when a target requires it)",
-    )
-    p_new.add_argument(
-        "--version", default="0.1.0",
-        help="Value for a required version field (default 0.1.0)",
-    )
-    p_new.add_argument(
-        "--minimal", action="store_true",
-        help="Only SKILL.md - no references/ or scripts/ subdirs",
-    )
-
-    p_publish = sub.add_parser(
-        "publish",
-        help="Publish a skill from the central repo to a git repository",
-        parents=[_quiet],
-    )
-    p_publish.add_argument("skill_name", help="Skill in the central repo")
-    p_publish.add_argument(
-        "--repo", required=True,
-        help="Target as owner/name (GitHub), or an explicit git URL",
-    )
-    p_publish.add_argument(
-        "--target", action="append", default=None, dest="target",
-        help="Limit the frontmatter gate to these product shorts (repeatable); "
-             "default checks every declaring product",
-    )
-    p_publish.add_argument(
-        "--push", action="store_true",
-        help="Actually push. Without it the run is a dry run: gates are "
-             "checked and the git plan printed, nothing is written",
-    )
-    p_publish.add_argument(
-        "--root", action="store_true",
-        help="Replace the repo ROOT with the skill (single-skill repo, "
-             "install as owner/repo). Default: additive <skill>/ subdir "
-             "(install as owner/repo@skill)",
-    )
-    p_publish.add_argument(
-        "--force", action="store_true",
-        help="Allow --root to replace existing repo content",
-    )
-    p_publish.add_argument(
-        "--https", action="store_true",
-        help="Clone/push over HTTPS (credential helper) instead of SSH",
-    )
-    p_publish.add_argument(
-        "--create", action="store_true",
-        help="Create the GitHub repo first via the gh CLI",
-    )
-
-    p_verify = sub.add_parser(
-        "verify",
-        help=(
-            "Check skills against the agentskills.io spec plus "
-            "per-product frontmatter requirements"
-        ),
-        parents=[_common],
-    )
-    p_verify.add_argument("skill_name", nargs="?", default=None)
-
-    p_watch = sub.add_parser(
-        "watch", help="Watch central repo; auto-sync changes",
-        parents=[_common],
-    )
-    p_watch.add_argument(
-        "--interval", type=int, default=3,
-        help=(
-            "Poll/fallback seconds (native inotify / kqueue / "
-            "ReadDirectoryChangesW events wake syncs instantly when available)"
-        ),
-    )
-
-    p_update = sub.add_parser(
-        "update", help="Check/apply updates for tracked skills",
-        parents=[_common],
-    )
-    p_update.add_argument(
-        "--check", action="store_true",
-        help="Only check for updates, don't apply",
-    )
-    p_update.add_argument("skill_name", nargs="?", default=None)
-
-    sub.add_parser("products", help="List all supported products",
-                   parents=[_common])
-    p_drift = sub.add_parser(
-        "drift",
-        help="Report product-dir skills that diverge from the central repo",
-        parents=[_common],
-    )
-    p_drift.add_argument(
-        "product_short", nargs="?", default=None,
-        help="Limit the scan to one product short (default: all)",
-    )
-    sub.add_parser("version", help="Show version", parents=[_quiet])
-
-    return parser
 
 
 _INSTALL_HELP = """\
@@ -941,7 +707,7 @@ def _cmd_search(query_parts, install_idx, *, quiet=False, json_mode=False):
     print("\nRun 'askill sync' to distribute, or 'askill watch' to auto-sync.")
 
 
-def _cmd_verify(skill_name, *, quiet=False, json_mode=False):
+def _cmd_verify(skill_name, *, quiet=False, json_mode=False, fmt="table"):
     """``askill verify [skill-name]`` body."""
     from ..services.spec import (
         check_all_specs,
@@ -975,6 +741,14 @@ def _cmd_verify(skill_name, *, quiet=False, json_mode=False):
             (d.name, product_frontmatter_issues(d)) for d in list_skills()
         ]
     flagged = [(sn, iss) for sn, iss in product_issues if iss]
+    if fmt == "github":
+        if json_mode:
+            print("Error: --format github cannot be combined with --json",
+                  file=sys.stderr)
+            return 2
+        for line in verify_annotations(reports, flagged, central=CENTRAL_DIR):
+            print(line)
+        return 1 if any(not r["ok"] for r in reports) else 0
     if json_mode:
         print(json.dumps({
             "results": reports,
@@ -1135,6 +909,7 @@ def _cmd_bundle(args: argparse.Namespace) -> int:
         bundle_manifest(
             output=Path(args.output) if args.output else None,
             verbose=not args.quiet,
+            external_only=getattr(args, "external_only", False),
         )
     except OSError as e:
         print(f"Error: {e}")
@@ -1152,11 +927,70 @@ def _cmd_get(args: argparse.Namespace) -> int:
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
+    fix = getattr(args, "fix", False)
+    apply_repairs = getattr(args, "apply", False)
+    if apply_repairs and not fix:
+        print("Error: --apply requires --fix", file=sys.stderr)
+        return 2
+    if fix:
+        return _cmd_doctor_fix(args, apply_repairs)
     if args.json_mode:
         print(json.dumps(doctor_report(verbose=False), ensure_ascii=False, indent=2))
         return 0
     report = doctor_report(verbose=True)
     return 0 if report["ok"] else 1
+
+
+def _cmd_doctor_fix(args: argparse.Namespace, apply_repairs: bool) -> int:
+    """Print (and optionally execute) a repair plan derived from doctor."""
+    report = doctor_report(verbose=False)
+    central = Path(report["central"]["dir"])
+    # Local import keeps the sync-package test seams untouched.
+    from ..services.inventory import list_skills as list_skills_at
+    central_names = (
+        {d.name for d in list_skills_at(central)} if central.exists() else set()
+    )
+    plan = build_fix_plan(report, central_names)
+
+    if args.json_mode:
+        applied: list[str] = []
+        if apply_repairs:
+            try:
+                applied = _apply_fix_plan(plan, quiet=True)
+            except OSError as e:
+                print(json.dumps({"plan": plan, "error": str(e)},
+                                 ensure_ascii=False, indent=2))
+                return 1
+        print(json.dumps({"plan": plan, "applied": applied},
+                         ensure_ascii=False, indent=2))
+        return 0
+
+    print(render_plan(plan, applying=apply_repairs))
+    if not apply_repairs:
+        if not plan["noop"]:
+            print("\n  dry-run only - re-run with `askill doctor --fix --apply` to execute.")
+        return 0
+
+    try:
+        executed = _apply_fix_plan(plan, quiet=args.quiet)
+    except OSError as e:
+        print(f"Error during repair: {e}", file=sys.stderr)
+        return 1
+    print("\n  executed: " + (", ".join(executed) if executed else "nothing to execute"))
+    return 0
+
+
+def _apply_fix_plan(plan: dict, *, quiet: bool) -> list[str]:
+    """Execute only ``auto`` actions, reusing the existing sync primitives."""
+    ids = {a["id"] for a in plan["actions"]}
+    executed: list[str] = []
+    if "relink" in ids:
+        sync_skill(verbose=not quiet)
+        executed.append("askill sync")
+    if "gc" in ids:
+        gc_dead_links(verbose=not quiet)
+        executed.append("askill sync --gc")
+    return executed
 
 
 def _cmd_rollback(args: argparse.Namespace) -> int:
@@ -1195,11 +1029,29 @@ def _cmd_install_manifest(path: str, quiet: bool) -> int:
 
 
 def _dispatch_audit(args: argparse.Namespace) -> int:
-    # --residency swaps the security scan for the attention-budget report
-    # (repo-wide; the skill_name positional is ignored in this mode).
-    if args.residency:
+    """Route the three audit modes and validate CI flags."""
+    residency = getattr(args, "residency", False)
+    overlap = getattr(args, "overlap", False)
+    if residency and overlap:
+        print("Error: --residency and --overlap are mutually exclusive",
+              file=sys.stderr)
+        return 2
+    fail_on: set[str] = set()
+    if getattr(args, "fail_on", None):
+        try:
+            fail_on = parse_fail_on(args.fail_on)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 2
+    gh_format = getattr(args, "format", "table") == "github"
+    if overlap:
+        return _print_overlap(quiet=args.quiet, json_mode=args.json_mode)
+    if residency:
         return _print_residency(quiet=args.quiet, json_mode=args.json_mode)
-    return _print_audit(args.skill_name, quiet=args.quiet, json_mode=args.json_mode)
+    return _print_audit(
+        args.skill_name, quiet=args.quiet, json_mode=args.json_mode,
+        fail_on=fail_on, gh_format=gh_format,
+    )
 
 
 def _print_residency(*, quiet: bool = False, json_mode: bool = False) -> int:
@@ -1255,10 +1107,16 @@ _HANDLERS: dict[str, Callable[[argparse.Namespace], int | None]] = {
         a.skill_name, a.repo, root=a.root, force=a.force, https=a.https,
         create=a.create, push=a.push, targets=a.target, quiet=a.quiet,
     ),
-    "verify": lambda a: _cmd_verify(a.skill_name, quiet=a.quiet, json_mode=a.json_mode),
+    "verify": lambda a: _cmd_verify(
+        a.skill_name, quiet=a.quiet, json_mode=a.json_mode, fmt=a.format,
+    ),
     "watch": _dispatch_watch,
     "update": lambda a: _cmd_update(a.skill_name, a.check, quiet=a.quiet, json_mode=a.json_mode),
-    "products": lambda a: _print_products(quiet=a.quiet, json_mode=a.json_mode),
+    "products": lambda a: (
+        _print_product_paths()
+        if getattr(a, "paths", False)
+        else _print_products(quiet=a.quiet, json_mode=a.json_mode)
+    ),
     "drift": lambda a: _cmd_drift(a.product_short, quiet=a.quiet, json_mode=a.json_mode),
     "version": lambda a: _print_version(),
 }

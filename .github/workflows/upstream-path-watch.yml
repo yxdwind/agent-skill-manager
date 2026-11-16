@@ -1,0 +1,48 @@
+name: Upstream path watch
+
+# Read-only weekly reconciliation of `src/config/products.py` against the two
+# upstream tables we contribute to / track. This job never edits declarations,
+# never opens issues or PRs, and never fails on a finding or a network hiccup:
+# its only output is a reviewable artifact.
+
+on:
+  schedule:
+    # Mondays 06:17 UTC, away from the :00 cron rush.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Compare declared paths with upstream tables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install package (editable)
+        run: pip install -e .
+
+      - name: Export declared paths
+        run: askill products --json --paths > upstream-paths.json
+
+      - name: Run read-only drift check
+        # Exits 0 on findings and on unreachable upstreams; an "unknown"
+        # source is flagged in the report rather than hidden as "no drift".
+        run: |
+          python scripts/check_upstream_paths.py \
+            --input upstream-paths.json \
+            --output upstream-path-report.md
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-path-report-${{ github.run_id }}
+          path: upstream-path-report.md
+          if-no-files-found: warn

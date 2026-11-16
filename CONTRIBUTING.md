@@ -103,6 +103,25 @@ pre-commit install         # one-time setup
 - [ ] Commit header follows Conventional Commits
 - [ ] `CHANGELOG.md` Unreleased section updated if user-visible
 
+## Release / number discipline
+
+Docs have been wrong before (a `3.8+` badge against `requires-python >=3.10`,
+a 309-test badge against 362, "17 commands" against 21). Every public number
+must have one authoritative source and a reproduce command. Before tagging:
+
+| Claim | Source of truth | Reproduce | Also appears in |
+|-------|-----------------|-----------|-----------------|
+| version | `pyproject.toml` `[project].version` | `askill version` | `[tool.commitizen].version`, `src/__init__.py`, `package.json`, `CHANGELOG.md` |
+| Python floor | `pyproject.toml` `requires-python` | — | both README Python badges |
+| test count | `pytest -q` | `pytest -q` | both README Tests badges, project-structure trees, `docs/promotion/` drafts |
+| command count | `add_parser` calls in `cli.py` | `grep -c add_parser src/controllers/cli.py` | both README project-structure trees |
+| product count | `len(PRODUCTS)` | `askill products` | both README tables / badges, this file |
+
+Known release pitfalls (learned the hard way): `cz bump --changelog` has been
+observed to print a plan without writing files — verify the diff before tagging;
+create the tag only after the bump commit lands; check README heading anchors
+before renaming a heading (a badge links to `#支持的产品`).
+
 ## Code style
 
 - Python ≥ 3.10, type hints encouraged (the project ships `from __future__

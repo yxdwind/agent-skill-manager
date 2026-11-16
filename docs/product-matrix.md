@@ -7,6 +7,33 @@
 
 ---
 
+## 上游覆盖复核（2026-11-15 快照，v0.25.0）
+
+> 目的：把「15 条声明里哪些是真正的深水路径」变成可复现结论，替代旧文档「无人覆盖国产矩阵」的表述。
+> 复现：`askill products --json --paths`；生成上游 PR 片段：
+> `python scripts/export_agents_md.py --upstream <本地 agents.md 快照> --date 2026-11-15`。
+> 来源：[npx skills docs/agents.md](https://github.com/vercel-labs/skills/blob/main/docs/agents.md)、
+> [DSH Skills Manager README](https://github.com/MichengAI/dsh-skills-manager/blob/master/README.md)（2026-11-15 抓取）；
+> 完整证据与可信度评级见 [market-analysis-2026-11-15.md](market-analysis-2026-11-15.md) §4。
+
+| 上游状态 | 产品 | 说明 |
+|---|---|---|
+| npx skills 已列（9 行国产/中文条目） | CodeBuddy、Trae、Trae CN、ZCode、Qoder、Qoder CN、MiniMax Code、Qwen Code、Kimi Code CLI | `Qwen Code` ≠ 本项目 `QwenWork`；MiniMax 上游为 `~/.minimax/skills/`，本项目按 native `~/.agents/skills/` |
+| 本项目声明、上游未列 | AutoClaw2、WorkBuddy、TRAE SOLO CN、DuMate、Comate、Qoder CN IDE、QwenWork、DoubaoWork | 约 6 条深水路径 + 2 个共用目录别名，是上游 PR 的主要候选 |
+| DSH Skills Manager 已列 | Trae、Trae CN、CodeBuddy、WorkBuddy、Qoder、Qoder CN CLI、Qoder CN IDE | 形态为 DSH 宿主插件 + 多来源聚合视图，不做 junction 同步 |
+
+**待真机复核的路径分歧**：DSH 把 Qoder CN IDE 标为 `~/.lingma/skills`，本项目按与 Qoder CN 共用
+`~/.qoder-cn/skills/`；MiniMax / Qwen / Kimi 三处上游路径口径亦需核对
+（详见 market-analysis §4.1、optimization-report P1-6）。本节是快照，不是第二份事实源。
+
+> **自动复核（P1-6）**：`.github/workflows/upstream-path-watch.yml` 每周一跑
+> `python scripts/check_upstream_paths.py`，把两个上游表格与 `PRODUCTS` 派生的可移植路径比对，
+> 报告作为 CI artifact 供人工复核。只读、**不改声明**；网络失败标 `unknown`，既不红灯也不谎报「无漂移」。
+> 本地复现：`askill products --json --paths > paths.json` 后
+> `python scripts/check_upstream_paths.py --input paths.json`。
+
+---
+
 ## 一、总览矩阵
 
 ### 1.1 路径与同步机制

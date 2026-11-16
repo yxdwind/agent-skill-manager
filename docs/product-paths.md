@@ -1,5 +1,11 @@
 # Product Skill Paths Reference
 
+> **权威来源**：以下路径以 `src/config/products.py` 的 `PRODUCTS` 声明为准（复现：`askill products --json`）；
+> 本文为人工说明，可能落后于产品改版。发现分歧请提 issue 并附真机路径。
+>
+> **命名对照**：仓库 `yxdwind/agent-skill-manager` · PyPI 包 `cn-skill-sync` · Python 包 `agent_skill_manager` · CLI `askill`。
+> **不要 `pip install askill`**（PyPI 上是另一个无关项目）；PyPI 上的 `agent-skill-manager`（`sm`）是另一个已停更项目。
+
 ## 各产品 Skill 目录路径详细说明
 
 ### 1. AutoClaw2

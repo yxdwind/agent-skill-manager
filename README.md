@@ -10,10 +10,10 @@
 >
 > ⚠️ **不要 `pip install askill`**——PyPI 上的 `askill` 是另一个不相关的项目。本项目安装用 `pip install cn-skill-sync`，装完的命令才叫 `askill`。
 
-[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-309%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-362%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
 [![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#支持的产品)
 
@@ -88,7 +88,7 @@ PyPI 上另有名为 `agent-skill-manager` 的同类 CLI（命令 `sm`），面�
 
 | 维度 | askill（cn-skill-sync） |
 |------|------------------------|
-| 产品覆盖 | 15 个国产 agent（口径：`askill products`）：腾讯 CodeBuddy / WorkBuddy、百度 Comate / DuMate、阿里 QwenWork / Qoder CN、字节 DoubaoWork / Trae 中文系、MiniMax、Kimi、智谱 AutoClaw2、ZCode |
+| 产品覆盖 | 15 个国产 agent（口径：`askill products`）：腾讯 CodeBuddy / WorkBuddy、百度 Comate / DuMate、阿里 QwenWork / Qoder CN、字节 DoubaoWork / Trae 中文系、MiniMax、Kimi、智谱 AutoClaw2、ZCode |
 | 同步模型 | 中央仓库 `~/.agents/skills/` 是唯一权威源，各产品目录用 junction / symlink 指向它——磁盘上只有一份，改一处、全部产品生效 |
 | 常驻同步 | `askill watch` 挂在操作系统原生文件事件上，并定时对账把产品侧丢失的链接补回（v0.19.0） |
 | 网络依赖 | 离线优先：安装、同步、审计全程本地完成；只有从 GitHub 装新 skill 才触网 |
@@ -101,6 +101,16 @@ PyPI 上另有名为 `agent-skill-manager` 的同类 CLI（命令 `sm`），面�
 一句话区别：同类工具的主场景是**从 GitHub 发现、下载、部署** skill；askill 的主场景是**本地中央仓库一处维护、十五个国产产品实时同步**——从 GitHub 安装只是入口之一。
 
 ## 安装
+
+**命名对照**（包名 ≠ 仓库名 ≠ 命令名，PyPI 上还有同名干扰）：
+
+| 概念 | 值 | 说明 |
+|------|-----|------|
+| GitHub 仓库 | `yxdwind/agent-skill-manager` | 源码 |
+| PyPI 包 | `cn-skill-sync` | `pip install cn-skill-sync` |
+| Python 包 | `agent_skill_manager` | 映射到 `src/`，`import` 用 |
+| CLI 命令 | `askill` | 装完才有；**PyPI 上另有同名 `askill` 包，与本项目无关** |
+| 同名 PyPI 包 | `agent-skill-manager`（`sm`） | 另一个国际项目，已停更，勿混淆 |
 
 ```bash
 # 从 PyPI 安装（推荐）
@@ -116,12 +126,17 @@ python -m pip install -e . --no-build-isolation
 
 安装后 `askill` 命令全局可用。
 
-也可以通过 `npx skills` 生态安装：
+也可以通过 `npx skills` 生态安装**官方技能仓库里的能力型技能**：
 
 ```bash
-# 安装 skill 定义到所有支持的 agent 产品
-npx skills add yxdwind/agent-skill-manager
+# 可直接使用的技能（诊断 / 同步排障）
+npx skills add yxdwind/skills@skill-doctor
+npx skills add yxdwind/skills@sync-troubleshoot
 ```
+
+> `yxdwind/agent-skill-manager` 仓库根的 `SKILL.md` 是本工具的**自述元技能**（告诉 agent 有这个工具），
+> 不是日常要用的能力型技能。想让 agent 自己管理技能，装 [`askill-ops`](https://github.com/yxdwind/skills)：
+> `askill install yxdwind/skills@askill-ops`。
 
 ## 使用
 
@@ -199,10 +214,17 @@ askill drift [product]
 
 # 团队/多机清单同步（v0.21.0）：把本机清单导出为可提交的 JSON，队友一键对齐
 askill bundle
+askill bundle --external-only         # 只导出远程来源技能，跳过本地创作
 askill install --manifest askill-manifest.json
 
 # 注意力预算审计（v0.21.0）：每个技能 description 的上下文成本排行
 askill audit --residency
+askill audit --overlap                # 描述重合度排序（确定性词面 Jaccard，非语义判断）
+
+# CI 门禁：输出 GitHub Actions annotation，按审计评分设失败线
+askill verify --format github
+askill audit --format github --fail-on D,F
+# 可复制的 workflow：docs/examples/skill-gate.yml
 
 # 先看后装（v0.22.0）：SKILL.md 打到 stdout 预览，--dir 借用完整目录到临时路径，--list 看仓库有什么；v0.25.0 起也支持本地目录
 askill get owner/repo@skill | 本地路径 [--dir | --list]
@@ -212,6 +234,8 @@ askill install path/to/skill.zip
 
 # 环境与仓库体检（v0.23.0）：git/代理可达性/中央仓/断链/漂移/settings 锁，一键诊断
 askill doctor [--json]
+askill doctor --fix                  # 只读修复计划（dry-run，不改任何文件）
+askill doctor --fix --apply          # 只执行 sync / sync --gc 两类自动修复
 
 # 产品定向同步（v0.24.0）：只同步指定产品（short 名来自 askill products）
 askill sync [skill] --only autoclaw2 kimi
@@ -225,6 +249,9 @@ askill sync --gc
 
 # 列出所有支持的产品
 askill products
+
+# 导出全平台可移植路径声明（JSON，供上游 agents.md 贡献；不含本机绝对路径）
+askill products --json --paths
 ```
 
 **退出码契约（v0.16.0 起）**：`0` 成功（含 dry-run、空结果）· `1` 操作失败（install/verify/publish 等没能完成任务）· `2` 用法错误——脚本可以用退出码判断成败，配合 `--json` 获得完整机器可读输出。
@@ -262,14 +289,14 @@ agent-skill-manager/
 │   ├── __init__.py / __main__.py
 │   ├── config/products.py      # 15 个产品定义（路径/sync方式/settings/共享目录/
 │   │                           # 产品级 frontmatter 要求，全部声明式）
-│   ├── controllers/cli.py      # CLI 命令（17 commands）
+│   ├── controllers/cli.py      # CLI 命令（21 commands）
 │   ├── models/                 # TypedDict 数据模型
 │   ├── services/               # 业务逻辑（sync / audit / watch / sources
 │   │                           #             / registry / spec / welcome（首跑引导））
 │   └── utils/                  # filesystem.py（跨平台文件操作）
 │                               # watcher.py（原生文件事件：inotify/kqueue/ReadDirectoryChangesW）
 ├── .github/ISSUE_TEMPLATE/     # 新产品支持请求模板（用户填报 → 一周内适配）
-└── tests/                      # 309 个测试
+└── tests/                      # 362 个测试（25 个文件，下方为节选）
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py

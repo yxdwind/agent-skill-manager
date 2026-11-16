@@ -1,15 +1,15 @@
 """Team manifest sync: export the central skill list, align another machine.
 
 ``askill bundle`` writes ``askill-manifest.json``: every central-repo skill
-with its name plus - when sources tracking has it - the origin needed to
-reinstall.  ``askill install --manifest PATH`` aligns the local central
-repo to that list: missing skills are installed from their recorded
-origin, present ones are reported, skills without a usable source are
-listed for manual handling.
+with its name, an explicit ``origin`` (``git`` for tracked sources, ``local``
+for hand-authored skills) and - when available - the origin needed to
+reinstall. ``askill install --manifest PATH`` aligns the local central repo
+to that list: missing skills are installed from their recorded origin, present
+ones are reported, local skills are listed for manual handling.
 
-The manifest is deliberately human-readable JSON so it can be committed
-to a team repository and reviewed like code.  Zero network on bundle;
-install touches the network only for git-sourced skills that are missing.
+The manifest is deliberately human-readable JSON so it can be committed to a
+team repository and reviewed like code. Zero network on bundle; install
+touches the network only for git-sourced skills that are missing.
 """
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ def bundle_manifest(
     output: Path | None = None,
     central: Path | None = None,
     verbose: bool = True,
+    external_only: bool = False,
 ) -> Path:
     """Write the manifest for the central repository.
 
@@ -38,6 +39,8 @@ def bundle_manifest(
         output: where to write (default: ``<central-parent>/askill-manifest.json``).
         central: override the central repository (tests).
         verbose: print a one-line summary.
+        external_only: skip locally authored skills (``origin: local``), so a
+            teammate's manifest contains only reproducible remote installs.
 
     Returns:
         Path of the written manifest.
@@ -55,7 +58,10 @@ def bundle_manifest(
                 "sub_path": info.get("sub_path") or "",
                 "branch": info.get("branch"),
             }
-        skills.append({"name": d.name, "source": source})
+        origin = "git" if source else "local"
+        if external_only and origin == "local":
+            continue
+        skills.append({"name": d.name, "origin": origin, "source": source})
 
     manifest = {
         "version": MANIFEST_VERSION,
@@ -69,9 +75,13 @@ def bundle_manifest(
         encoding="utf-8",
     )
     if verbose:
-        tracked = sum(1 for s in skills if s["source"])
+        tracked = sum(1 for s in skills if s["origin"] == "git")
         print(f"Manifest written: {out}")
-        print(f"  {len(skills)} skill(s), {tracked} with reinstall source")
+        print(
+            f"  {len(skills)} skill(s), {tracked} with reinstall source, "
+            f"{len(skills) - tracked} locally authored"
+            + (" (filtered out by --external-only)" if external_only else "")
+        )
     return out
 
 
@@ -83,8 +93,9 @@ def install_manifest(
     """Align the local central repository to a manifest.
 
     Missing skills are installed from their recorded git origin (network
-    only for those); present skills are reported; skills without a usable
-    source are returned in ``manual`` for the human to place by hand.
+    only for those); present skills are reported; local skills without a
+    reusable source are returned in ``manual`` with an explicit reason and
+    are **never** fetched from the network.
 
     Returns:
         ``{"ok", "error", "installed", "present", "failed", "manual"}``.
@@ -125,9 +136,16 @@ def install_manifest(
             continue
         source = entry.get("source") or {}
         if source.get("kind") != "git" or not source.get("repo_url"):
-            report["manual"].append((name, "no reinstall source recorded"))
+            origin = entry.get("origin") or ("local" if not source else "unknown")
+            why = (
+                "locally authored skill - copy it from the team repo manually "
+                "(no remote source, network not attempted)"
+                if origin == "local" else
+                "no reinstall source recorded - install manually"
+            )
+            report["manual"].append((name, why))
             if verbose:
-                print(f"  {name}: no source recorded - install manually")
+                print(f"  {name}: {why}")
             continue
         url = source["repo_url"]
         if source.get("sub_path"):

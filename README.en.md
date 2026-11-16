@@ -10,9 +10,9 @@
 >
 > ⚠️ **Do not `pip install askill`** — the `askill` package on PyPI is an unrelated project. Install with `pip install cn-skill-sync`; the command it provides is called `askill`.
 
-[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-309%20passed-22c55e)](tests/)
+[![CI](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/yxdwind/agent-skill-manager/actions/workflows/ci.yml) [![Tests](https://img.shields.io/badge/Tests-362%20passed-22c55e)](tests/)
 [![skills.sh](https://skills.sh/b/yxdwind/agent-skill-manager)](https://skills.sh/yxdwind/agent-skill-manager)
-[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-0078D4?logo=linux&logoColor=white)](https://github.com/yxdwind/agent-skill-manager)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Products](https://img.shields.io/badge/Products-15%20supported-8b5cf6)](#supported-products)
@@ -86,7 +86,7 @@ Another CLI on PyPI named `agent-skill-manager` (command `sm`) targets internati
 
 | Dimension | askill (cn-skill-sync) |
 |-----------|------------------------|
-| Product coverage | 15 domestic Chinese agents (cohort: `askill products`): Tencent CodeBuddy / WorkBuddy, Baidu Comate / DuMate, Alibaba QwenWork / Qoder CN, ByteDance DoubaoWork / Trae (CN variants), MiniMax, Kimi, Zhipu AutoClaw2, ZCode |
+| Product coverage | 15 domestic Chinese agents (cohort: `askill products`): Tencent CodeBuddy / WorkBuddy, Baidu Comate / DuMate, Alibaba QwenWork / Qoder CN, ByteDance DoubaoWork / Trae (CN variants), MiniMax, Kimi, Zhipu AutoClaw2, ZCode |
 | Sync model | One central repository `~/.agents/skills/` as the single source of truth; product directories hold junctions / symlinks to it — one copy on disk, edit once and every product sees it |
 | Live sync | `askill watch` idles on native OS file events and periodically reconciles, re-creating product-side links that went missing (v0.19.0) |
 | Network | Offline-first: install, sync and audit all run locally; only fetching a new skill from GitHub touches the network |
@@ -99,6 +99,16 @@ Full competitive teardown (8 peer projects, mechanisms borrowed and declined) li
 In one sentence: the other tool's main scenario is **discovering, downloading and deploying skills from GitHub**; askill's main scenario is **maintaining one local central repo and keeping 15 domestic products in sync live** — installing from GitHub is just one entry point.
 
 ## Install
+
+**Naming** (PyPI package ≠ repo name ≠ command name, plus a name collision on PyPI):
+
+| Concept | Value | Note |
+|---------|-------|------|
+| GitHub repo | `yxdwind/agent-skill-manager` | source |
+| PyPI package | `cn-skill-sync` | `pip install cn-skill-sync` |
+| Python package | `agent_skill_manager` | maps to `src/`, used for imports |
+| CLI command | `askill` | available after install; **an unrelated package named `askill` also exists on PyPI** |
+| Same-name PyPI package | `agent-skill-manager` (`sm`) | a different, dormant international project |
 
 ```bash
 # Install from PyPI (recommended)
@@ -114,11 +124,18 @@ python -m pip install -e . --no-build-isolation
 
 After installation, the `askill` command is available globally.
 
-You can also install the skill definition through the `npx skills` ecosystem:
+You can also install ready-to-use skills from the official skills repo through
+the `npx skills` ecosystem:
 
 ```bash
-npx skills add yxdwind/agent-skill-manager
+npx skills add yxdwind/skills@skill-doctor
+npx skills add yxdwind/skills@sync-troubleshoot
 ```
+
+> The root `SKILL.md` of `yxdwind/agent-skill-manager` is a **meta skill** that
+> tells an agent this tool exists — it is not a day-to-day capability. For
+> agent-driven skill management, install [`askill-ops`](https://github.com/yxdwind/skills):
+> `askill install yxdwind/skills@askill-ops`.
 
 ## Usage
 
@@ -200,10 +217,17 @@ askill drift [product]
 # Team / multi-machine manifest sync (v0.21.0): export the local list as a
 # commit-ready JSON; teammates align with one command
 askill bundle
+askill bundle --external-only         # only reproducible remote sources
 askill install --manifest askill-manifest.json
 
 # Attention-budget audit (v0.21.0): context cost of every skill description
 askill audit --residency
+askill audit --overlap                # deterministic lexical overlap ranking
+
+# CI gates: GitHub Actions annotations + grade-based failure
+askill verify --format github
+askill audit --format github --fail-on D,F
+# Ready-to-copy workflow: docs/examples/skill-gate.yml
 
 # Try before you install (v0.22.0): print SKILL.md to stdout, borrow the full
 # folder to a temp path, or list what a repo offers; local dirs supported
@@ -216,6 +240,8 @@ askill install path/to/skill.zip
 # Environment & repo health check (v0.23.0): git, proxy reachability, central
 # repo, broken links, drift, settings locks - one command, --json for reports
 askill doctor [--json]
+askill doctor --fix                  # read-only repair plan (dry-run)
+askill doctor --fix --apply          # execute only sync / sync --gc repairs
 
 # Per-product targeting (v0.24.0): sync only the named products (shorts
 # from `askill products`)
@@ -232,6 +258,10 @@ askill sync --gc
 
 # List all supported products
 askill products
+
+# Export the full cross-platform declaration as JSON (portable paths,
+# no absolute home dirs) for upstream agents.md contributions
+askill products --json --paths
 ```
 
 **Exit codes (since v0.16.0)**: `0` success (incl. dry runs / empty results) - `1` operational failure (install/verify/publish could not do its job) - `2` usage error. Scripts can rely on exit codes, paired with `--json` for fully machine-readable output.
@@ -270,14 +300,14 @@ agent-skill-manager/
 │   ├── __init__.py / __main__.py
 │   ├── config/products.py      # 15 product definitions (paths / sync method /
 │   │                           # settings / shared dirs / frontmatter needs, declarative)
-│   ├── controllers/cli.py      # CLI commands (17 commands)
+│   ├── controllers/cli.py      # CLI commands (21 commands)
 │   ├── models/                 # TypedDict data shapes
 │   ├── services/               # business logic (sync / audit / watch / sources
 │   │                           #             / registry / spec / welcome (first-run))
 │   └── utils/                  # filesystem.py (cross-platform file ops)
 │                               # watcher.py (native fs events: inotify/kqueue/ReadDirectoryChangesW)
 ├── .github/ISSUE_TEMPLATE/     # new-product support request (user files it, supported within a week)
-└── tests/                      # 309 tests
+└── tests/                      # 362 tests (25 files, excerpt below)
     ├── test_products.py
     ├── test_utils.py
     ├── test_core.py

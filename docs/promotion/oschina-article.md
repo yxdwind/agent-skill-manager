@@ -42,7 +42,7 @@ skill 本质是"给 AI 的提示词 + 可执行脚本"，跨工具复用放大�
 
 ### 工程实践
 
-- GitHub Actions 三平台矩阵（ubuntu/windows/macOS × Python 3.10/3.13），309 个测试
+- GitHub Actions 三平台矩阵（ubuntu/windows/macOS × Python 3.10/3.13），362 个测试
 - PyPI：`pip install cn-skill-sync`
 - 与智谱 GLM-5.2 结对开发：AI 负责实现与测试用例生成，人负责需求收敛、跨文档一致性（架构图/README/代码三方同步是 AI 最容易漏的）与验收
 

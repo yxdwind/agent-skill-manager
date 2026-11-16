@@ -29,7 +29,7 @@ pip install cn-skill-sync        # PyPI 已上线（包名是 cn-skill-sync，�
 git clone https://github.com/yxdwind/agent-skill-manager && cd agent-skill-manager && pip install -e .
 ```
 
-项目与智谱 GLM-5.2 结对开发，GitHub Actions 三平台 CI，309 个测试，MIT 开源。
+项目与智谱 GLM-5.2 结对开发，GitHub Actions 三平台 CI，362 个测试，MIT 开源。
 
 仓库：**https://github.com/yxdwind/agent-skill-manager**
 

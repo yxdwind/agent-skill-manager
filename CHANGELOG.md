@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## Unreleased
+
+### Feat
+
+- **cli,services**: `askill products --json --paths` exports the full cross-platform declaration with portable `~/` paths and derived `shared_with`; `scripts/export_agents_md.py` renders an upstream-ready agents.md fragment plus an optional coverage-gap report
+- **scripts,ci**: read-only upstream path drift check (`scripts/check_upstream_paths.py`) with a weekly scheduled report; network failures are reported as `unknown` and never fail the job or masquerade as "no drift"
+- **cli,services**: `askill doctor --fix` prints a read-only repair plan (dry-run) and `--apply` executes only `sync` / `sync --gc`; `docs/reliability-model.md` documents the five-stage consistency chain
+- **cli,services**: `verify --format github` / `audit --format github --fail-on D,F` emit CI annotations with grade-gated exit codes; `audit --overlap` ranks description duplicates deterministically (word tokens + CJK bigrams, no LLM); `bundle --external-only` and manifest `origin` tags keep locally authored skills out of remote reinstalls; example workflow at `docs/examples/skill-gate.yml`
+- **tests,docs**: packaging whitelist ↔ on-disk subpackage consistency lock (prevents the v0.20.0 missing-subpackage wheel), real Windows `mklink /J` junction regression, and `docs/metrics.md` monthly observable baseline with no built-in telemetry
+- **refactor**: split the argparse command tree into `controllers/parsers/` (distribution / authoring / operations); `_build_parser()` stays as the stable entry point, registration order and every flag unchanged; wheel smoke test verifies 21 commands in a clean venv
+
+### Docs
+
+- **consistency**: align Python floor / test count / command count with v0.25.0 (`3.10+`, 362 passed, 21 commands); sync `package.json` version; add release number-discipline checklist to `CONTRIBUTING.md`
+- **competitive-research**: 2026-11-15 revision note — `npx skills` and `dsh-skills-manager` now cover several domestic product paths, so the "no one covers the domestic matrix" claim no longer holds
+- **naming**: document the repo / PyPI package / CLI command split and the unrelated PyPI `askill` package
+
 ## v0.20.1 (2026-11-03)
 
 ### Fix

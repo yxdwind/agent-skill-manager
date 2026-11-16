@@ -15,6 +15,13 @@
 | `templates/new-product-adapted.md` | 新产品适配官宣模板（每次新增产品支持后使用） |
 | `skills-repo/` | [yxdwind/skills](https://github.com/yxdwind/skills) 发布仓库的源文件（README / LICENSE） |
 | `skills-staging/` | `skill-doctor`、`sync-troubleshoot` 两个已发布技能的 SKILL.md 源副本 |
+| `06-competitive-teardown-juejin.md` | 第 3 篇：7 家竞品机制拆解（掘金长文） |
+| `07-competitive-shard-jike.md` | 第 3 篇即刻碎片 |
+| `08-residency-juejin.md` / `09-residency-shard-jike.md` | 注意力预算专题长文 + 碎片 |
+| `release-notes-github.md` | v0.20.1–v0.25.0 GitHub Release Notes |
+
+> **时效性（2026-11-15）**：`06` / `07` 原稿中「没有任何一家覆盖国产目录矩阵」的结论已被证伪，两处均已加修订注；
+> 对外复用前请先看文首更正块与 `docs/market-analysis-2026-11-15.md` §4。其余稿件的星数、测试数均为发布时快照。
 
 ## 使用说明
 
