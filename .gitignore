@@ -43,4 +43,5 @@ htmlcov/
 
 # Tools / scratch state
 docs/.vitepress/
-.coverage.*.zwork/
+.coverage.*
+.zwork/
