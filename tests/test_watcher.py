@@ -40,7 +40,7 @@ class TestPolling:
     def test_wait_ticks_and_returns_true(self):
         w = PollingWatcher(interval=0.05)
         t0 = time.monotonic()
-        assert w.wait(5.0) is True
+        assert w.wait(_EVENT_TIMEOUT) is True
         assert time.monotonic() - t0 >= 0.04
         w.close()
 
@@ -51,6 +51,9 @@ class TestPolling:
 
 
 # ---------------------------------------------------------------- native
+
+_EVENT_TIMEOUT = 15.0  # wait() returns as soon as the event lands; the ceiling only matters under full-suite load (5s flaked on busy runners)
+
 
 def _skip_if_poll(w):
     if w.describe() == "poll":
@@ -80,7 +83,7 @@ class TestNativeWatch:
             (central / "a.txt").write_text("x", encoding="utf-8")
 
         threading.Thread(target=touch, daemon=True).start()
-        assert w.wait(5.0) is True
+        assert w.wait(_EVENT_TIMEOUT) is True
         w.close()
 
     def test_file_delete_detected(self, central):
@@ -92,7 +95,7 @@ class TestNativeWatch:
         assert w.wait(2.0) is True          # create event
         time.sleep(0.5)
         f.unlink()
-        assert w.wait(5.0) is True          # delete event
+        assert w.wait(_EVENT_TIMEOUT) is True          # delete event
         w.close()
 
     def test_new_subtree_change_detected(self, central):
@@ -106,10 +109,10 @@ class TestNativeWatch:
         _skip_if_poll(w)
         sub = central / "new-skill"
         sub.mkdir()
-        assert w.wait(5.0) is True          # mkdir event; sub gets registered
+        assert w.wait(_EVENT_TIMEOUT) is True          # mkdir event; sub gets registered
         time.sleep(0.2)
         (sub / "SKILL.md").write_text("hello", encoding="utf-8")
-        assert w.wait(5.0) is True          # visible only via the subtree watch
+        assert w.wait(_EVENT_TIMEOUT) is True          # visible only via the subtree watch
         w.close()
 
     def test_root_recreate_detected(self, central):
@@ -117,12 +120,12 @@ class TestNativeWatch:
         w = create_watcher(central)
         _skip_if_poll(w)
         shutil.rmtree(central)
-        assert w.wait(5.0) is True          # deletion surfaced
+        assert w.wait(_EVENT_TIMEOUT) is True          # deletion surfaced
         time.sleep(0.2)
         central.mkdir()
-        assert w.wait(5.0) is True          # recreation re-arms the backend
+        assert w.wait(_EVENT_TIMEOUT) is True          # recreation re-arms the backend
         (central / "back.txt").write_text("x", encoding="utf-8")
-        assert w.wait(5.0) is True          # events work after recovery
+        assert w.wait(_EVENT_TIMEOUT) is True          # events work after recovery
         w.close()
 
     def test_close_is_idempotent(self, central):
