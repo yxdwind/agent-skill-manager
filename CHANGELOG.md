@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.26.2 (2026-11-28)
+
+### Fix
+
+- **watch**: rewrite the Windows backend as OVERLAPPED ReadDirectoryChangesW - events were lost in the startup window and inside the debounce absorb (stress loop: 11/60 lost -> 0/60)
+
 ## v0.26.1 (2026-11-28)
 
 ### Fix
