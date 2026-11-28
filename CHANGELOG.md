@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > name `agent_skill_manager` is kept for the python package to avoid
 > confusion with skill-creator projects). ``pip install cn-skill-sync``.
 
+## v0.26.1 (2026-11-28)
+
+### Fix
+
+- **status**: grouped vertical layout when the product table can not fit
+
 ## v0.26.0 (2026-11-16)
 
 ### Feat
