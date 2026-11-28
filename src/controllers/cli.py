@@ -165,15 +165,57 @@ def _print_list(*, quiet=False, json_mode=False):
     print()
 
 
+def _print_status_grouped(sn, by_skill, product_shorts, term_w, central):
+    """Render one skill as a grouped block (v0.25.1, replaces the 6-char
+    squeezed table when 15 products can not fit the terminal).
+
+    Products are grouped by status with full (untruncated) short names,
+    wrapped to the terminal width.  ``ok`` hides the per-product method
+    (junction/link/native) - that detail lives in ``--json`` and in the
+    wide-table mode; the value here is who has the skill and who does not.
+    """
+    import textwrap
+
+    verdict_icon = {"safe": "OK", "caution": "CAUTION", "risky": "RISKY", "dangerous": "DANGEROUS"}
+    print(f"\n{sn}")
+    groups: dict[str, list[str]] = {}
+    for ps in product_shorts:
+        if ps in by_skill[sn]:
+            status, _method = by_skill[sn][ps]
+        else:
+            status = "missing"
+        groups.setdefault(status, []).append(ps)
+    order = ["ok", "manual", "n/a", "conflict", "missing"]
+    for status in order + [s for s in groups if s not in order]:
+        names = groups.get(status)
+        if not names:
+            continue
+        label = f"  {status} ({len(names)})".ljust(14)
+        print(textwrap.fill(
+            ", ".join(names),
+            width=max(term_w, 60),
+            initial_indent=label,
+            subsequent_indent=" " * 14,
+        ))
+    skill_dir = Path(central) / sn
+    if skill_dir.exists():
+        report = analyze_skill_dir(skill_dir)
+        print(f"  {'score'.ljust(14)}{report['score']}/{report['grade']} {verdict_icon[report['verdict']]}")
+
+
 def _print_status(skill_name=None, *, quiet=False, json_mode=False):
     """Print installation status of skills across all products.
 
     Column widths adapt to fit the terminal:
     - skill name column: longest name in current results (cap 30, floor 10)
-    - product cell:      12 chars; shrinks to 6 (truncated with ellipsis) when
-                         the full table would overflow the terminal
+    - product cell:      12 chars
     - score column:      dropped first when the table gets too wide; the audit
                          verdict is the least actionable info once packed in
+    - when even the score-less table can not fit (15 products on an 80-col
+      terminal), the whole matrix switches to a grouped vertical layout:
+      one block per skill, products listed by status with full short names
+      (v0.25.1 - replaces the old 6-char truncated columns that squeezed
+      'ok junction' into 'ok li…').
 
     Args:
         quiet: suppress non-essential output (banner, score column for
@@ -218,13 +260,13 @@ def _print_status(skill_name=None, *, quiet=False, json_mode=False):
     term_w = shutil.get_terminal_size((120, 20)).columns
     total = skill_w + (cell_w + 1) * n_prod + (score_w + 1)
     show_score = True
-    abbrev_note = ""
     if total > term_w:
         show_score = False
         total -= score_w + 1
-    if total > term_w:
-        cell_w = 6   # 5-char short + "…" prefix
-        abbrev_note = "  (product names abbreviated to 6 chars)"
+    # v0.25.1: when even the score-less table can not fit, switch to the
+    # grouped vertical layout instead of truncating every product cell to
+    # 6 chars ('ok junction' became unreadable 'ok li…').
+    grouped = total > term_w and not json_mode
 
     def _cell(label: str, n: int) -> str:
         """Format one cell as ' ' + label left-justified to n body chars
@@ -240,11 +282,14 @@ def _print_status(skill_name=None, *, quiet=False, json_mode=False):
         header += _cell("score", score_w)
     # quiet strips decoration (banner/header/footer) but keeps the data rows;
     # an orphan header with zero rows is worse than either.
-    if not json_mode and not quiet:
-        print(f"\n{header}{abbrev_note}")
-        print("-" * (len(header) + len(abbrev_note)))
+    if not json_mode and not quiet and not grouped:
+        print(f"\n{header}")
+        print("-" * len(header))
 
     for sn in order:
+        if grouped:
+            _print_status_grouped(sn, by_skill, product_shorts, term_w, CENTRAL_DIR)
+            continue
         row = f"{sn[:skill_w]:<{skill_w}}"
         for ps in product_shorts:
             if ps in by_skill[sn]:

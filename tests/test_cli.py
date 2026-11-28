@@ -183,16 +183,18 @@ class TestStatusTableLayout:
             f"products should NOT be abbreviated on 210-col terminal:\n{out}"
         )
 
-    def test_abbreviates_product_names_when_very_narrow(self, tmp_path, capsys, monkeypatch):
-        """When even dropping the score isn't enough, product names shrink to
-        5 chars + ellipsis and an "abbreviated" note appears in the header."""
+    def test_grouped_layout_when_very_narrow(self, tmp_path, capsys, monkeypatch):
+        """When even dropping the score isn't enough (15 products on a
+        100-col terminal), the table is replaced by the grouped vertical
+        layout: full product names, grouped by status - the old 6-char
+        truncation rendered 'ok junction' as unreadable 'ok li…'."""
         from agent_skill_manager.config.products import PRODUCTS
         from agent_skill_manager.controllers import cli
         central = tmp_path / "central"
         _make_skill(central, "s")
-        # term_w=100 with n=15 forces both drop AND abbreviate:
+        # term_w=100 with n=15 forces drop AND grouped:
         #   full = 10 + 13*15 + 14 = 219  > 100  -> drop
-        #   after drop = 10 + 13*15 = 205    > 100  -> abbrev (cell_w=6)
+        #   after drop = 10 + 13*15 = 205    > 100  -> grouped
         with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
              patch("agent_skill_manager.controllers.cli.CENTRAL_DIR", central), \
              patch("agent_skill_manager.services.sync.PRODUCTS", PRODUCTS), \
@@ -201,15 +203,66 @@ class TestStatusTableLayout:
                                 lambda *a, **k: __import__("os").terminal_size((100, 20)))
             cli._print_status("s")
         out = capsys.readouterr().out
-        assert "abbreviated" in out, (
-            f"products must be abbreviated on 100-col terminal:\n{out}"
-        )
-        # "autoclaw2" (9 chars) and "doubaowork" (10 chars) must NOT appear
-        # in full - they should be truncated to 5 chars + ellipsis.
-        assert "autoclaw2" not in out, (
-            f"'autoclaw2' should be truncated in the table:\n{out}"
-        )
-        assert "doubaowork" not in out
+        # grouped mode: no truncated table header, full short names present
+        assert "abbreviated" not in out
+        assert "autoclaw2" in out, f"full short name must appear in grouped mode:\n{out}"
+        assert "doubaowork" in out
+        assert "ok (" in out, f"status groups with counts expected:\n{out}"
+        assert "missing (" in out, "products without the skill land in the missing group"
+        assert "score" in out, "score line preserved per skill block"
+
+    def test_grouped_layout_mixed_status_groups(self, tmp_path, capsys, monkeypatch):
+        """Grouped layout sorts products by status: ok / manual / missing,
+        with the missing group derived from products absent in the results."""
+        from agent_skill_manager.config.products import PRODUCTS
+        from agent_skill_manager.controllers import cli
+        central = tmp_path / "central"
+        _make_skill(central, "s")
+        shorts = [p["short"] for p in PRODUCTS]
+        fake = [
+            {"skill_name": "s", "product_short": shorts[0], "status": "ok", "method": "junction"},
+            {"skill_name": "s", "product_short": shorts[1], "status": "manual", "method": "zip"},
+            {"skill_name": "s", "product_short": shorts[2], "status": "n/a", "method": "native"},
+            # remaining products absent -> missing group
+        ]
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.controllers.cli.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", PRODUCTS), \
+             patch("agent_skill_manager.controllers.cli.PRODUCTS", PRODUCTS), \
+             patch("agent_skill_manager.controllers.cli.get_status", return_value=fake):
+            monkeypatch.setattr(cli.shutil, "get_terminal_size",
+                                lambda *a, **k: __import__("os").terminal_size((100, 20)))
+            cli._print_status("s")
+        out = capsys.readouterr().out
+        assert f"ok (1)" in out and shorts[0] in out
+        assert f"manual (1)" in out and shorts[1] in out
+        assert f"n/a (1)" in out and shorts[2] in out
+        assert f"missing ({len(shorts) - 3})" in out
+        assert "s\n" in out, "skill name printed as its own block header"
+
+    def test_table_layout_still_used_on_wide_terminals(self, tmp_path, capsys, monkeypatch):
+        """A wide terminal with few products keeps the classic matrix table
+        (header line starting with 'Skill', full 'ok junction' cells)."""
+        from agent_skill_manager.controllers import cli
+        central = tmp_path / "central"
+        _make_skill(central, "s")
+        fake = [
+            {"skill_name": "s", "product_short": "alpha", "status": "ok", "method": "junction"},
+        ]
+        prods = [{"name": "Alpha", "short": "alpha", "sync_method": "symlink",
+                  "windows_path": "X:/a", "macos_path": "X:/a", "linux_path": "X:/a"}]
+        with patch("agent_skill_manager.services.sync.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.controllers.cli.CENTRAL_DIR", central), \
+             patch("agent_skill_manager.services.sync.PRODUCTS", prods), \
+             patch("agent_skill_manager.controllers.cli.PRODUCTS", prods), \
+             patch("agent_skill_manager.controllers.cli.get_status", return_value=fake):
+            monkeypatch.setattr(cli.shutil, "get_terminal_size",
+                                lambda *a, **k: __import__("os").terminal_size((120, 20)))
+            cli._print_status("s")
+        out = capsys.readouterr().out
+        header_line = next((ln for ln in out.splitlines() if ln.startswith("Skill")), None)
+        assert header_line, f"table header expected on wide terminal:\n{out}"
+        assert "ok junction" in out
 
 
 def test_search_install_flag(tmp_path, capsys):
