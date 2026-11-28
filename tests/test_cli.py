@@ -234,9 +234,9 @@ class TestStatusTableLayout:
                                 lambda *a, **k: __import__("os").terminal_size((100, 20)))
             cli._print_status("s")
         out = capsys.readouterr().out
-        assert f"ok (1)" in out and shorts[0] in out
-        assert f"manual (1)" in out and shorts[1] in out
-        assert f"n/a (1)" in out and shorts[2] in out
+        assert "ok (1)" in out and shorts[0] in out
+        assert "manual (1)" in out and shorts[1] in out
+        assert "n/a (1)" in out and shorts[2] in out
         assert f"missing ({len(shorts) - 3})" in out
         assert "s\n" in out, "skill name printed as its own block header"
 
