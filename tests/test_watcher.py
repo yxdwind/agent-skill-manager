@@ -22,7 +22,8 @@ class TestFactory:
     def test_backend_has_shared_interface(self, tmp_path):
         w = create_watcher(tmp_path)
         assert w.describe() in {
-            "inotify", "kqueue", "ReadDirectoryChangesW", "poll",
+            "inotify", "kqueue", "ReadDirectoryChangesW",
+            "FindFirstChangeNotification", "poll",
         }
         w.close()
 

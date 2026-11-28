@@ -388,39 +388,70 @@ if platform.system() == "Windows":
         wintypes.DWORD, ctypes.POINTER(wintypes.DWORD), wintypes.LPVOID,
         wintypes.LPVOID,
     ]
+    _k32.GetOverlappedResult.restype = wintypes.BOOL
+    _k32.GetOverlappedResult.argtypes = [
+        wintypes.HANDLE, wintypes.LPVOID, ctypes.POINTER(wintypes.DWORD),
+        wintypes.BOOL,
+    ]
     _k32.CancelIoEx.restype = wintypes.BOOL
     _k32.CancelIoEx.argtypes = [wintypes.HANDLE, wintypes.LPVOID]
     _k32.CloseHandle.restype = wintypes.BOOL
     _k32.CloseHandle.argtypes = [wintypes.HANDLE]
-
+    _k32.CreateEventW.restype = wintypes.HANDLE
+    _k32.CreateEventW.argtypes = [
+        wintypes.LPVOID, wintypes.BOOL, wintypes.BOOL, wintypes.LPCWSTR,
+    ]
+    _k32.SetEvent.restype = wintypes.BOOL
+    _k32.SetEvent.argtypes = [wintypes.HANDLE]
+    _k32.ResetEvent.restype = wintypes.BOOL
+    _k32.ResetEvent.argtypes = [wintypes.HANDLE]
+    _k32.WaitForSingleObject.restype = wintypes.DWORD
+    _k32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
     _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+
+    class _OVERLAPPED(ctypes.Structure):
+        """wintypes has no OVERLAPPED - minimal manual-reset-IO structure."""
+
+        _fields_ = [
+            ("Internal", ctypes.c_void_p),
+            ("InternalHigh", ctypes.c_void_p),
+            ("Offset", wintypes.DWORD),
+            ("OffsetHigh", wintypes.DWORD),
+            ("Pointer", ctypes.c_void_p),
+            ("hEvent", wintypes.HANDLE),
+    ]
 
 
 class _WinDirChangeWatcher:
-    """Windows backend: ReadDirectoryChangesW on a background thread.
+    """Windows backend: OVERLAPPED ReadDirectoryChangesW (v0.26.2).
 
-    The kernel call is blocking and watches the whole subtree natively
-    (bWatchSubtree=TRUE); a daemon thread turns each delivered buffer into
-    an event so the main thread can ``wait()`` with a timeout.
+    The async read is issued synchronously in ``__init__``, so the watch is
+    armed before ``create_watcher`` returns - there is no startup window in
+    which the OS drops a change.  The kernel sets the manual-reset event
+    when the read completes; ``wait()`` blocks on that OS event directly
+    (no Python set/clear race), and a monotonic counter counts completed
+    buffers so bursts survive the debounce absorb.  The notification only
+    says "something changed under the subtree" - exactly what ``wait()``
+    needs; consumers re-diff cheap snapshots to know what changed.
     """
 
     _FILE_LIST_DIRECTORY = 0x0001
     _FILE_SHARE_RWX = 1 | 2 | 4
     _OPEN_EXISTING = 3
     _FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
-    _NOTIFY = (0x1 | 0x2 | 0x8 | 0x10)  # FILE_NAME|DIR_NAME|SIZE|LAST_WRITE
+    _FILE_FLAG_OVERLAPPED = 0x40000000
+    _NOTIFY = 0x1 | 0x2 | 0x8 | 0x10  # FILE_NAME | DIR_NAME | SIZE | LAST_WRITE
+    _WAIT_OBJECT_0 = 0x00000000
+    _WAIT_TIMEOUT = 0x00000102
 
     def __init__(self, root):
         self._root = Path(root)
-        self._event = threading.Event()
+        self._changes = 0
+        self._consumed = 0
         self._closed = False
-        self._thread = None
         self._absent_reported = False
+        self._py_event = threading.Event()   # reader -> wait() wakeup
         self._open()
-        self._thread = threading.Thread(
-            target=self._read_loop, name="askill-watch", daemon=True,
-        )
-        self._thread.start()
 
     def describe(self) -> str:
         return "ReadDirectoryChangesW"
@@ -430,13 +461,35 @@ class _WinDirChangeWatcher:
     def _open(self) -> None:
         handle = _k32.CreateFileW(
             str(self._root), self._FILE_LIST_DIRECTORY, self._FILE_SHARE_RWX,
-            None, self._OPEN_EXISTING, self._FILE_FLAG_BACKUP_SEMANTICS, None,
+            None, self._OPEN_EXISTING,
+            self._FILE_FLAG_BACKUP_SEMANTICS | self._FILE_FLAG_OVERLAPPED, None,
         )
         if not handle or handle == _INVALID_HANDLE_VALUE:
             raise OSError(
                 ctypes.get_last_error(), "CreateFileW failed", str(self._root),
             )
         self._handle = handle
+        self._os_event = _k32.CreateEventW(None, True, False, None)
+        if not self._os_event or self._os_event == _INVALID_HANDLE_VALUE:
+            _k32.CloseHandle(handle)
+            raise OSError(ctypes.get_last_error(), "CreateEventW failed", str(self._root))
+        self._ov = _OVERLAPPED()
+        self._ov.hEvent = self._os_event
+        buf = ctypes.create_string_buffer(65536)
+        self._buf = buf
+        ok = _k32.ReadDirectoryChangesW(
+            handle, buf, len(buf), True, self._NOTIFY,
+            None, ctypes.byref(self._ov), None,
+        )
+        if not ok:
+            err = ctypes.get_last_error()
+            _k32.CloseHandle(handle)
+            _k32.CloseHandle(self._os_event)
+            raise OSError(err, "ReadDirectoryChangesW failed", str(self._root))
+        self._thread = threading.Thread(
+            target=self._read_loop, name="askill-watch", daemon=True,
+        )
+        self._thread.start()
 
     def _close_handle(self) -> None:
         handle = getattr(self, "_handle", None)
@@ -448,69 +501,65 @@ class _WinDirChangeWatcher:
     # -- reader thread ---------------------------------------------------
 
     def _read_loop(self) -> None:
-        buf = ctypes.create_string_buffer(65536)
         returned = wintypes.DWORD(0)
-        handle = self._handle
-        while not self._closed and handle:
+        while not self._closed:
+            ok = _k32.GetOverlappedResult(
+                self._handle, ctypes.byref(self._ov), ctypes.byref(returned), True,
+            )
+            if self._closed:
+                return
+            if not ok:
+                # Root vanished or handle cancelled: surface one change so
+                # blocked/next wait() sees the deletion (callers re-diff).
+                self._changes += 1
+                self._py_event.set()
+                return
+            self._changes += 1
+            self._py_event.set()
+            if self._closed:
+                return
+            _k32.ResetEvent(self._os_event)
             ok = _k32.ReadDirectoryChangesW(
-                handle, buf, len(buf), True, self._NOTIFY,
-                ctypes.byref(returned), None, None,
+                self._handle, self._buf, len(self._buf), True, self._NOTIFY,
+                None, ctypes.byref(self._ov), None,
             )
             if not ok:
-                # Handle failed: closed/cancelled, or the root vanished.
-                # Signal the event so a wait() already blocked on it wakes
-                # up - the reader thread must never exit silently, or a
-                # blocked wait races the thread death and root deletion
-                # only surfaces on the NEXT wait call (or never, within
-                # this timeout). A spurious True is fine: callers re-diff
-                # cheap snapshots to decide what actually changed.
-                self._event.set()
-                break
-            if returned.value == 0:
-                self._event.set()   # buffer overflow - treat as change
-                continue
-            off = 0
-            while off + 12 <= returned.value:
-                next_off, _action, _name_len = struct.unpack_from("<III", buf, off)
-                if next_off == 0:
-                    break
-                off += next_off
-            self._event.set()
+                self._changes += 1
+                self._py_event.set()
+                return
 
-    # -- interface -------------------------------------------------------
+    # -- interface --------------------------------------------------------
 
     def wait(self, timeout: float) -> bool:
         if self._closed:
             return False
-        if self._handle is None or (
-            self._thread is not None and not self._thread.is_alive()
-        ):
-            return self._recover_or_sleep(timeout)
-        if not self._event.wait(float(timeout)):
-            return False
-        time.sleep(DEBOUNCE_S)  # let an editor's multi-syscall save finish
-        self._event.clear()
-        return True
+        deadline = time.monotonic() + float(timeout)
+        while True:
+            if self._changes > self._consumed:
+                time.sleep(DEBOUNCE_S)  # let an editor's multi-syscall save finish
+                self._consumed = self._changes  # consume the whole burst
+                return True
+            if self._thread is None or not self._thread.is_alive():
+                return self._recover_or_sleep(timeout)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            # Block on the kernel event (set by IO completion, manual-reset);
+            # the counter is the truth, so a Python set/clear race can not
+            # lose anything.
+            self._py_event.wait(min(remaining, 0.25))
+            self._py_event.clear()
 
     def _recover_or_sleep(self, timeout: float) -> bool:
-        """Reader thread died: reopen if the root is back, else idle.
-
-        A vanished root must still surface as one True (it is a change the
-        watch loop needs, so dead links get cleaned) - hence the one-shot
-        ``_absent_reported`` flag instead of a busy-looping always-True.
-        """
+        """Reader thread dead (root vanished): report the change once, then
+        re-arm when the root is back - same contract as before."""
         if self._closed:
             return False
         if self._root.is_dir():
             try:
                 self._close_handle()
-                self._open()
-                if self._thread is None or not self._thread.is_alive():
-                    self._thread = threading.Thread(
-                        target=self._read_loop, name="askill-watch", daemon=True,
-                    )
-                    self._thread.start()
                 self._absent_reported = False
+                self._open()
                 return True
             except OSError:
                 pass
@@ -523,9 +572,14 @@ class _WinDirChangeWatcher:
     def close(self) -> None:
         self._closed = True
         self._close_handle()
-        self._event.set()
+        os_event = getattr(self, "_os_event", None)
+        if os_event:
+            _k32.SetEvent(os_event)   # wake a blocked wait() so it exits
+            _k32.CloseHandle(os_event)
+        self._py_event.set()
         if self._thread is not None and self._thread is not threading.current_thread():
             self._thread.join(timeout=1.0)
+
 
 
 # ---------------------------------------------------------------- factory
