@@ -174,6 +174,8 @@ cli.py 内 7 处（:103/:296/:426/:474/:745/:847/:916/:986）+ services 内 8 �
 
 - **2026-11-13（深夜）**：0.25.0（清洁轮）复检。新增：`sync --gc` 死链回收（只删目标不存在且名字不在中央的链接；中央同名死链留给正常 sync 重连；真实目录永不触碰——drift/adopt 的领地）；doctor 的 scan 返回 `broken_names` 并在报告里点名，断链检查同时给出两条出路（sync 重连 / sync --gc 删残留）；`get` 支持本地目录（与仓库流相同的只读语义）。测试基建发现：`_create_junction` 对不存在的目标会回退成复制（shutil 直接炸），测试造悬空 junction 必须 `cmd /c mklink /J` 且目标须为【本地卷】上不存在的路径（Z: 这类不存在卷会报 Local volumes required）。另核实：真机 9 条 e2e-watch-probe 死链非测试产生，是 watch 功能开发期的手动探针残留——测试无罪，GC 是正确治本。门禁：ruff 全绿、mypy 33 文件全绿、pytest 362 passed；真机 GC 实跑 no-op（清理后预期）。提交：1ad8eb0 / 72ebf9c，tag v0.25.0，PyPI 0.25.0 + venv 实装（sync --gc / get 本地路径）验证通过。发布链路备忘：PyPI JSON API 先可见、/simple/ 索引滞后 1-3 分钟，venv 冒烟遇 No matching distribution 先重试再怀疑发布失败。
 
+- **2026-11-28（补充）**：0.26.1/0.26.2 复检。① 0.26.1：status 在 15 产品下挤成 6 字符列（'ok li…'）——新增第四层自适应：分数列先丢，仍放不下则整个矩阵换成分组竖排（每技能一区块，产品按状态归堆全名折行），管道/脚本环境（120 回退宽度）自动受益；--json 不变。② 0.26.2：watch Windows 后端整类重写为 OVERLAPPED ReadDirectoryChangesW——根因链：启动武装窗口（CreateFileW→reader 首次 RDCW 调用间 OS 丢事件）+ wait 返回后的 debounce 清除抹掉窗口内新事件；验证从猜到量化（60 轮 stress 脚本：旧 11 丢 → 新 0 丢）；中途 identity 检测方案被证伪（NTFS file index 同目录不稳定）后放弃；OVERLAPPED 同步发起异步 IO = 零启动窗口，内核 manual-reset event 作 wait 信号 = 零 set/clear 竞态，counter 消费语义保留。过程纪律失误两起：内联 python -c 再次被引号拟碎（bump 脚本化已成惯性）；误把 tag 推在未 bump 提交上（发现后即删重打，错误 tag 的 release run 失败一次无害）。③ 0.26.0 系另一会话推进（upstream interop/reliability tooling/LF 规范化/版本 41 文件 403+ 测试），本轮工作全部适配该基线。CI 动作升级（checkout v7/setup-python v7/codeql-action v4）经 CI+release 双链路实战。发布链路备忘：PyPI JSON 先可见、/simple/ 滞后 1-3 分钟（venv 冒烟需重试等待）。提交：a10f044/d5d2a43（0.26.1）、39c0755/91975a1（0.26.2）。
+
 ---
 
 *体检人：MOE · 证据均来自 f15636c 工作区实测 · 复检建议：下一个 minor 发版前重跑 §1 基线 + §6 台账*
